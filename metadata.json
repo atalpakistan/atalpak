@@ -1,0 +1,6 @@
+{
+  "name": "ATAL Store - Pakistan E-Commerce",
+  "description": "Modern e-commerce mobile & web application for ATAL Store with JazzCash, Easypaisa, COD, product variants, unique product URLs, and Admin Dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
