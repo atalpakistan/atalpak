@@ -1499,15 +1499,24 @@ export async function createServer() {
     res.json(storeSettings);
   });
 
-  // Vite integration
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: 'spa'
-  });
+  // Vite integration / Static production serving
+  const isProduction = process.env.NODE_ENV === 'production';
+  const distPath = path.join(__dirname, 'dist');
 
-  app.use(vite.middlewares);
+  if (isProduction && fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa'
+    });
+    app.use(vite.middlewares);
+  }
 
-  const port = 3000;
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
   app.listen(port, '0.0.0.0', () => {
     console.log(`ATAL Store server running on http://0.0.0.0:${port}`);
   });
