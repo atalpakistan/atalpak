@@ -304,7 +304,7 @@ export default function App() {
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(() => {
     try {
       const saved = localStorage.getItem('atal_customer');
-      return saved ? JSON.parse(saved) : null;
+      return (saved && saved !== 'undefined' && saved !== 'null') ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
@@ -408,7 +408,7 @@ export default function App() {
   } | null>(() => {
     try {
       const saved = localStorage.getItem('atal_staff_user');
-      return saved ? JSON.parse(saved) : null;
+      return (saved && saved !== 'undefined' && saved !== 'null') ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
