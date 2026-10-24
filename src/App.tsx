@@ -748,7 +748,8 @@ export default function App() {
     colorsString: '',
     sizesString: '',
     isFlashDeal: false,
-    isFeatured: true
+    isFeatured: true,
+    sku: ''
   });
 
   // Categories Admin Management State
@@ -969,7 +970,7 @@ export default function App() {
         variants.push({
           id: `var-${Date.now()}-${cIdx}-${sIdx}`,
           name: `${col} / ${sz}`,
-          sku: `ATAL-${Math.floor(100000 + Math.random() * 900000)}`,
+          sku: productForm.sku || `ATAL-${Math.floor(100000 + Math.random() * 900000)}`,
           price: Number(productForm.price),
           originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : undefined,
           stock: Math.round(Number(productForm.stock) / (colors.length * sizes.length)) || 10,
@@ -1672,18 +1673,7 @@ export default function App() {
                 )}
               </button>
 
-              {/* Admin Portal Header Button */}
-              <button 
-                onClick={() => { setCurrentView('admin'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className={`w-7 h-7 rounded-full flex items-center justify-center relative transition ${
-                  adminAuthUser
-                    ? 'bg-purple-600 text-white shadow-xs border border-purple-300' 
-                    : 'bg-emerald-800/80 hover:bg-emerald-700 text-[#f5d77f] border border-emerald-500/50'
-                }`}
-                title={adminAuthUser ? `Admin Portal (${adminAuthUser.name})` : "Admin & Staff Portal"}
-              >
-                <ShieldCheck className="w-4 h-4" />
-              </button>
+
             </div>
           </div>
 
@@ -1785,18 +1775,7 @@ export default function App() {
                 <span>{currentCustomer ? `Hi, ${currentCustomer.name.split(' ')[0]}` : 'Account'}</span>
               </button>
 
-              <button 
-                onClick={() => { setCurrentView('admin'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className={`text-xs font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition ${
-                  adminAuthUser
-                    ? 'bg-purple-50 border-purple-300 text-purple-900 hover:bg-purple-100'
-                    : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
-                }`}
-                title="Admin & Staff Portal"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                <span>{adminAuthUser ? `Portal (${adminAuthUser.name.split(' ')[0]})` : 'Admin Portal'}</span>
-              </button>
+
 
               <button 
                 onClick={() => setIsCartOpen(true)}
@@ -2703,18 +2682,19 @@ export default function App() {
                     <p className="text-xs text-slate-500 mt-1">Inclusive of all taxes. Shipping calculated at checkout.</p>
                   </div>
 
-                  {/* Variants Selector */}
+                  {/* Optional Variations */}
                   {selectedProduct.variants && selectedProduct.variants.length > 0 && (
                     <div className="mb-6">
-                      <label className="text-xs font-bold text-slate-700 block mb-2">Select Variant / Color / Size:</label>
-                      <div className="flex flex-wrap gap-2">
+                      <label className="text-xs font-bold text-slate-700 block mb-2 uppercase tracking-wide">Available Variations</label>
+                      <div className="space-y-2">
                         {selectedProduct.variants.map(v => (
                           <button
                             key={v.id}
                             onClick={() => setSelectedVariant(v)}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${selectedVariant?.id === v.id ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-500'}`}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition ${selectedVariant?.id === v.id ? 'bg-emerald-50 border-emerald-500 shadow-inner' : 'bg-white border-slate-200 hover:border-slate-300'}`}
                           >
-                            {v.name}
+                            <span className="text-xs font-bold text-slate-800">{v.name}</span>
+                            <span className="text-xs font-bold text-emerald-700">PKR {v.price.toLocaleString()}</span>
                           </button>
                         ))}
                       </div>
@@ -4852,7 +4832,8 @@ export default function App() {
                               colorsString: '',
                               sizesString: '',
                               isFlashDeal: false,
-                              isFeatured: true
+                              isFeatured: true,
+                              sku: ''
                             });
                             setIsProductModalOpen(true);
                           }}
@@ -5416,6 +5397,16 @@ export default function App() {
                                 ))}
                               </select>
                             </div>
+                          <div>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Custom SKU</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. ATAL-12345"
+                              value={productForm.sku}
+                              onChange={(e) => setProductForm({...productForm, sku: e.target.value})}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-xs"
+                            />
+                          </div>
                             <div>
                               <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Subcategory *</label>
                               <select 
@@ -6375,16 +6366,7 @@ export default function App() {
                         Customer Support & FAQs
                       </button>
                     </li>
-                    <li>
-                      <button 
-                        onClick={() => { setCurrentView('admin'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                        className="text-emerald-950 font-bold hover:text-emerald-700 transition flex items-center gap-1.5 bg-emerald-100/70 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-300/70 mt-1 shadow-2xs"
-                        title="Authorized Store Administration & Employee Access Only"
-                      >
-                        <Lock className="w-3.5 h-3.5 text-emerald-800" />
-                        <span>Staff & Admin Portal</span>
-                      </button>
-                    </li>
+
                   </ul>
                 </div>
               </div>
