@@ -14,6 +14,7 @@ import {
   Instagram, Facebook, Landmark
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { authService } from './services/auth';
 
 export interface CustomerAddress {
   address: string;
@@ -28,7 +29,7 @@ export interface Customer {
   email: string;
   whatsapp: string;
   password?: string;
-  createdAt: string;
+  createdAt?: string;
   defaultAddress?: CustomerAddress;
 }
 
@@ -561,66 +562,21 @@ export default function App() {
     }
 
     setIsRegistering(true);
-    try {
-      const res = await fetch('/api/customers/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: registerForm.name,
-          email: registerForm.email,
-          whatsapp: registerForm.whatsapp,
-          password: registerForm.password,
-          address: registerForm.address,
-          city: registerForm.city,
-          province: registerForm.province,
-          area: registerForm.area
-        })
-      });
-      let data: any = {};
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-      if (res.ok && data.customer) {
-        setCurrentCustomer(data.customer);
-        localStorage.setItem('atal_customer', JSON.stringify(data.customer));
-        showToast(`🎉 Welcome to ATAL, ${data.customer.name}! Account created.`);
-        setRegisterForm({
-          name: '',
-          email: '',
-          whatsapp: '',
-          password: '',
-          confirmPassword: '',
-          address: '',
-          city: 'Lahore',
-          province: 'Punjab',
-          area: ''
-        });
-        return;
-      } else if (data.error) {
-        showToast(data.error);
-        return;
-      }
-    } catch (err) {
-      // Fallback local account creation if network error
-      const newCust: Customer = {
-        id: `cust-${Date.now()}`,
-        name: registerForm.name.trim(),
-        email: registerForm.email.trim().toLowerCase(),
-        whatsapp: registerForm.whatsapp.trim(),
-        password: registerForm.password,
-        createdAt: new Date().toISOString(),
-        defaultAddress: {
-          address: registerForm.address.trim(),
-          city: registerForm.city,
-          province: registerForm.province,
-          area: registerForm.area
-        }
-      };
-      setCurrentCustomer(newCust);
-      localStorage.setItem('atal_customer', JSON.stringify(newCust));
-      showToast(`🎉 Welcome to ATAL, ${newCust.name}! Account created.`);
+    const result = await authService.registerCustomer({
+      name: registerForm.name,
+      email: registerForm.email,
+      whatsapp: registerForm.whatsapp,
+      password: registerForm.password,
+      address: registerForm.address,
+      city: registerForm.city,
+      province: registerForm.province,
+      area: registerForm.area
+    });
+
+    if (result.success && result.data) {
+      setCurrentCustomer(result.data);
+      localStorage.setItem('atal_customer', JSON.stringify(result.data));
+      showToast(result.message || `🎉 Welcome to ATAL, ${result.data.name}! Account created.`);
       setRegisterForm({
         name: '',
         email: '',
@@ -632,64 +588,27 @@ export default function App() {
         province: 'Punjab',
         area: ''
       });
-    } finally {
-      setIsRegistering(false);
+    } else {
+      showToast(result.error || 'Failed to create account.');
     }
+    setIsRegistering(false);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginForm.identifier.trim()) {
-      showToast('Please enter your email or WhatsApp number.');
-      return;
-    }
-    if (!loginForm.password) {
-      showToast('Please enter your password.');
-      return;
-    }
-
     setIsLoggingIn(true);
-    try {
-      const res = await fetch('/api/customers/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginForm)
-      });
-      let data: any = {};
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-      if (res.ok && data.customer) {
-        setCurrentCustomer(data.customer);
-        localStorage.setItem('atal_customer', JSON.stringify(data.customer));
-        showToast(`👋 Welcome back, ${data.customer.name}!`);
-        setLoginForm({ identifier: '', password: '' });
-        return;
-      } else if (data.error) {
-        showToast(data.error);
-        return;
-      }
-    } catch (err) {
-      // Fallback: check saved local customer
-      const saved = localStorage.getItem('atal_customer');
-      if (saved) {
-        try {
-          const cust = JSON.parse(saved);
-          const idInput = loginForm.identifier.trim().toLowerCase();
-          if ((cust.email?.toLowerCase() === idInput || cust.whatsapp === loginForm.identifier.trim()) && cust.password === loginForm.password) {
-            setCurrentCustomer(cust);
-            showToast(`👋 Welcome back, ${cust.name}!`);
-            setLoginForm({ identifier: '', password: '' });
-            return;
-          }
-        } catch {}
-      }
-      showToast('Error logging in. Please check your credentials and network connection.');
-    } finally {
-      setIsLoggingIn(false);
+
+    const result = await authService.loginCustomer(loginForm.identifier, loginForm.password);
+
+    if (result.success && result.data) {
+      setCurrentCustomer(result.data);
+      localStorage.setItem('atal_customer', JSON.stringify(result.data));
+      showToast(result.message || `👋 Welcome back, ${result.data.name}!`);
+      setLoginForm({ identifier: '', password: '' });
+    } else {
+      showToast(result.error || 'Invalid login credentials.');
     }
+    setIsLoggingIn(false);
   };
 
   const handleLogout = () => {
@@ -703,38 +622,30 @@ export default function App() {
     e.preventDefault();
     if (!currentCustomer) return;
     setIsSavingProfile(true);
-    try {
-      const res = await fetch(`/api/customers/${currentCustomer.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: profileForm.name,
-          email: profileForm.email,
-          whatsapp: profileForm.whatsapp,
-          defaultAddress: {
-            address: profileForm.address,
-            city: profileForm.city,
-            province: profileForm.province,
-            area: profileForm.area
-          },
-          currentPassword: profileForm.currentPassword || undefined,
-          newPassword: profileForm.newPassword || undefined
-        })
-      });
-      const data = await res.json();
-      if (res.ok && data.customer) {
-        setCurrentCustomer(data.customer);
-        localStorage.setItem('atal_customer', JSON.stringify(data.customer));
-        showToast('✓ Customer profile and shipping details updated!');
-        setProfileForm(prev => ({ ...prev, currentPassword: '', newPassword: '' }));
-      } else {
-        showToast(data.error || 'Failed to update profile.');
-      }
-    } catch (err) {
-      showToast('Error updating profile.');
-    } finally {
-      setIsSavingProfile(false);
+
+    const result = await authService.updateCustomerProfile(currentCustomer.id, {
+      name: profileForm.name,
+      email: profileForm.email,
+      whatsapp: profileForm.whatsapp,
+      defaultAddress: {
+        address: profileForm.address,
+        city: profileForm.city,
+        province: profileForm.province,
+        area: profileForm.area
+      },
+      currentPassword: profileForm.currentPassword || undefined,
+      newPassword: profileForm.newPassword || undefined
+    });
+
+    if (result.success && result.data) {
+      setCurrentCustomer(result.data);
+      localStorage.setItem('atal_customer', JSON.stringify(result.data));
+      showToast(result.message || '✓ Customer profile and shipping details updated!');
+      setProfileForm(prev => ({ ...prev, currentPassword: '', newPassword: '' }));
+    } else {
+      showToast(result.error || 'Failed to update profile.');
     }
+    setIsSavingProfile(false);
   };
 
   // Product Modal State
@@ -1284,72 +1195,19 @@ export default function App() {
 
   const handleStaffLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const emailInput = adminLoginForm.email.trim().toLowerCase();
-    const passInput = adminLoginForm.password.trim();
-
-    if (!emailInput || !passInput) {
-      showToast('Please enter both Email ID and Password.');
-      return;
-    }
     setIsStaffLoggingIn(true);
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: emailInput,
-          password: passInput
-        })
-      });
-      let data: any = {};
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-      if (res.ok && data.user) {
-        setAdminAuthUser(data.user);
-        localStorage.setItem('atal_staff_user', JSON.stringify(data.user));
-        showToast(`🎉 ${data.message || `Welcome, ${data.user.name}!`}`);
-        loadAdminData();
-        return;
-      } else if (data.error) {
-        showToast(data.error);
-        return;
-      }
-    } catch {
-      // Fallback for offline or network glitch
-      if ((emailInput === 'uatal.pk@gmail.com' || emailInput === 'admin') && passInput === 'Umer@9157') {
-        const localAdmin = {
-          id: 'staff-admin-1',
-          email: 'uatal.pk@gmail.com',
-          name: 'Umer (Admin)',
-          role: 'admin' as const,
-          isPasswordChangeable: true
-        };
-        setAdminAuthUser(localAdmin);
-        localStorage.setItem('atal_staff_user', JSON.stringify(localAdmin));
-        showToast('🎉 Welcome to ATAL Portal, Umer (Admin)!');
-        loadAdminData();
-        return;
-      } else if ((emailInput === 'ali@atal.com' || emailInput === 'ali') && passInput === 'Ali@297') {
-        const localEmp = {
-          id: 'staff-emp-1',
-          email: 'ali@atal.com',
-          name: 'Ali (Employee)',
-          role: 'employee' as const,
-          isPasswordChangeable: true
-        };
-        setAdminAuthUser(localEmp);
-        localStorage.setItem('atal_staff_user', JSON.stringify(localEmp));
-        showToast('🎉 Welcome to ATAL Portal, Ali (Employee)!');
-        loadAdminData();
-        return;
-      }
-      showToast('Network error during login. Please verify credentials or connection.');
-    } finally {
-      setIsStaffLoggingIn(false);
+
+    const result = await authService.loginStaff(adminLoginForm.email, adminLoginForm.password);
+
+    if (result.success && result.data) {
+      setAdminAuthUser(result.data);
+      localStorage.setItem('atal_staff_user', JSON.stringify(result.data));
+      showToast(`🎉 ${result.message || `Welcome, ${result.data.name}!`}`);
+      loadAdminData();
+    } else {
+      showToast(result.error || 'Invalid admin credentials.');
     }
+    setIsStaffLoggingIn(false);
   };
 
   const handleStaffLogout = () => {
