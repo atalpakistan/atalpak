@@ -4424,22 +4424,7 @@ export default function App() {
                     Authorized store administration and employee operations login only.
                   </p>
 
-                  <div className="flex gap-2 mb-5">
-                    <button
-                      type="button"
-                      onClick={() => setAdminLoginForm({ email: 'uatal.pk@gmail.com', password: 'Umer@9157' })}
-                      className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold py-1.5 px-2 rounded-xl border border-emerald-200 transition text-center"
-                    >
-                      Fill Admin Login
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAdminLoginForm({ email: 'ali@atal.com', password: 'Ali@297' })}
-                      className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-bold py-1.5 px-2 rounded-xl border border-blue-200 transition text-center"
-                    >
-                      Fill Employee Login
-                    </button>
-                  </div>
+
 
                   <form onSubmit={handleStaffLogin} className="space-y-4 text-xs">
                     <div>
@@ -5379,35 +5364,43 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* ADD / EDIT PRODUCT MODAL */}
+                  {/* ADD / EDIT PRODUCT MODAL - REDESIGNED */}
                   {isProductModalOpen && (
-                    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-                      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
-                          <h3 className="font-black text-base text-slate-900">
-                            {editingProductId ? 'Edit Product' : 'Add New Product'}
-                          </h3>
-                          <button onClick={() => setIsProductModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-full">
-                            <X className="w-5 h-5 text-slate-500" />
+                    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+                      <div className="bg-white rounded-3xl max-w-2xl w-full p-8 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shadow-inner">
+                              <Package className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-black text-lg text-slate-900">
+                                {editingProductId ? 'Edit Product Catalog Item' : 'Add New Product to ATAL Store'}
+                              </h3>
+                              <p className="text-xs text-slate-500">Configure pricing, variants, stock inventory, and high-res product photos.</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setIsProductModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-400 hover:text-slate-700">
+                            <X className="w-5 h-5" />
                           </button>
                         </div>
 
-                        <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
+                        <form onSubmit={handleSaveProduct} className="space-y-5 text-xs">
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">Product Name *</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Product Title / Name *</label>
                             <input 
                               type="text" 
                               required
-                              placeholder="e.g. ATAL Wireless Earbuds Pro"
+                              placeholder="e.g. ATAL Luxury Festive Pret Couture"
                               value={productForm.name}
                               onChange={(e) => setProductForm({...productForm, name: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-xs"
                             />
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Category *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Category *</label>
                               <select 
                                 value={productForm.categoryId}
                                 onChange={(e) => {
@@ -5416,7 +5409,7 @@ export default function App() {
                                   const defaultSub = matchingCat?.subcategories?.[0] || 'General';
                                   setProductForm({...productForm, categoryId: newCatId, subcategoryId: defaultSub});
                                 }}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               >
                                 {categories.map(cat => (
                                   <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -5424,11 +5417,11 @@ export default function App() {
                               </select>
                             </div>
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Subcategory *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Subcategory *</label>
                               <select 
                                 value={productForm.subcategoryId}
                                 onChange={(e) => setProductForm({...productForm, subcategoryId: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               >
                                 {(categories.find(c => c.id === productForm.categoryId)?.subcategories || ['General']).map(sub => (
                                   <option key={sub} value={sub}>{sub}</option>
@@ -5436,57 +5429,60 @@ export default function App() {
                               </select>
                             </div>
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Brand *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Brand *</label>
                               <input 
                                 type="text" 
                                 required
                                 value={productForm.brand}
                                 onChange={(e) => setProductForm({...productForm, brand: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               />
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-3 gap-4">
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Selling Price (PKR) *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Selling Price (PKR) *</label>
                               <input 
                                 type="number" 
                                 required
                                 value={productForm.price}
                                 onChange={(e) => setProductForm({...productForm, price: Number(e.target.value)})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-mono font-bold text-emerald-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               />
                             </div>
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Original Price</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Original Price</label>
                               <input 
                                 type="number" 
                                 value={productForm.originalPrice}
                                 onChange={(e) => setProductForm({...productForm, originalPrice: Number(e.target.value)})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-mono font-bold text-slate-600 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               />
                             </div>
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Stock Qty *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Stock Quantity *</label>
                               <input 
                                 type="number" 
                                 required
                                 value={productForm.stock}
                                 onChange={(e) => setProductForm({...productForm, stock: Number(e.target.value)})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               />
                             </div>
                           </div>
 
-                          <div>
-                            <label className="font-bold text-slate-700 block mb-1">Product Images (Minimum 3 Required) *</label>
-                            <p className="text-[10px] text-slate-500 mb-2 font-semibold">Recommended Format: Square JPG/PNG (1000x1000px). Every product requires at least 3 images.</p>
+                          <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                            <label className="font-black uppercase tracking-wider text-slate-800 block mb-1 flex items-center justify-between">
+                              <span>Product Images (Minimum 3 Required) *</span>
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">HQ Square</span>
+                            </label>
+                            <p className="text-[11px] text-slate-500 mb-3">Provide high-resolution image uploads or secure image URLs for all 3 angles.</p>
                             
                             <div className="space-y-3">
                               {/* Image 1 */}
-                              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Image 1 (Main Cover) *</label>
+                              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                                <label className="text-[11px] font-bold text-slate-800 block mb-1">Image 1 (Primary Front Cover) *</label>
                                 <input 
                                   type="file" 
                                   accept="image/*"
@@ -5498,29 +5494,32 @@ export default function App() {
                                         const base64 = ev.target?.result as string;
                                         if (base64) {
                                           setProductForm({...productForm, imageUrl1: base64});
-                                          showToast('Product Image 1 uploaded!');
+                                          showToast('Image 1 loaded successfully!');
                                         }
                                       };
                                       reader.readAsDataURL(file);
                                     }
                                   }}
-                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white"
                                 />
                                 <input 
                                   type="text" 
-                                  placeholder="Or paste image URL (https://... or /assets/...)"
+                                  placeholder="Or paste direct image URL (https://...)"
                                   value={productForm.imageUrl1.startsWith('data:') ? '' : productForm.imageUrl1}
                                   onChange={(e) => setProductForm({...productForm, imageUrl1: e.target.value})}
-                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs mt-1.5"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2 text-xs mt-2"
                                 />
                                 {productForm.imageUrl1 && (
-                                  <img src={productForm.imageUrl1} alt="Preview 1" className="w-12 h-12 object-cover rounded-lg mt-2 border" />
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <img src={productForm.imageUrl1} alt="Preview 1" className="w-12 h-12 object-cover rounded-xl border shadow-xs" />
+                                    <span className="text-[10px] text-emerald-700 font-bold">✓ Cover image ready</span>
+                                  </div>
                                 )}
                               </div>
 
                               {/* Image 2 */}
-                              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Image 2 (Angle / Detail) *</label>
+                              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                                <label className="text-[11px] font-bold text-slate-800 block mb-1">Image 2 (Detail / Side Angle) *</label>
                                 <input 
                                   type="file" 
                                   accept="image/*"
@@ -5532,29 +5531,32 @@ export default function App() {
                                         const base64 = ev.target?.result as string;
                                         if (base64) {
                                           setProductForm({...productForm, imageUrl2: base64});
-                                          showToast('Product Image 2 uploaded!');
+                                          showToast('Image 2 loaded successfully!');
                                         }
                                       };
                                       reader.readAsDataURL(file);
                                     }
                                   }}
-                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2 text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white"
                                 />
                                 <input 
                                   type="text" 
-                                  placeholder="Or paste image URL (https://... or /assets/...)"
+                                  placeholder="Or paste direct image URL (https://...)"
                                   value={productForm.imageUrl2.startsWith('data:') ? '' : productForm.imageUrl2}
                                   onChange={(e) => setProductForm({...productForm, imageUrl2: e.target.value})}
-                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs mt-1.5"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2 text-xs mt-2"
                                 />
                                 {productForm.imageUrl2 && (
-                                  <img src={productForm.imageUrl2} alt="Preview 2" className="w-12 h-12 object-cover rounded-lg mt-2 border" />
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <img src={productForm.imageUrl2} alt="Preview 2" className="w-12 h-12 object-cover rounded-xl border shadow-xs" />
+                                    <span className="text-[10px] text-emerald-700 font-bold">✓ Detail image ready</span>
+                                  </div>
                                 )}
                               </div>
 
                               {/* Image 3 */}
-                              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Image 3 (Lifestyle / Back) *</label>
+                              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                                <label className="text-[11px] font-bold text-slate-800 block mb-1">Image 3 (Lifestyle / Back Shot) *</label>
                                 <input 
                                   type="file" 
                                   accept="image/*"
@@ -5566,94 +5568,100 @@ export default function App() {
                                         const base64 = ev.target?.result as string;
                                         if (base64) {
                                           setProductForm({...productForm, imageUrl3: base64});
-                                          showToast('Product Image 3 uploaded!');
+                                          showToast('Image 3 loaded successfully!');
                                         }
                                       };
                                       reader.readAsDataURL(file);
                                     }
                                   }}
-                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2 text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white"
                                 />
                                 <input 
                                   type="text" 
-                                  placeholder="Or paste image URL (https://... or /assets/...)"
+                                  placeholder="Or paste direct image URL (https://...)"
                                   value={productForm.imageUrl3.startsWith('data:') ? '' : productForm.imageUrl3}
                                   onChange={(e) => setProductForm({...productForm, imageUrl3: e.target.value})}
-                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs mt-1.5"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2 text-xs mt-2"
                                 />
                                 {productForm.imageUrl3 && (
-                                  <img src={productForm.imageUrl3} alt="Preview 3" className="w-12 h-12 object-cover rounded-lg mt-2 border" />
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <img src={productForm.imageUrl3} alt="Preview 3" className="w-12 h-12 object-cover rounded-xl border shadow-xs" />
+                                    <span className="text-[10px] text-emerald-700 font-bold">✓ Lifestyle image ready</span>
+                                  </div>
                                 )}
                               </div>
                             </div>
                           </div>
 
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">Description *</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Product Description *</label>
                             <textarea 
                               rows={3} 
                               required
+                              placeholder="Describe materials, fabric, features, warranty, and craftsmanship..."
                               value={productForm.description}
                               onChange={(e) => setProductForm({...productForm, description: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                             />
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Color Variations (Comma separated)</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Color Variations</label>
                               <input 
                                 type="text"
                                 placeholder="e.g. Black, Navy Blue, Maroon"
                                 value={productForm.colorsString}
                                 onChange={(e) => setProductForm({...productForm, colorsString: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               />
                             </div>
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Size Variations (Comma separated)</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Size Variations</label>
                               <input 
                                 type="text"
-                                placeholder="e.g. S, M, L, XL"
+                                placeholder="e.g. S, M, L, XL, Free Size"
                                 value={productForm.sizesString}
                                 onChange={(e) => setProductForm({...productForm, sizesString: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
                               />
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4 pt-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                          <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-slate-800">
                               <input 
                                 type="checkbox" 
                                 checked={productForm.isFlashDeal}
                                 onChange={(e) => setProductForm({...productForm, isFlashDeal: e.target.checked})}
+                                className="w-4 h-4 text-emerald-600 rounded accent-emerald-600"
                               />
                               <span>Flash Deal ⚡</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-slate-800">
                               <input 
                                 type="checkbox" 
                                 checked={productForm.isFeatured}
                                 onChange={(e) => setProductForm({...productForm, isFeatured: e.target.checked})}
+                                className="w-4 h-4 text-emerald-600 rounded accent-emerald-600"
                               />
-                              <span>Featured Home Product</span>
+                              <span>Featured Home Showcase</span>
                             </label>
                           </div>
 
-                          <div className="flex gap-3 pt-4 border-t border-slate-200">
+                          <div className="flex gap-3 pt-4 border-t border-slate-100">
                             <button 
                               type="button"
                               onClick={() => setIsProductModalOpen(false)}
-                              className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl"
+                              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-2xl transition"
                             >
                               Cancel
                             </button>
                             <button 
                               type="submit"
-                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow"
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-2xl shadow-lg transition"
                             >
-                              {editingProductId ? 'Update Product' : 'Publish Product'}
+                              {editingProductId ? 'Update Product Record' : 'Publish Product to Store'}
                             </button>
                           </div>
                         </form>
@@ -5661,46 +5669,54 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* ADD / EDIT CATEGORY MODAL */}
+                  {/* ADD / EDIT CATEGORY MODAL - REDESIGNED */}
                   {isCategoryModalOpen && (
-                    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-                      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
-                          <h3 className="font-black text-base text-slate-900">
-                            {editingCategoryId ? 'Edit Category' : 'Add New Category'}
-                          </h3>
-                          <button onClick={() => setIsCategoryModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-full">
-                            <X className="w-5 h-5 text-slate-500" />
+                    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+                      <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center font-bold shadow-inner">
+                              <LayoutGrid className="w-5 h-5 text-teal-700" />
+                            </div>
+                            <div>
+                              <h3 className="font-black text-lg text-slate-900">
+                                {editingCategoryId ? 'Edit Category' : 'Create New Category'}
+                              </h3>
+                              <p className="text-xs text-slate-500">Organize store catalog sections and subcategories.</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setIsCategoryModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-400 hover:text-slate-700">
+                            <X className="w-5 h-5" />
                           </button>
                         </div>
 
                         <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">Category Name *</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Category Name *</label>
                             <input 
                               type="text" 
                               required
-                              placeholder="e.g. Luxury Perfumes"
+                              placeholder="e.g. Luxury Perfumes & Attars"
                               value={categoryForm.name}
                               onChange={(e) => setCategoryForm({...categoryForm, name: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none transition"
                             />
                           </div>
 
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">URL Slug</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">URL Slug</label>
                             <input 
                               type="text" 
                               placeholder="e.g. luxury-perfumes"
                               value={categoryForm.slug}
                               onChange={(e) => setCategoryForm({...categoryForm, slug: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-mono text-slate-700 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none transition"
                             />
                           </div>
 
-                          <div>
-                            <label className="font-bold text-slate-700 block mb-1">Upload Category Image *</label>
-                            <p className="text-[10px] text-slate-500 mb-1 font-semibold">Recommended Format: Square 1:1 or 4:3 JPG/PNG/WebP (600x600px - 800x800px)</p>
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                            <label className="font-black uppercase tracking-wider text-slate-800 block mb-1">Category Image / Banner *</label>
+                            <p className="text-[11px] text-slate-500 mb-2">Square 1:1 or landscape ratio image banner.</p>
                             <input 
                               type="file" 
                               accept="image/*"
@@ -5712,52 +5728,55 @@ export default function App() {
                                     const base64 = ev.target?.result as string;
                                     if (base64) {
                                       setCategoryForm({...categoryForm, image: base64});
-                                      showToast('Category image uploaded!');
+                                      showToast('Category banner loaded!');
                                     }
                                   };
                                   reader.readAsDataURL(file);
                                 }
                               }}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700"
+                              className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-600 file:text-white"
                             />
                             {categoryForm.image && (
-                              <img src={categoryForm.image} alt="Preview" className="w-16 h-16 object-cover rounded-xl mt-2 border" />
+                              <div className="mt-3 flex items-center gap-3">
+                                <img src={categoryForm.image} alt="Preview" className="w-16 h-16 object-cover rounded-xl border shadow-xs" />
+                                <span className="text-[11px] text-teal-800 font-bold">✓ Category image ready</span>
+                              </div>
                             )}
                           </div>
 
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">Subcategories (Comma separated) *</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Subcategories (Comma separated) *</label>
                             <input 
                               type="text" 
                               required
                               placeholder="e.g. Floral, Woody, Oriental, Fresh"
                               value={categoryForm.subcategories}
                               onChange={(e) => setCategoryForm({...categoryForm, subcategories: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none transition"
                             />
                           </div>
 
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">Description</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Description</label>
                             <textarea 
                               rows={2} 
                               value={categoryForm.description}
                               onChange={(e) => setCategoryForm({...categoryForm, description: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none transition"
                             />
                           </div>
 
-                          <div className="flex gap-3 pt-4 border-t border-slate-200">
+                          <div className="flex gap-3 pt-4 border-t border-slate-100">
                             <button 
                               type="button"
                               onClick={() => setIsCategoryModalOpen(false)}
-                              className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl"
+                              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-2xl transition"
                             >
                               Cancel
                             </button>
                             <button 
                               type="submit"
-                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow"
+                              className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-2xl shadow-lg transition"
                             >
                               {editingCategoryId ? 'Update Category' : 'Save Category'}
                             </button>
@@ -5767,82 +5786,90 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* ADD / EDIT CAROUSEL SLIDE MODAL */}
+                  {/* ADD / EDIT CAROUSEL SLIDE MODAL - REDESIGNED */}
                   {isCarouselModalOpen && (
-                    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-                      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
-                          <h3 className="font-black text-base text-slate-900">
-                            {editingSlideId ? 'Edit Hero Slide' : 'Add New Hero Slide'}
-                          </h3>
-                          <button onClick={() => setIsCarouselModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-full">
-                            <X className="w-5 h-5 text-slate-500" />
+                    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+                      <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold shadow-inner">
+                              <Sparkles className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-black text-lg text-slate-900">
+                                {editingSlideId ? 'Edit Hero Carousel Slide' : 'Add New Hero Promotion Slide'}
+                              </h3>
+                              <p className="text-xs text-slate-500">Configure homepage hero banners and promotional callouts.</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setIsCarouselModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-400 hover:text-slate-700">
+                            <X className="w-5 h-5" />
                           </button>
                         </div>
 
                         <form onSubmit={handleSaveSlide} className="space-y-4 text-xs">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Badge Title *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Badge Title *</label>
                               <input 
                                 type="text" 
                                 required
                                 value={slideForm.badge}
                                 onChange={(e) => setSlideForm({...slideForm, badge: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               />
                             </div>
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Discount Tag *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Discount Tag *</label>
                               <input 
                                 type="text" 
                                 required
                                 value={slideForm.discount}
                                 onChange={(e) => setSlideForm({...slideForm, discount: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               />
                             </div>
                           </div>
 
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">Slide Headline Title *</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Slide Headline Title *</label>
                             <input 
                               type="text" 
                               required
                               value={slideForm.title}
                               onChange={(e) => setSlideForm({...slideForm, title: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                             />
                           </div>
 
                           <div>
-                            <label className="font-bold text-slate-700 block mb-1">Subtitle *</label>
+                            <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Subtitle *</label>
                             <input 
                               type="text" 
                               required
                               value={slideForm.subtitle}
                               onChange={(e) => setSlideForm({...slideForm, subtitle: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                             />
                           </div>
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Button Text *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Button Text *</label>
                               <input 
                                 type="text" 
                                 required
                                 value={slideForm.buttonText}
                                 onChange={(e) => setSlideForm({...slideForm, buttonText: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               />
                             </div>
                             <div>
-                              <label className="font-bold text-slate-700 block mb-1">Target Category *</label>
+                              <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Target Category *</label>
                               <select 
                                 value={slideForm.categoryId}
                                 onChange={(e) => setSlideForm({...slideForm, categoryId: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               >
                                 {categories.map(cat => (
                                   <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -5851,9 +5878,9 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div>
-                            <label className="font-bold text-slate-700 block mb-1">Upload Banner Image *</label>
-                            <p className="text-[10px] text-slate-500 mb-1 font-semibold">Recommended Format: Landscape 16:9 JPG/PNG (1920x1080px)</p>
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                            <label className="font-black uppercase tracking-wider text-slate-800 block mb-1">Banner Image (16:9 Landscape) *</label>
+                            <p className="text-[11px] text-slate-500 mb-2">Upload high-res promotional slide banner.</p>
                             <input 
                               type="file" 
                               accept="image/*"
@@ -5865,32 +5892,35 @@ export default function App() {
                                     const base64 = ev.target?.result as string;
                                     if (base64) {
                                       setSlideForm({...slideForm, image: base64});
-                                      showToast('Banner image uploaded!');
+                                      showToast('Carousel slide image loaded!');
                                     }
                                   };
                                   reader.readAsDataURL(file);
                                 }
                               }}
-                              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700"
+                              className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white"
                             />
                             {slideForm.image && (
-                              <img src={slideForm.image} alt="Preview" className="w-full h-24 object-cover rounded-xl mt-2 border" />
+                              <div className="mt-3">
+                                <img src={slideForm.image} alt="Preview" className="w-full h-28 object-cover rounded-xl border shadow-xs" />
+                                <span className="text-[11px] text-amber-800 font-bold mt-1 inline-block">✓ Slide banner ready</span>
+                              </div>
                             )}
                           </div>
 
-                          <div className="flex gap-3 pt-4 border-t border-slate-200">
+                          <div className="flex gap-3 pt-4 border-t border-slate-100">
                             <button 
                               type="button"
                               onClick={() => setIsCarouselModalOpen(false)}
-                              className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl"
+                              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-2xl transition"
                             >
                               Cancel
                             </button>
                             <button 
                               type="submit"
-                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow"
+                              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-2xl shadow-lg transition"
                             >
-                              {editingSlideId ? 'Update Slide' : 'Save Slide'}
+                              {editingSlideId ? 'Update Hero Slide' : 'Save Hero Slide'}
                             </button>
                           </div>
                         </form>
