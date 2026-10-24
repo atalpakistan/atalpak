@@ -516,6 +516,7 @@ export default function App() {
     freeShippingThreshold: 9999,
     defaultShippingCharge: 290,
     codEnabled: true,
+    codDeliveryChargesMandatory: true,
     jazzcashEnabled: true,
     easypaisaEnabled: true,
     cardEnabled: true,
@@ -5133,6 +5134,26 @@ export default function App() {
                               className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
                             />
                           </div>
+                        </div>
+
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl mb-4 space-y-3">
+                          <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-900">
+                            <input 
+                              type="checkbox" 
+                              checked={storeSettings.codEnabled}
+                              onChange={(e) => setStoreSettings({...storeSettings, codEnabled: e.target.checked})}
+                            />
+                            <span>Enable Cash on Delivery (COD) Payment Method</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-900">
+                            <input 
+                              type="checkbox" 
+                              checked={Boolean(storeSettings.codDeliveryChargesMandatory)}
+                              onChange={(e) => setStoreSettings({...storeSettings, codDeliveryChargesMandatory: e.target.checked})}
+                            />
+                            <span>Make Delivery Charges Mandatory on COD Orders (Ignore Free Shipping Threshold for COD)</span>
+                          </label>
                         </div>
 
                         <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl mb-4">

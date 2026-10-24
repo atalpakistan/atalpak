@@ -676,6 +676,7 @@ const DEFAULT_STORE_SETTINGS = {
   freeShippingThreshold: 9999,
   defaultShippingCharge: 290,
   codEnabled: true,
+  codDeliveryChargesMandatory: true,
   jazzcashEnabled: true,
   easypaisaEnabled: true,
   cardEnabled: true,
@@ -1123,7 +1124,10 @@ export async function createServer() {
       discount = Math.round(subtotal * storeSettings.coupons[couponCode.toLowerCase()]);
     }
 
-    const shippingCharges = subtotal >= storeSettings.freeShippingThreshold ? 0 : storeSettings.defaultShippingCharge;
+    const isCod = paymentMethod === 'cod';
+    const shippingCharges = (subtotal >= storeSettings.freeShippingThreshold && (!isCod || !storeSettings.codDeliveryChargesMandatory)) 
+      ? 0 
+      : storeSettings.defaultShippingCharge;
     const totalAmount = subtotal - discount + shippingCharges;
 
     // Issue guaranteed unique 8-digit tracking number
