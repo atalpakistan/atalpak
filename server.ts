@@ -561,9 +561,13 @@ function saveOrdersToDisk() {
 }
 
 export function normalizePakistaniPhone(phone: string): string {
+  if (!phone) return '';
   let cleaned = phone.replace(/[\s\-\(\)\+]+/g, '');
   if (cleaned.startsWith('92')) {
     cleaned = '0' + cleaned.substring(2);
+  }
+  if (cleaned.length === 10 && cleaned.startsWith('3')) {
+    cleaned = '0' + cleaned;
   }
   return cleaned;
 }
@@ -694,6 +698,17 @@ export async function createServer() {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // CORS & Preflight headers middleware for AI Studio preview / iframe
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
 
   // API Routes
   
@@ -1393,9 +1408,13 @@ export async function createServer() {
       }
 
       const cleanEmail = email.trim().toLowerCase();
-      const user = staffUsers.find(u => u.email.toLowerCase() === cleanEmail);
+      const cleanPass = password.trim();
+      const user = staffUsers.find(u => 
+        u.email.toLowerCase() === cleanEmail || 
+        u.name.toLowerCase() === cleanEmail
+      );
 
-      if (!user || user.password !== password) {
+      if (!user || user.password.trim() !== cleanPass) {
         return res.status(401).json({ error: 'Invalid admin or employee email or password.' });
       }
 
