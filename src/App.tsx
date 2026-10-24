@@ -66,6 +66,7 @@ interface Product {
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
   isNewArrival?: boolean;
+  error?: string;
 }
 
 interface Category {
@@ -139,6 +140,31 @@ const PAKISTAN_PROVINCES = [
   'Punjab', 'Sindh', 'Khyber Pakhtunkhwa (KPK)', 'Balochistan', 
   'Islamabad Capital Territory', 'Azad Kashmir', 'Gilgit-Baltistan'
 ];
+
+// Robust Safe Helper Functions for Product Data & Arrays
+const DEFAULT_PRODUCT_IMAGE = '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg';
+
+export function getProductImages(product: Product | null | undefined): string[] {
+  if (!product) return [DEFAULT_PRODUCT_IMAGE];
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    const valid = product.images.filter(img => typeof img === 'string' && img.trim() !== '');
+    if (valid.length > 0) return valid;
+  }
+  return [DEFAULT_PRODUCT_IMAGE];
+}
+
+export function getPrimaryProductImage(product: Product | null | undefined): string {
+  const imgs = getProductImages(product);
+  return imgs[0] || DEFAULT_PRODUCT_IMAGE;
+}
+
+export function getProductVariants(product: Product | null | undefined): ProductVariant[] {
+  if (!product) return [];
+  if (Array.isArray(product.variants) && product.variants.length > 0) {
+    return product.variants;
+  }
+  return [];
+}
 
 // Interactive Hero Carousel Slides
 export interface CarouselSlide {
@@ -1105,15 +1131,43 @@ export default function App() {
       const res = await fetch(getApiUrl(`/api/products/${slug}`));
       if (res.ok) {
         const prod = await res.json();
-        setSelectedProduct(prod);
-        if (prod.variants && prod.variants.length > 0) {
-          setSelectedVariant(prod.variants[0]);
+        if (prod && !prod.error && (prod.id || prod.slug)) {
+          setSelectedProduct(prod);
+          const vars = getProductVariants(prod);
+          if (vars.length > 0) {
+            setSelectedVariant(vars[0]);
+          } else {
+            setSelectedVariant(null);
+          }
+          setQuantity(1);
+          setCurrentView('product-detail');
+          return;
         }
+      }
+      // Fallback search in local products list
+      const found = products.find(p => p.slug === slug || p.id === slug);
+      if (found) {
+        setSelectedProduct(found);
+        const vars = getProductVariants(found);
+        if (vars.length > 0) setSelectedVariant(vars[0]);
         setQuantity(1);
+        setCurrentView('product-detail');
+      } else {
+        setSelectedProduct(null);
         setCurrentView('product-detail');
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error loading product by slug:', e);
+      const found = products.find(p => p.slug === slug || p.id === slug);
+      if (found) {
+        setSelectedProduct(found);
+        const vars = getProductVariants(found);
+        if (vars.length > 0) setSelectedVariant(vars[0]);
+        setCurrentView('product-detail');
+      } else {
+        setSelectedProduct(null);
+        setCurrentView('product-detail');
+      }
     }
   };
 
@@ -2579,10 +2633,24 @@ export default function App() {
           )}
 
           {/* VIEW: UNIQUE PRODUCT DETAIL PAGE */}
-          {currentView === 'product-detail' && selectedProduct && (
+          {currentView === 'product-detail' && (!selectedProduct || selectedProduct.error || !selectedProduct.id) && (
+            <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+              <div className="w-16 h-16 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">⚠️</div>
+              <h2 className="text-xl font-black text-slate-900 mb-2">Product Not Found</h2>
+              <p className="text-sm text-slate-500 mb-6">The product you are trying to view could not be located or has been removed from the catalog.</p>
+              <button 
+                onClick={() => { setSelectedProduct(null); setCurrentView('home'); window.location.hash = ''; }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow transition text-xs"
+              >
+                Return to Store Home
+              </button>
+            </div>
+          )}
+
+          {currentView === 'product-detail' && selectedProduct && !selectedProduct.error && selectedProduct.id && (
             <div className="max-w-7xl mx-auto px-4 py-6">
               <button 
-                onClick={() => { setCurrentView('home'); window.location.hash = ''; }}
+                onClick={() => { setSelectedProduct(null); setCurrentView('home'); window.location.hash = ''; }}
                 className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-emerald-600 mb-6"
               >
                 <ArrowLeft className="w-4 h-4" /> Back to Store
@@ -2591,11 +2659,11 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Image Gallery */}
                 <div>
-                  <div className="w-full h-[380px] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 mb-4 shadow-sm">
-                    <img src={selectedProduct.images[0]} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                  <div className="w-full h-[380px] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 mb-4 shadow-sm flex items-center justify-center">
+                    <img src={getPrimaryProductImage(selectedProduct)} alt={selectedProduct.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex gap-3 overflow-x-auto pb-2">
-                    {selectedProduct.images.map((img, idx) => (
+                    {getProductImages(selectedProduct).map((img, idx) => (
                       <div key={idx} className="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 cursor-pointer shrink-0">
                         <img src={img} alt="" className="w-full h-full object-cover" />
                       </div>
