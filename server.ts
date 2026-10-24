@@ -9,6 +9,10 @@ const __dirname = path.dirname(__filename);
 const ORDERS_FILE = path.join(__dirname, 'orders_data.json');
 const CUSTOMERS_FILE = path.join(__dirname, 'customers_data.json');
 const STAFF_FILE = path.join(__dirname, 'staff_data.json');
+const PRODUCTS_FILE = path.join(__dirname, 'products_data.json');
+const CATEGORIES_FILE = path.join(__dirname, 'categories_data.json');
+const CAROUSEL_FILE = path.join(__dirname, 'carousel_data.json');
+const SETTINGS_FILE = path.join(__dirname, 'settings_data.json');
 
 export interface StaffUser {
   id: string;
@@ -215,8 +219,7 @@ interface Order {
   };
 }
 
-// In-Memory Database Store with rich initial seed data
-let categories: Category[] = [
+const DEFAULT_CATEGORIES: Category[] = [
   {
     id: 'cat-men',
     name: "Men",
@@ -259,7 +262,37 @@ let categories: Category[] = [
   }
 ];
 
-let products: Product[] = [
+function loadCategoriesFromDisk(): Category[] {
+  try {
+    if (fs.existsSync(CATEGORIES_FILE)) {
+      const data = fs.readFileSync(CATEGORIES_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Error reading categories from disk:', err);
+  }
+  try {
+    fs.writeFileSync(CATEGORIES_FILE, JSON.stringify(DEFAULT_CATEGORIES, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save default categories to disk:', e);
+  }
+  return [...DEFAULT_CATEGORIES];
+}
+
+let categories: Category[] = loadCategoriesFromDisk();
+
+function saveCategoriesToDisk() {
+  try {
+    fs.writeFileSync(CATEGORIES_FILE, JSON.stringify(categories, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving categories to disk:', err);
+  }
+}
+
+const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'prod-festive-1',
     slug: 'atal-signature-3d-luxury-collection',
@@ -533,6 +566,36 @@ let products: Product[] = [
   }
 ];
 
+function loadProductsFromDisk(): Product[] {
+  try {
+    if (fs.existsSync(PRODUCTS_FILE)) {
+      const data = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Error reading products from disk:', err);
+  }
+  try {
+    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(DEFAULT_PRODUCTS, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save default products to disk:', e);
+  }
+  return [...DEFAULT_PRODUCTS];
+}
+
+let products: Product[] = loadProductsFromDisk();
+
+function saveProductsToDisk() {
+  try {
+    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving products to disk:', err);
+  }
+}
+
 const initialOrders: Order[] = [];
 
 function loadOrdersFromDisk(): Order[] {
@@ -604,7 +667,7 @@ function saveCustomersToDisk() {
   }
 }
 
-let storeSettings = {
+const DEFAULT_STORE_SETTINGS = {
   storeName: 'ATAL',
   tagline: 'Shop Smart. Live Better',
   supportPhone: '+92 371 9150297',
@@ -635,6 +698,36 @@ let storeSettings = {
   } as Record<string, number>
 };
 
+function loadSettingsFromDisk() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        return { ...DEFAULT_STORE_SETTINGS, ...parsed };
+      }
+    }
+  } catch (err) {
+    console.error('Error reading settings from disk:', err);
+  }
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(DEFAULT_STORE_SETTINGS, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save default settings to disk:', e);
+  }
+  return { ...DEFAULT_STORE_SETTINGS };
+}
+
+let storeSettings = loadSettingsFromDisk();
+
+function saveSettingsToDisk() {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(storeSettings, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving settings to disk:', err);
+  }
+}
+
 interface CarouselSlide {
   id: string | number;
   badge: string;
@@ -647,7 +740,7 @@ interface CarouselSlide {
   categoryId: string;
 }
 
-let carouselSlides: CarouselSlide[] = [
+const DEFAULT_CAROUSEL_SLIDES: CarouselSlide[] = [
   {
     id: 1,
     badge: 'PAKISTAN FESTIVE SALE',
@@ -694,6 +787,36 @@ let carouselSlides: CarouselSlide[] = [
   }
 ];
 
+function loadCarouselFromDisk(): CarouselSlide[] {
+  try {
+    if (fs.existsSync(CAROUSEL_FILE)) {
+      const data = fs.readFileSync(CAROUSEL_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Error reading carousel slides from disk:', err);
+  }
+  try {
+    fs.writeFileSync(CAROUSEL_FILE, JSON.stringify(DEFAULT_CAROUSEL_SLIDES, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save default carousel slides to disk:', e);
+  }
+  return [...DEFAULT_CAROUSEL_SLIDES];
+}
+
+let carouselSlides: CarouselSlide[] = loadCarouselFromDisk();
+
+function saveCarouselToDisk() {
+  try {
+    fs.writeFileSync(CAROUSEL_FILE, JSON.stringify(carouselSlides, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving carousel slides to disk:', err);
+  }
+}
+
 export async function createServer() {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
@@ -729,6 +852,7 @@ export async function createServer() {
       description: description || ''
     };
     categories.push(newCat);
+    saveCategoriesToDisk();
     res.json(newCat);
   });
 
@@ -740,6 +864,7 @@ export async function createServer() {
       return res.status(404).json({ error: 'Category not found' });
     }
     categories[idx] = { ...categories[idx], ...req.body };
+    saveCategoriesToDisk();
     res.json(categories[idx]);
   });
 
@@ -747,6 +872,7 @@ export async function createServer() {
   app.delete('/api/categories/:id', (req, res) => {
     const { id } = req.params;
     categories = categories.filter(c => c.id !== id);
+    saveCategoriesToDisk();
     res.json({ success: true, message: 'Category deleted' });
   });
 
@@ -768,6 +894,7 @@ export async function createServer() {
       categoryId: req.body.categoryId || 'cat-women'
     };
     carouselSlides.push(newSlide);
+    saveCarouselToDisk();
     res.json(newSlide);
   });
 
@@ -778,12 +905,14 @@ export async function createServer() {
       return res.status(404).json({ error: 'Slide not found' });
     }
     carouselSlides[idx] = { ...carouselSlides[idx], ...req.body, id: carouselSlides[idx].id };
+    saveCarouselToDisk();
     res.json(carouselSlides[idx]);
   });
 
   app.delete('/api/carousel/:id', (req, res) => {
     const { id } = req.params;
     carouselSlides = carouselSlides.filter(s => String(s.id) !== String(id));
+    saveCarouselToDisk();
     res.json({ success: true, message: 'Slide deleted' });
   });
 
@@ -883,6 +1012,7 @@ export async function createServer() {
       createdAt: new Date().toISOString()
     };
     products.unshift(newProduct);
+    saveProductsToDisk();
     res.json(newProduct);
   });
 
@@ -894,6 +1024,7 @@ export async function createServer() {
       return res.status(404).json({ error: 'Product not found' });
     }
     products[index] = { ...products[index], ...req.body };
+    saveProductsToDisk();
     res.json(products[index]);
   });
 
@@ -901,7 +1032,8 @@ export async function createServer() {
   app.delete('/api/products/:id', (req, res) => {
     const { id } = req.params;
     products = products.filter(p => p.id !== id);
-    res.json({ success: true });
+    saveProductsToDisk();
+    res.json({ success: true, message: 'Product deleted successfully' });
   });
 
   // 3. Checkout / Place Order (Pakistan-specific)
@@ -1054,6 +1186,7 @@ export async function createServer() {
 
     orders.unshift(newOrder);
     saveOrdersToDisk();
+    saveProductsToDisk();
     console.log(`[ATAL Order Received] Tracking: ${trackingNumber}, TID: ${finalTxId}, Customer: ${customerName}, Amount: PKR ${totalAmount}`);
     if (emailConfirmation) {
       console.log(`[Simulated Email Service] Automated receipt sent to ${recipientEmail} for Order #${trackingNumber}`);
@@ -1155,6 +1288,14 @@ export async function createServer() {
 
     saveOrdersToDisk();
     res.json(order);
+  });
+
+  // Delete Order (Admin)
+  app.delete('/api/orders/:id', (req, res) => {
+    const { id } = req.params;
+    orders = orders.filter(o => o.id !== id && o.trackingNumber !== id);
+    saveOrdersToDisk();
+    res.json({ success: true, message: 'Order removed successfully' });
   });
 
   // --------------------------------------------------------------------------
@@ -1356,6 +1497,14 @@ export async function createServer() {
     }
   });
 
+  // Delete Customer (Admin)
+  app.delete('/api/customers/:id', (req, res) => {
+    const { id } = req.params;
+    customers = customers.filter(c => c.id !== id);
+    saveCustomersToDisk();
+    res.json({ success: true, message: 'Customer account deleted successfully' });
+  });
+
   // Get Customer's Orders
   app.get('/api/customers/:id/orders', (req, res) => {
     const { id } = req.params;
@@ -1489,6 +1638,51 @@ export async function createServer() {
     });
   });
 
+  // Add New Staff Member (Admin Only)
+  app.post('/api/admin/staff', (req, res) => {
+    const { name, email, role, password } = req.body;
+    if (!name || !email || !password || password.length < 6) {
+      return res.status(400).json({ error: 'Name, email, and password (at least 6 characters) are required.' });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    if (staffUsers.some(u => u.email.toLowerCase() === cleanEmail)) {
+      return res.status(400).json({ error: 'A staff account with this email address already exists.' });
+    }
+    const newStaff: StaffUser = {
+      id: `staff-${Date.now()}`,
+      name: name.trim(),
+      email: cleanEmail,
+      role: role === 'admin' ? 'admin' : 'employee',
+      password: password.trim(),
+      isPasswordChangeable: true,
+      createdAt: new Date().toISOString()
+    };
+    staffUsers.push(newStaff);
+    saveStaffToDisk();
+    console.log(`[Staff Portal] New staff member added: ${newStaff.name} (${newStaff.email}, role: ${newStaff.role})`);
+    res.json({
+      success: true,
+      message: `Staff member ${newStaff.name} added successfully!`,
+      user: sanitizeStaffUser(newStaff)
+    });
+  });
+
+  // Delete Staff Member (Admin Only)
+  app.delete('/api/admin/staff/:id', (req, res) => {
+    const { id } = req.params;
+    const user = staffUsers.find(u => u.id === id);
+    if (!user) {
+      return res.status(404).json({ error: 'Staff member not found.' });
+    }
+    if (user.email.toLowerCase() === 'uatal.pk@gmail.com') {
+      return res.status(400).json({ error: 'Cannot remove the primary administrator account.' });
+    }
+    staffUsers = staffUsers.filter(u => u.id !== id);
+    saveStaffToDisk();
+    console.log(`[Staff Portal] Staff member removed: ${user.name} (${user.email})`);
+    res.json({ success: true, message: 'Staff member removed successfully.' });
+  });
+
   // 6. Store Settings
   app.get('/api/settings', (req, res) => {
     res.json(storeSettings);
@@ -1496,6 +1690,7 @@ export async function createServer() {
 
   app.put('/api/settings', (req, res) => {
     storeSettings = { ...storeSettings, ...req.body };
+    saveSettingsToDisk();
     res.json(storeSettings);
   });
 

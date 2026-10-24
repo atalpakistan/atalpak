@@ -438,6 +438,37 @@ export default function App() {
   const [showStaffNewPassword, setShowStaffNewPassword] = useState(false);
   const [staffList, setStaffList] = useState<any[]>([]);
 
+  // Add Staff Modal & Reset Staff Password State
+  const [isAddStaffModalOpen, setIsAddStaffModalOpen] = useState(false);
+  const [newStaffForm, setNewStaffForm] = useState({
+    name: '',
+    email: '',
+    role: 'employee' as 'admin' | 'employee',
+    password: ''
+  });
+  const [isAddingStaff, setIsAddingStaff] = useState(false);
+
+  const [staffResetTarget, setStaffResetTarget] = useState<any | null>(null);
+  const [staffResetPassword, setStaffResetPassword] = useState('');
+  const [isResettingStaffPassword, setIsResettingStaffPassword] = useState(false);
+
+  // Safe In-App Confirmation Modal (avoids window.confirm in iframe)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    confirmColor?: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    confirmColor: 'bg-red-600',
+    onConfirm: () => {}
+  });
+
   const [adminStats, setAdminStats] = useState<any>(null);
   const [adminOrders, setAdminOrders] = useState<Order[]>([]);
   const [adminActiveTab, setAdminActiveTab] = useState<'orders' | 'products' | 'categories' | 'carousel' | 'settings' | 'staff'>('orders');
@@ -766,17 +797,25 @@ export default function App() {
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
-    try {
-      const res = await fetch(getApiUrl(`/api/categories/${id}`), { method: 'DELETE' });
-      if (res.ok) {
-        showToast('Category deleted successfully!');
-        fetchCategories();
+  const handleDeleteCategory = (id: string, name?: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Category',
+      message: `Are you sure you want to delete category "${name || id}"? Products in this category will remain, but the category listing will be removed.`,
+      confirmText: 'Delete Category',
+      confirmColor: 'bg-red-600',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(getApiUrl(`/api/categories/${id}`), { method: 'DELETE' });
+          if (res.ok) {
+            showToast('Category deleted successfully!');
+            fetchCategories();
+          }
+        } catch (err) {
+          showToast('Failed to delete category');
+        }
       }
-    } catch (err) {
-      showToast('Failed to delete category');
-    }
+    });
   };
 
   // Carousel Admin Management State
@@ -868,21 +907,29 @@ export default function App() {
     }
   };
 
-  const handleDeleteSlide = async (id: string | number) => {
+  const handleDeleteSlide = (id: string | number) => {
     if (carouselSlides.length <= 1) {
       showToast('Carousel must have at least one slide!');
       return;
     }
-    if (!confirm('Are you sure you want to delete this slide?')) return;
-    try {
-      const res = await fetch(getApiUrl(`/api/carousel/${id}`), { method: 'DELETE' });
-      if (res.ok) {
-        showToast('Slide removed from carousel!');
-        fetchCarouselSlides();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Hero Promotion Slide',
+      message: 'Are you sure you want to remove this promotion slide from the homepage carousel?',
+      confirmText: 'Delete Slide',
+      confirmColor: 'bg-red-600',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(getApiUrl(`/api/carousel/${id}`), { method: 'DELETE' });
+          if (res.ok) {
+            showToast('Slide removed from carousel!');
+            fetchCarouselSlides();
+          }
+        } catch (err) {
+          showToast('Failed to delete slide');
+        }
       }
-    } catch (err) {
-      showToast('Failed to delete slide');
-    }
+    });
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -958,20 +1005,28 @@ export default function App() {
     }
   };
 
-  const handleDeleteProduct = async (prodId: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-    try {
-      const res = await fetch(getApiUrl(`/api/products/${prodId}`), {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        showToast('Product deleted successfully');
-        fetchProducts();
-        loadAdminData();
+  const handleDeleteProduct = (prodId: string, name?: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Product',
+      message: `Are you sure you want to permanently delete "${name || 'this product'}"? It will be removed from catalog and category listings.`,
+      confirmText: 'Delete Product',
+      confirmColor: 'bg-red-600',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(getApiUrl(`/api/products/${prodId}`), {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            showToast('Product deleted successfully');
+            fetchProducts();
+            loadAdminData();
+          }
+        } catch (e) {
+          showToast('Failed to delete product');
+        }
       }
-    } catch (e) {
-      showToast('Failed to delete product');
-    }
+    });
   };
 
   // Load initial data
@@ -981,34 +1036,38 @@ export default function App() {
     fetchStoreSettings();
     fetchCarouselSlides();
     
-    // Check URL for hash or pathname routes e.g. #product/slug or #admin or /admin
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      const path = window.location.pathname;
-      const search = window.location.search;
-      if (hash.startsWith('#product/')) {
-        const slug = hash.replace('#product/', '');
+    // Comprehensive URL hash and pathname router
+    const resolveRouteFromUrl = () => {
+      const hash = window.location.hash.toLowerCase();
+      const path = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
+
+      if (window.location.hash.startsWith('#product/')) {
+        const slug = window.location.hash.replace('#product/', '');
         loadProductBySlug(slug);
-      } else if (hash === '#admin' || hash === '#/admin' || path.toLowerCase().includes('/admin') || search.toLowerCase().includes('admin')) {
+      } else if (hash === '#admin' || hash === '#/admin' || path.includes('/admin') || search.includes('admin')) {
         setCurrentView('admin');
+      } else if (hash === '#cart' || hash === '#/cart') {
+        setCurrentView('cart');
+      } else if (hash === '#checkout' || hash === '#/checkout') {
+        setCurrentView('checkout');
+      } else if (hash === '#orders' || hash === '#/orders' || hash === '#track') {
+        setCurrentView('orders');
+      } else if (hash === '#account' || hash === '#/account' || hash === '#login') {
+        setCurrentView('account');
+      } else if (hash === '#support' || hash === '#/support' || hash === '#contact') {
+        setCurrentView('support');
+      } else if (hash === '#products' || hash === '#/products' || hash === '#shop') {
+        setCurrentView('products');
+      } else if (hash === '#home' || hash === '' || hash === '#') {
+        setCurrentView('home');
       }
     };
-    window.addEventListener('hashchange', handleHashChange);
-    
-    // Initial check
-    if (window.location.hash.startsWith('#product/')) {
-      const slug = window.location.hash.replace('#product/', '');
-      loadProductBySlug(slug);
-    } else if (
-      window.location.hash === '#admin' || 
-      window.location.hash === '#/admin' || 
-      window.location.pathname.toLowerCase().includes('/admin') || 
-      window.location.search.toLowerCase().includes('admin')
-    ) {
-      setCurrentView('admin');
-    }
 
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('hashchange', resolveRouteFromUrl);
+    resolveRouteFromUrl();
+
+    return () => window.removeEventListener('hashchange', resolveRouteFromUrl);
   }, []);
 
   const fetchCategories = async () => {
@@ -1338,6 +1397,127 @@ export default function App() {
     } catch (e) {
       showToast('Failed to update status');
     }
+  };
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffForm.name || !newStaffForm.email || !newStaffForm.password) {
+      showToast('Please fill in all staff fields.');
+      return;
+    }
+    if (newStaffForm.password.length < 6) {
+      showToast('Password must be at least 6 characters.');
+      return;
+    }
+    setIsAddingStaff(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/staff'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStaffForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`🎉 ${data.message || 'Staff member added successfully!'}`);
+        setIsAddStaffModalOpen(false);
+        setNewStaffForm({ name: '', email: '', role: 'employee', password: '' });
+        fetchStaffList();
+      } else {
+        showToast(data.error || 'Failed to add staff member');
+      }
+    } catch {
+      showToast('Network error while adding staff member');
+    } finally {
+      setIsAddingStaff(false);
+    }
+  };
+
+  const handleResetStaffPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staffResetTarget) return;
+    if (staffResetPassword.length < 6) {
+      showToast('Password must be at least 6 characters.');
+      return;
+    }
+    setIsResettingStaffPassword(true);
+    try {
+      const res = await fetch(getApiUrl(`/api/admin/staff/${staffResetTarget.id}/password`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: staffResetPassword })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`🎉 ${data.message || 'Staff password reset successfully!'}`);
+        setStaffResetTarget(null);
+        setStaffResetPassword('');
+        fetchStaffList();
+      } else {
+        showToast(data.error || 'Failed to reset password');
+      }
+    } catch {
+      showToast('Network error while resetting password');
+    } finally {
+      setIsResettingStaffPassword(false);
+    }
+  };
+
+  const handleDeleteStaff = (staffUser: any) => {
+    if (staffUser.email.toLowerCase() === 'uatal.pk@gmail.com') {
+      showToast('Cannot delete the primary administrator account.');
+      return;
+    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Staff Member',
+      message: `Are you sure you want to remove ${staffUser.name} (${staffUser.email}) from staff access?`,
+      confirmText: 'Remove Staff',
+      confirmColor: 'bg-red-600',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(getApiUrl(`/api/admin/staff/${staffUser.id}`), {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            showToast('Staff member removed successfully');
+            fetchStaffList();
+          } else {
+            const err = await res.json();
+            showToast(err.error || 'Failed to remove staff');
+          }
+        } catch {
+          showToast('Network error removing staff member');
+        }
+      }
+    });
+  };
+
+  const handleDeleteOrder = (orderId: string, orderNumber: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Order Record',
+      message: `Are you sure you want to delete Order #${orderNumber}? This action cannot be undone.`,
+      confirmText: 'Delete Order',
+      confirmColor: 'bg-red-600',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(getApiUrl(`/api/orders/${orderId}`), {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            showToast(`Order #${orderNumber} deleted successfully`);
+            loadAdminData();
+            if (selectedOrderDetails?.id === orderId) {
+              setSelectedOrderDetails(null);
+            }
+          } else {
+            showToast('Failed to delete order');
+          }
+        } catch {
+          showToast('Network error deleting order');
+        }
+      }
+    });
   };
 
   return (
@@ -4351,6 +4531,12 @@ export default function App() {
                     >
                       Store Settings & Delivery Fee
                     </button>
+                    <button 
+                      onClick={() => setAdminActiveTab('staff')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${adminActiveTab === 'staff' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    >
+                      Staff & Roles ({(staffList || []).length})
+                    </button>
                   </div>
 
                   {/* TAB 1: ORDERS MANAGEMENT */}
@@ -4564,12 +4750,21 @@ export default function App() {
 
                                   {/* Actions */}
                                   <td className="p-3">
-                                    <button 
-                                      onClick={() => setSelectedOrderDetails(ord)}
-                                      className="bg-slate-900 hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" /> Details
-                                    </button>
+                                    <div className="flex items-center gap-1.5">
+                                      <button 
+                                        onClick={() => setSelectedOrderDetails(ord)}
+                                        className="bg-slate-900 hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" /> Details
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteOrder(ord.id, ord.orderNumber)}
+                                        className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition"
+                                        title="Delete Order Record"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))
@@ -5010,6 +5205,91 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* TAB 6: STAFF & ROLES MANAGEMENT */}
+                  {adminActiveTab === 'staff' && (
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-8">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                        <div>
+                          <h3 className="font-bold text-base text-slate-900">Staff & Role Management</h3>
+                          <p className="text-xs text-slate-500">Manage administrator and employee access accounts for the ATAL Store Portal.</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setNewStaffForm({ name: '', email: '', role: 'employee', password: '' });
+                            setIsAddStaffModalOpen(true);
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow"
+                        >
+                          <Plus className="w-4 h-4" /> Add New Staff Member
+                        </button>
+                      </div>
+
+                      {/* Staff Table */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                              <th className="p-3">Staff Name</th>
+                              <th className="p-3">Portal Login Email</th>
+                              <th className="p-3">Role & Access</th>
+                              <th className="p-3">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {(staffList || []).map((user: any) => (
+                              <tr key={user.id} className="hover:bg-slate-50 transition">
+                                <td className="p-3 font-bold text-slate-900 flex items-center gap-2">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${user.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                                    {(user.name || 'S').charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <p>{user.name}</p>
+                                    <span className="text-[10px] text-slate-400 font-normal">ID: {user.id}</span>
+                                  </div>
+                                </td>
+                                <td className="p-3 font-mono text-slate-700">{user.email}</td>
+                                <td className="p-3">
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                                    user.role === 'admin' 
+                                      ? 'bg-amber-50 text-amber-800 border border-amber-200' 
+                                      : 'bg-blue-50 text-blue-800 border border-blue-200'
+                                  }`}>
+                                    {user.role === 'admin' ? <ShieldCheck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+                                    {user.role === 'admin' ? 'Administrator (Full Access)' : 'Employee (Staff Access)'}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex items-center gap-2">
+                                    <button 
+                                      onClick={() => {
+                                        setStaffResetTarget(user);
+                                        setStaffResetPassword('');
+                                      }}
+                                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                                      title="Change or reset password"
+                                    >
+                                      <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                                      <span>Reset Password</span>
+                                    </button>
+                                    {user.email.toLowerCase() !== 'uatal.pk@gmail.com' && (
+                                      <button 
+                                        onClick={() => handleDeleteStaff(user)}
+                                        className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition"
+                                        title="Remove staff member"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
                   {/* ADD / EDIT PRODUCT MODAL */}
                   {isProductModalOpen && (
                     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -5137,6 +5417,13 @@ export default function App() {
                                   }}
                                   className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700"
                                 />
+                                <input 
+                                  type="text" 
+                                  placeholder="Or paste image URL (https://... or /assets/...)"
+                                  value={productForm.imageUrl1.startsWith('data:') ? '' : productForm.imageUrl1}
+                                  onChange={(e) => setProductForm({...productForm, imageUrl1: e.target.value})}
+                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs mt-1.5"
+                                />
                                 {productForm.imageUrl1 && (
                                   <img src={productForm.imageUrl1} alt="Preview 1" className="w-12 h-12 object-cover rounded-lg mt-2 border" />
                                 )}
@@ -5164,6 +5451,13 @@ export default function App() {
                                   }}
                                   className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700"
                                 />
+                                <input 
+                                  type="text" 
+                                  placeholder="Or paste image URL (https://... or /assets/...)"
+                                  value={productForm.imageUrl2.startsWith('data:') ? '' : productForm.imageUrl2}
+                                  onChange={(e) => setProductForm({...productForm, imageUrl2: e.target.value})}
+                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs mt-1.5"
+                                />
                                 {productForm.imageUrl2 && (
                                   <img src={productForm.imageUrl2} alt="Preview 2" className="w-12 h-12 object-cover rounded-lg mt-2 border" />
                                 )}
@@ -5190,6 +5484,13 @@ export default function App() {
                                     }
                                   }}
                                   className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700"
+                                />
+                                <input 
+                                  type="text" 
+                                  placeholder="Or paste image URL (https://... or /assets/...)"
+                                  value={productForm.imageUrl3.startsWith('data:') ? '' : productForm.imageUrl3}
+                                  onChange={(e) => setProductForm({...productForm, imageUrl3: e.target.value})}
+                                  className="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-xs mt-1.5"
                                 />
                                 {productForm.imageUrl3 && (
                                   <img src={productForm.imageUrl3} alt="Preview 3" className="w-12 h-12 object-cover rounded-lg mt-2 border" />
@@ -6635,6 +6936,188 @@ export default function App() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ADD NEW STAFF MODAL */}
+        {isAddStaffModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-slate-900">Add New Staff Member</h3>
+                    <p className="text-[11px] text-slate-500">Create portal access for an admin or employee</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsAddStaffModalOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-full">
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddStaff} className="space-y-4 text-xs">
+                <div>
+                  <label className="font-bold text-slate-800 block mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Sarah Khan"
+                    value={newStaffForm.name}
+                    onChange={(e) => setNewStaffForm({ ...newStaffForm, name: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-800 block mb-1">Portal Login Email *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. sarah@atal.com"
+                    value={newStaffForm.email}
+                    onChange={(e) => setNewStaffForm({ ...newStaffForm, email: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-800 block mb-1">Role & Permissions *</label>
+                  <select
+                    value={newStaffForm.role}
+                    onChange={(e) => setNewStaffForm({ ...newStaffForm, role: e.target.value as 'admin' | 'employee' })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-semibold"
+                  >
+                    <option value="employee">Employee (View orders, manage catalog & slides)</option>
+                    <option value="admin">Administrator (Full control, settings & staff)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-800 block mb-1">Initial Password * (Min. 6 characters)</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="Create secure login password"
+                    value={newStaffForm.password}
+                    onChange={(e) => setNewStaffForm({ ...newStaffForm, password: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddStaffModalOpen(false)}
+                    className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isAddingStaff}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md"
+                  >
+                    {isAddingStaff ? 'Adding...' : 'Create Staff User'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* RESET STAFF PASSWORD MODAL (ADMIN ACTION) */}
+        {staffResetTarget && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                    <KeyRound className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-slate-900">Reset Staff Password</h3>
+                    <p className="text-[11px] text-slate-500">{staffResetTarget.name} ({staffResetTarget.email})</p>
+                  </div>
+                </div>
+                <button onClick={() => setStaffResetTarget(null)} className="p-1.5 hover:bg-slate-100 rounded-full">
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+
+              <form onSubmit={handleResetStaffPassword} className="space-y-4 text-xs">
+                <div>
+                  <label className="font-bold text-slate-800 block mb-1">New Password * (Min. 6 characters)</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="Enter new password for this staff member"
+                    value={staffResetPassword}
+                    onChange={(e) => setStaffResetPassword(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setStaffResetTarget(null)}
+                    className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isResettingStaffPassword}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md"
+                  >
+                    {isResettingStaffPassword ? 'Resetting...' : 'Save New Password'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* SAFE IN-APP CONFIRMATION MODAL */}
+        {confirmDialog.isOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-900">{confirmDialog.title}</h3>
+                  <p className="text-[11px] text-slate-500">Please confirm this action</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 mb-6 leading-relaxed">{confirmDialog.message}</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const action = confirmDialog.onConfirm;
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                    action();
+                  }}
+                  className={`flex-1 ${confirmDialog.confirmColor || 'bg-red-600 hover:bg-red-700'} text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition`}
+                >
+                  {confirmDialog.confirmText || 'Confirm'}
+                </button>
+              </div>
             </div>
           </div>
         )}
