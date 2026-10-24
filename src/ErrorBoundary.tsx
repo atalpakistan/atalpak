@@ -20,22 +20,17 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[ATAL ErrorBoundary] Uncaught Error caught by boundary:', error, errorInfo);
+    console.error('[ATAL ErrorBoundary] Caught render exception:', error, errorInfo);
   }
 
-  private handleReload = () => {
+  private handleReset = () => {
     try {
-      // Clear corrupt sessions if any
-      const savedCust = localStorage.getItem('atal_customer');
-      if (savedCust === 'undefined' || savedCust === 'null') {
-        localStorage.removeItem('atal_customer');
-      }
-      const savedStaff = localStorage.getItem('atal_staff_user');
-      if (savedStaff === 'undefined' || savedStaff === 'null') {
-        localStorage.removeItem('atal_staff_user');
-      }
+      localStorage.removeItem('atal_staff_user');
+      localStorage.removeItem('atal_customer');
+      localStorage.removeItem('atal_wishlist');
     } catch {}
-    window.location.reload();
+    this.setState({ hasError: false, error: null });
+    window.location.hash = '';
   };
 
   public render() {
@@ -47,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '2rem',
+          padding: '1.5rem',
           backgroundColor: '#062419',
           fontFamily: 'system-ui, -apple-system, sans-serif',
           textAlign: 'center',
@@ -55,10 +50,10 @@ export class ErrorBoundary extends Component<Props, State> {
         }}>
           <div style={{
             backgroundColor: '#ffffff',
-            padding: '2.5rem',
+            padding: '2rem',
             borderRadius: '1.5rem',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            maxWidth: '28rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+            maxWidth: '26rem',
             width: '100%',
             border: '1px solid rgba(255, 255, 255, 0.2)',
             color: '#0f172a'
@@ -80,32 +75,34 @@ export class ErrorBoundary extends Component<Props, State> {
               color: '#062419',
               marginBottom: '0.5rem',
               letterSpacing: '0.025em'
-            }}>ATAL Store - Quick Refresh</h1>
+            }}>ATAL Store</h1>
             <p style={{
               fontSize: '0.8125rem',
               color: '#475569',
               marginBottom: '1.5rem',
               lineHeight: 1.5
             }}>
-              The application encountered a display refresh state. Click below to reload ATAL Store smoothly.
+              We encountered a temporary display state. Click below to continue browsing ATAL Store smoothly.
             </p>
-            <button
-              onClick={this.handleReload}
-              style={{
-                backgroundColor: '#059669',
-                color: '#ffffff',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '0.75rem',
-                border: 'none',
-                cursor: 'pointer',
-                width: '100%',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}
-            >
-              🔄 Reload ATAL Store
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                onClick={this.handleReset}
+                style={{
+                  backgroundColor: '#059669',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '0.75rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                🏠 Return to Store Homepage
+              </button>
+            </div>
           </div>
         </div>
       );

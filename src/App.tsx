@@ -16,6 +16,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { authService } from './services/auth';
 import { getApiUrl } from './config/api';
+import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './data/seedData';
 
 export interface CustomerAddress {
   address: string;
@@ -250,8 +251,8 @@ export default function App() {
   
   
   // Data states
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>(() => {
@@ -979,21 +980,29 @@ export default function App() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories');
-      const data = await res.json();
-      setCategories(data);
+      const res = await fetch(getApiUrl('/api/categories'));
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+        }
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch categories:', e);
     }
   };
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
-      const data = await res.json();
-      setProducts(data);
+      const res = await fetch(getApiUrl('/api/products'));
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+        }
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch products:', e);
     }
   };
 
