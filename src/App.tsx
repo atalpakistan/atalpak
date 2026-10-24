@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { authService } from './services/auth';
+import { getApiUrl } from './config/api';
 
 export interface CustomerAddress {
   address: string;
@@ -468,7 +469,7 @@ export default function App() {
 
   const fetchStoreSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch(getApiUrl('/api/settings'));
       const data = await res.json();
       setStoreSettings(data);
     } catch (e) {
@@ -479,7 +480,7 @@ export default function App() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(getApiUrl('/api/settings'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(storeSettings)
@@ -496,7 +497,7 @@ export default function App() {
   const fetchCustomerOrders = async (custId: string) => {
     setIsLoadingCustomerOrders(true);
     try {
-      const res = await fetch(`/api/customers/${custId}/orders`);
+      const res = await fetch(getApiUrl(`/api/customers/${custId}/orders`));
       if (res.ok) {
         const data = await res.json();
         setCustomerOrders(data);

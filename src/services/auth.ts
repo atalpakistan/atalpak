@@ -1,8 +1,4 @@
-/**
- * Unified Authentication Service Module for ATAL Store
- * Handles Admin, Staff, and Customer logins/registrations with robust error handling,
- * network timeout controls, structured logging, and user-friendly error feedback.
- */
+import { getApiUrl } from '../config/api';
 
 export interface StaffAuthUser {
   id: string;
@@ -100,7 +96,7 @@ class AuthService {
     console.groupCollapsed(`[AuthService] Staff Login Attempt: ${email}`);
 
     try {
-      const response = await fetchWithTimeout('/api/admin/login', {
+      const response = await fetchWithTimeout(getApiUrl('/api/admin/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -218,7 +214,7 @@ class AuthService {
     console.groupCollapsed(`[AuthService] Customer Login Attempt: ${identifier}`);
 
     try {
-      const response = await fetchWithTimeout('/api/customers/login', {
+      const response = await fetchWithTimeout(getApiUrl('/api/customers/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),
@@ -341,7 +337,7 @@ class AuthService {
     console.groupCollapsed(`[AuthService] Registering Customer: ${payload.name} (${payload.email})`);
 
     try {
-      const response = await fetchWithTimeout('/api/customers/register', {
+      const response = await fetchWithTimeout(getApiUrl('/api/customers/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -426,7 +422,7 @@ class AuthService {
     console.groupCollapsed(`[AuthService] Updating Profile for Customer ID: ${customerId}`);
 
     try {
-      const response = await fetchWithTimeout(`/api/customers/${customerId}`, {
+      const response = await fetchWithTimeout(getApiUrl(`/api/customers/${customerId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
