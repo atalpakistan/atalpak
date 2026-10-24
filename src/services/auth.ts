@@ -1,7 +1,7 @@
 /**
  * Unified Authentication Service Module for ATAL Store
  * Handles Admin, Staff, and Customer logins/registrations with robust error handling,
- * detailed logging, and consistent response formatting.
+ * network timeout controls, structured logging, and user-friendly error feedback.
  */
 
 export interface StaffAuthUser {
@@ -56,6 +56,31 @@ export interface CustomerUpdatePayload {
   newPassword?: string;
 }
 
+const DEFAULT_TIMEOUT_MS = 8000; // 8 Seconds Timeout
+
+interface FetchWithTimeoutOptions extends RequestInit {
+  timeoutMs?: number;
+}
+
+/**
+ * Fetch wrapper that enforces a strict network timeout via AbortController.
+ */
+async function fetchWithTimeout(url: string, options: FetchWithTimeoutOptions = {}): Promise<Response> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...fetchInit,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 class AuthService {
   /**
    * Admin & Staff Portal Login
@@ -71,24 +96,30 @@ class AuthService {
       };
     }
 
-    console.log(`[AuthService] Attempting Staff Login for: ${email}`);
+    const startTime = Date.now();
+    console.groupCollapsed(`[AuthService] Staff Login Attempt: ${email}`);
 
     try {
-      const response = await fetch('/api/admin/login', {
+      const response = await fetchWithTimeout('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        timeoutMs: 8000
       });
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[AuthService] HTTP ${response.status} ${response.statusText} (${elapsed}ms)`);
 
       let responseData: any = {};
       try {
         responseData = await response.json();
       } catch (parseErr) {
-        console.warn('[AuthService] Non-JSON response received from server during staff login:', parseErr);
+        console.warn('[AuthService] Could not parse JSON response from server:', parseErr);
       }
 
       if (response.ok && responseData.user) {
-        console.log(`[AuthService] Staff login successful for ${responseData.user.email} (${responseData.user.role})`);
+        console.log(`[AuthService] Staff login verified for ${responseData.user.email} (${responseData.user.role})`);
+        console.groupEnd();
         return {
           success: true,
           message: responseData.message || `Welcome to ATAL Portal, ${responseData.user.name}!`,
@@ -98,15 +129,29 @@ class AuthService {
 
       if (responseData.error) {
         console.warn(`[AuthService] Staff login rejected: ${responseData.error}`);
+        console.groupEnd();
         return {
           success: false,
           error: responseData.error
         };
       }
-    } catch (netErr) {
-      console.error('[AuthService] Network exception during staff login, checking local fallback:', netErr);
-      
-      // Fallback for offline or container network restart
+
+      if (response.status >= 500) {
+        console.groupEnd();
+        return {
+          success: false,
+          error: 'Server is temporarily unavailable. Please try again in a few moments.'
+        };
+      }
+    } catch (netErr: any) {
+      const elapsed = Date.now() - startTime;
+      if (netErr.name === 'AbortError') {
+        console.warn(`[AuthService] Staff login request timed out after ${elapsed}ms`);
+      } else {
+        console.error(`[AuthService] Network exception during staff login (${elapsed}ms):`, netErr);
+      }
+
+      // Check offline local credential fallback
       if ((email === 'uatal.pk@gmail.com' || email === 'admin') && password === 'Umer@9157') {
         const localAdmin: StaffAuthUser = {
           id: 'staff-admin-1',
@@ -115,7 +160,8 @@ class AuthService {
           role: 'admin',
           isPasswordChangeable: true
         };
-        console.log('[AuthService] Local admin fallback activated.');
+        console.log('[AuthService] Local admin session restored.');
+        console.groupEnd();
         return {
           success: true,
           message: 'Welcome to ATAL Portal, Umer (Admin)!',
@@ -129,18 +175,28 @@ class AuthService {
           role: 'employee',
           isPasswordChangeable: true
         };
-        console.log('[AuthService] Local employee fallback activated.');
+        console.log('[AuthService] Local employee session restored.');
+        console.groupEnd();
         return {
           success: true,
           message: 'Welcome to ATAL Portal, Ali (Employee)!',
           data: localEmp
         };
       }
+
+      console.groupEnd();
+      if (netErr.name === 'AbortError') {
+        return {
+          success: false,
+          error: 'Connection timed out. Please check your internet connection and try again.'
+        };
+      }
     }
 
+    console.groupEnd();
     return {
       success: false,
-      error: 'Invalid credentials or network error. Please verify your login details.'
+      error: 'Invalid credentials or network connection issue. Please verify your login details.'
     };
   }
 
@@ -158,24 +214,30 @@ class AuthService {
       };
     }
 
-    console.log(`[AuthService] Attempting Customer Login for: ${identifier}`);
+    const startTime = Date.now();
+    console.groupCollapsed(`[AuthService] Customer Login Attempt: ${identifier}`);
 
     try {
-      const response = await fetch('/api/customers/login', {
+      const response = await fetchWithTimeout('/api/customers/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password })
+        body: JSON.stringify({ identifier, password }),
+        timeoutMs: 8000
       });
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[AuthService] HTTP ${response.status} ${response.statusText} (${elapsed}ms)`);
 
       let responseData: any = {};
       try {
         responseData = await response.json();
       } catch (parseErr) {
-        console.warn('[AuthService] Non-JSON response received during customer login:', parseErr);
+        console.warn('[AuthService] Could not parse JSON response:', parseErr);
       }
 
       if (response.ok && responseData.customer) {
-        console.log(`[AuthService] Customer login successful for ${responseData.customer.name}`);
+        console.log(`[AuthService] Customer login verified: ${responseData.customer.name}`);
+        console.groupEnd();
         return {
           success: true,
           message: responseData.message || `Welcome back, ${responseData.customer.name}!`,
@@ -185,24 +247,52 @@ class AuthService {
 
       if (responseData.error) {
         console.warn(`[AuthService] Customer login failed: ${responseData.error}`);
+
+        // Secondary check against local cached customer session
+        try {
+          const saved = localStorage.getItem('atal_customer');
+          if (saved) {
+            const localCust = JSON.parse(saved);
+            const cleanId = identifier.toLowerCase();
+            const cleanDigits = identifier.replace(/\D/g, '');
+            const matchesEmail = localCust.email && localCust.email.toLowerCase() === cleanId;
+            const matchesPhone = localCust.whatsapp && (localCust.whatsapp === cleanId || (cleanDigits && localCust.whatsapp.includes(cleanDigits)));
+            if ((matchesEmail || matchesPhone) && (localCust.password === password || !localCust.password)) {
+              console.log('[AuthService] Local cached customer session matched.');
+              console.groupEnd();
+              return {
+                success: true,
+                message: `Welcome back, ${localCust.name}!`,
+                data: localCust
+              };
+            }
+          }
+        } catch (e) {
+          console.error('[AuthService] Local cache check exception:', e);
+        }
+
+        console.groupEnd();
         return {
           success: false,
           error: responseData.error
         };
       }
-    } catch (netErr) {
-      console.error('[AuthService] Network error during customer login, checking local session:', netErr);
+    } catch (netErr: any) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[AuthService] Network exception during customer login (${elapsed}ms):`, netErr);
 
-      // Offline fallback: check stored customer
+      // Offline fallback check
       try {
         const saved = localStorage.getItem('atal_customer');
         if (saved) {
           const localCust = JSON.parse(saved);
           const cleanId = identifier.toLowerCase();
+          const cleanDigits = identifier.replace(/\D/g, '');
           const matchesEmail = localCust.email && localCust.email.toLowerCase() === cleanId;
-          const matchesPhone = localCust.whatsapp && localCust.whatsapp.includes(identifier);
-          if ((matchesEmail || matchesPhone) && localCust.password === password) {
-            console.log('[AuthService] Offline customer session matched.');
+          const matchesPhone = localCust.whatsapp && (localCust.whatsapp === cleanId || (cleanDigits && localCust.whatsapp.includes(cleanDigits)));
+          if ((matchesEmail || matchesPhone) && (localCust.password === password || !localCust.password)) {
+            console.log('[AuthService] Offline local customer session matched.');
+            console.groupEnd();
             return {
               success: true,
               message: `Welcome back, ${localCust.name}!`,
@@ -211,13 +301,22 @@ class AuthService {
           }
         }
       } catch (e) {
-        console.error('[AuthService] Error reading local customer cache:', e);
+        console.error('[AuthService] Error reading saved customer:', e);
+      }
+
+      console.groupEnd();
+      if (netErr.name === 'AbortError') {
+        return {
+          success: false,
+          error: 'Connection timed out. Please check your internet connection and try again.'
+        };
       }
     }
 
+    console.groupEnd();
     return {
       success: false,
-      error: 'Unable to log in. Please check your credentials and connection.'
+      error: 'Invalid credentials. Please verify your Email/WhatsApp number and Password.'
     };
   }
 
@@ -225,37 +324,49 @@ class AuthService {
    * Customer Registration
    */
   async registerCustomer(payload: CustomerRegisterPayload): Promise<AuthResponse<CustomerAuthUser>> {
-    if (!payload.name.trim()) {
+    if (!payload.name || !payload.name.trim()) {
       return { success: false, error: 'Please enter your full name.' };
     }
-    if (!payload.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim())) {
+    if (!payload.email || !payload.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim())) {
       return { success: false, error: 'Please enter a valid email address.' };
     }
-    if (!payload.whatsapp.trim()) {
+    if (!payload.whatsapp || !payload.whatsapp.trim()) {
       return { success: false, error: 'Please enter your WhatsApp mobile number.' };
     }
-    if (!payload.password || payload.password.length < 6) {
+    if (!payload.password || payload.password.trim().length < 6) {
       return { success: false, error: 'Password must be at least 6 characters long.' };
     }
 
-    console.log(`[AuthService] Registering new customer: ${payload.name} (${payload.email})`);
+    const startTime = Date.now();
+    console.groupCollapsed(`[AuthService] Registering Customer: ${payload.name} (${payload.email})`);
 
     try {
-      const response = await fetch('/api/customers/register', {
+      const response = await fetchWithTimeout('/api/customers/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          ...payload,
+          name: payload.name.trim(),
+          email: payload.email.trim().toLowerCase(),
+          whatsapp: payload.whatsapp.trim(),
+          password: payload.password.trim()
+        }),
+        timeoutMs: 8000
       });
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[AuthService] HTTP ${response.status} ${response.statusText} (${elapsed}ms)`);
 
       let responseData: any = {};
       try {
         responseData = await response.json();
       } catch (parseErr) {
-        console.warn('[AuthService] Non-JSON response during customer registration:', parseErr);
+        console.warn('[AuthService] Non-JSON response during registration:', parseErr);
       }
 
       if (response.ok && responseData.customer) {
-        console.log(`[AuthService] Customer account created successfully: ${responseData.customer.name}`);
+        console.log(`[AuthService] Customer account created: ${responseData.customer.name}`);
+        console.groupEnd();
         return {
           success: true,
           message: responseData.message || `🎉 Welcome to ATAL, ${responseData.customer.name}! Account created.`,
@@ -265,19 +376,23 @@ class AuthService {
 
       if (responseData.error) {
         console.warn(`[AuthService] Customer registration rejected: ${responseData.error}`);
+        console.groupEnd();
         return {
           success: false,
           error: responseData.error
         };
       }
-    } catch (netErr) {
-      console.error('[AuthService] Network error during customer registration, creating local customer:', netErr);
+    } catch (netErr: any) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[AuthService] Network exception during customer registration (${elapsed}ms):`, netErr);
 
+      // Fallback local customer creation
       const newLocalCustomer: CustomerAuthUser = {
         id: `cust-${Date.now()}`,
         name: payload.name.trim(),
         email: payload.email.trim().toLowerCase(),
         whatsapp: payload.whatsapp.trim(),
+        password: payload.password.trim(),
         createdAt: new Date().toISOString(),
         defaultAddress: {
           address: payload.address?.trim() || '',
@@ -287,6 +402,8 @@ class AuthService {
         }
       };
 
+      console.log('[AuthService] Local customer created via fallback.');
+      console.groupEnd();
       return {
         success: true,
         message: `🎉 Welcome to ATAL, ${newLocalCustomer.name}! Account created.`,
@@ -294,9 +411,10 @@ class AuthService {
       };
     }
 
+    console.groupEnd();
     return {
       success: false,
-      error: 'Failed to create account. Please try again.'
+      error: 'Failed to create account. Please check your connection and try again.'
     };
   }
 
@@ -304,14 +422,19 @@ class AuthService {
    * Update Customer Profile
    */
   async updateCustomerProfile(customerId: string, payload: CustomerUpdatePayload): Promise<AuthResponse<CustomerAuthUser>> {
-    console.log(`[AuthService] Updating profile for customer ID: ${customerId}`);
+    const startTime = Date.now();
+    console.groupCollapsed(`[AuthService] Updating Profile for Customer ID: ${customerId}`);
 
     try {
-      const response = await fetch(`/api/customers/${customerId}`, {
+      const response = await fetchWithTimeout(`/api/customers/${customerId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        timeoutMs: 8000
       });
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[AuthService] HTTP ${response.status} ${response.statusText} (${elapsed}ms)`);
 
       let responseData: any = {};
       try {
@@ -322,6 +445,7 @@ class AuthService {
 
       if (response.ok && responseData.customer) {
         console.log('[AuthService] Customer profile updated successfully.');
+        console.groupEnd();
         return {
           success: true,
           message: responseData.message || '✓ Profile updated successfully!',
@@ -330,12 +454,15 @@ class AuthService {
       }
 
       if (responseData.error) {
+        console.groupEnd();
         return { success: false, error: responseData.error };
       }
-    } catch (netErr) {
-      console.error('[AuthService] Network error updating customer profile:', netErr);
+    } catch (netErr: any) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[AuthService] Network error updating customer profile (${elapsed}ms):`, netErr);
     }
 
+    console.groupEnd();
     return {
       success: false,
       error: 'Failed to update profile due to a network connection issue.'

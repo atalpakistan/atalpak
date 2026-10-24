@@ -1179,13 +1179,13 @@ export async function createServer() {
       }
 
       const normalizedPhone = normalizePakistaniPhone(whatsapp.trim());
-      if (!/^03[0-9]{9}$/.test(normalizedPhone)) {
+      if (normalizedPhone.length < 10) {
         return res.status(400).json({ 
-          error: 'Invalid WhatsApp number format. Must be an 11-digit Pakistani mobile number starting with 03 (e.g. 03001234567 or +923001234567).' 
+          error: 'Please provide a valid 11-digit mobile/WhatsApp number (e.g. 03001234567).' 
         });
       }
 
-      if (!password || typeof password !== 'string' || password.length < 6) {
+      if (!password || typeof password !== 'string' || password.trim().length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
       }
 
@@ -1208,7 +1208,7 @@ export async function createServer() {
         name: name.trim(),
         email: cleanEmail,
         whatsapp: normalizedPhone,
-        password: password,
+        password: password.trim(),
         createdAt: new Date().toISOString(),
         defaultAddress: address && city && province ? {
           address: address.trim(),
@@ -1254,10 +1254,11 @@ export async function createServer() {
       // Match by email OR by normalized WhatsApp number
       const customer = customers.find(c => 
         c.email.toLowerCase() === cleanEmail || 
-        normalizePakistaniPhone(c.whatsapp) === normalizedPhone
+        normalizePakistaniPhone(c.whatsapp) === normalizedPhone ||
+        c.whatsapp.replace(/\D/g, '') === trimmed.replace(/\D/g, '')
       );
 
-      if (!customer || customer.password !== password) {
+      if (!customer || customer.password.trim() !== password.trim()) {
         return res.status(401).json({ 
           error: 'Invalid credentials. Please check your email/WhatsApp number and password.' 
         });

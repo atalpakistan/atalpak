@@ -4076,9 +4076,26 @@ export default function App() {
                     <ShieldCheck className="w-8 h-8 text-emerald-400" />
                   </div>
                   <h3 className="font-black text-xl text-slate-900 text-center mb-1">ATAL Admin & Employee Portal</h3>
-                  <p className="text-xs text-slate-500 text-center mb-6">
+                  <p className="text-xs text-slate-500 text-center mb-4">
                     Authorized store administration and employee operations login only.
                   </p>
+
+                  <div className="flex gap-2 mb-5">
+                    <button
+                      type="button"
+                      onClick={() => setAdminLoginForm({ email: 'uatal.pk@gmail.com', password: 'Umer@9157' })}
+                      className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold py-1.5 px-2 rounded-xl border border-emerald-200 transition text-center"
+                    >
+                      Fill Admin Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAdminLoginForm({ email: 'ali@atal.com', password: 'Ali@297' })}
+                      className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-bold py-1.5 px-2 rounded-xl border border-blue-200 transition text-center"
+                    >
+                      Fill Employee Login
+                    </button>
+                  </div>
 
                   <form onSubmit={handleStaffLogin} className="space-y-4 text-xs">
                     <div>
