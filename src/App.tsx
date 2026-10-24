@@ -6381,6 +6381,12 @@ export default function App() {
                     className="w-5 h-5 rounded-md object-contain bg-[#062419]"
                   />
                   <span>© 2026 ATAL Pakistan. All rights reserved. Shop Smart. Live Better.</span>
+                  <button 
+                    onClick={() => setCurrentView('admin')}
+                    className="text-[10px] text-emerald-700/60 hover:text-emerald-900 font-bold ml-2 underline"
+                  >
+                    Admin Portal
+                  </button>
                 </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 text-[11px] text-emerald-900/80">
                   <div className="flex items-center gap-1.5">
