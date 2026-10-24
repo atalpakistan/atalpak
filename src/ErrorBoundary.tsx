@@ -26,6 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleReset = () => {
     this.setState({ hasError: false, error: null });
     window.location.hash = '';
+    window.location.reload();
   };
 
   private handleReloadAdmin = () => {

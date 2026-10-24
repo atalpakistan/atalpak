@@ -258,7 +258,9 @@ export default function App() {
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('atal_wishlist');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -266,7 +268,9 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('atal_wishlist', JSON.stringify(wishlist));
+      if (Array.isArray(wishlist)) {
+        localStorage.setItem('atal_wishlist', JSON.stringify(wishlist));
+      }
     } catch (e) {
       console.error('Error saving wishlist:', e);
     }
@@ -364,7 +368,7 @@ export default function App() {
     }
     setIsSendingEmail(true);
     try {
-      const res = await fetch(`/api/orders/${order.trackingNumber}/resend-email`, {
+      const res = await fetch(getApiUrl(`/api/orders/${order.trackingNumber}/resend-email`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: target })
@@ -437,6 +441,15 @@ export default function App() {
   const [adminStats, setAdminStats] = useState<any>(null);
   const [adminOrders, setAdminOrders] = useState<Order[]>([]);
   const [adminActiveTab, setAdminActiveTab] = useState<'orders' | 'products' | 'categories' | 'carousel' | 'settings' | 'staff'>('orders');
+
+  // Ultra-safe array helpers to guarantee zero render exceptions
+  const safeProducts = Array.isArray(products) ? products : INITIAL_PRODUCTS;
+  const safeCategories = Array.isArray(categories) ? categories : INITIAL_CATEGORIES;
+  const safeCustomerOrders = Array.isArray(customerOrders) ? customerOrders : [];
+  const safeAdminOrders = Array.isArray(adminOrders) ? adminOrders : [];
+  const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
+  const safeCart = Array.isArray(cart) ? cart : [];
+  const safeCarouselSlides = Array.isArray(carouselSlides) ? carouselSlides : HERO_SLIDES;
   const [storeSettings, setStoreSettings] = useState({
     storeName: 'ATAL',
     tagline: 'Shop Smart. Live Better',
@@ -501,10 +514,19 @@ export default function App() {
       const res = await fetch(getApiUrl(`/api/customers/${custId}/orders`));
       if (res.ok) {
         const data = await res.json();
-        setCustomerOrders(data);
+        if (Array.isArray(data)) {
+          setCustomerOrders(data);
+        } else if (data && Array.isArray(data.orders)) {
+          setCustomerOrders(data.orders);
+        } else {
+          setCustomerOrders([]);
+        }
+      } else {
+        setCustomerOrders([]);
       }
     } catch (err) {
       console.error('Failed to load customer orders:', err);
+      setCustomerOrders([]);
     } finally {
       setIsLoadingCustomerOrders(false);
     }
@@ -717,7 +739,7 @@ export default function App() {
     };
     try {
       if (editingCategoryId) {
-        const res = await fetch(`/api/categories/${editingCategoryId}`, {
+        const res = await fetch(getApiUrl(`/api/categories/${editingCategoryId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -728,7 +750,7 @@ export default function App() {
           setIsCategoryModalOpen(false);
         }
       } else {
-        const res = await fetch('/api/categories', {
+        const res = await fetch(getApiUrl('/api/categories'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -747,7 +769,7 @@ export default function App() {
   const handleDeleteCategory = async (id: string) => {
     if (!confirm('Are you sure you want to delete this category?')) return;
     try {
-      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      const res = await fetch(getApiUrl(`/api/categories/${id}`), { method: 'DELETE' });
       if (res.ok) {
         showToast('Category deleted successfully!');
         fetchCategories();
@@ -773,7 +795,7 @@ export default function App() {
 
   const fetchCarouselSlides = async () => {
     try {
-      const res = await fetch('/api/carousel');
+      const res = await fetch(getApiUrl('/api/carousel'));
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -819,7 +841,7 @@ export default function App() {
     e.preventDefault();
     try {
       if (editingSlideId) {
-        const res = await fetch(`/api/carousel/${editingSlideId}`, {
+        const res = await fetch(getApiUrl(`/api/carousel/${editingSlideId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(slideForm)
@@ -830,7 +852,7 @@ export default function App() {
           setIsCarouselModalOpen(false);
         }
       } else {
-        const res = await fetch('/api/carousel', {
+        const res = await fetch(getApiUrl('/api/carousel'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(slideForm)
@@ -853,7 +875,7 @@ export default function App() {
     }
     if (!confirm('Are you sure you want to delete this slide?')) return;
     try {
-      const res = await fetch(`/api/carousel/${id}`, { method: 'DELETE' });
+      const res = await fetch(getApiUrl(`/api/carousel/${id}`), { method: 'DELETE' });
       if (res.ok) {
         showToast('Slide removed from carousel!');
         fetchCarouselSlides();
@@ -906,7 +928,7 @@ export default function App() {
 
     try {
       if (editingProductId) {
-        const res = await fetch(`/api/products/${editingProductId}`, {
+        const res = await fetch(getApiUrl(`/api/products/${editingProductId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -919,7 +941,7 @@ export default function App() {
           setEditingProductId(null);
         }
       } else {
-        const res = await fetch('/api/products', {
+        const res = await fetch(getApiUrl('/api/products'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -939,7 +961,7 @@ export default function App() {
   const handleDeleteProduct = async (prodId: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
     try {
-      const res = await fetch(`/api/products/${prodId}`, {
+      const res = await fetch(getApiUrl(`/api/products/${prodId}`), {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -1010,6 +1032,8 @@ export default function App() {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           setProducts(data);
+        } else if (data && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products);
         }
       }
     } catch (e) {
@@ -1019,7 +1043,7 @@ export default function App() {
 
   const loadProductBySlug = async (slug: string) => {
     try {
-      const res = await fetch(`/api/products/${slug}`);
+      const res = await fetch(getApiUrl(`/api/products/${slug}`));
       if (res.ok) {
         const prod = await res.json();
         setSelectedProduct(prod);
@@ -1127,7 +1151,7 @@ export default function App() {
     };
 
     try {
-      const res = await fetch('/api/checkout', {
+      const res = await fetch(getApiUrl('/api/checkout'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1169,7 +1193,7 @@ export default function App() {
     }
     setIsSearchingOrder(true);
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(q)}`);
+      const res = await fetch(getApiUrl(`/api/orders/${encodeURIComponent(q)}`));
       if (res.ok) {
         const orderData = await res.json();
         setSearchedOrder(orderData);
@@ -1191,7 +1215,7 @@ export default function App() {
       const res = await fetch(getApiUrl('/api/admin/staff'));
       if (res.ok) {
         const data = await res.json();
-        setStaffList(data);
+        setStaffList(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       console.error('Failed to fetch staff list:', e);
@@ -1203,13 +1227,23 @@ export default function App() {
       const statsRes = await fetch(getApiUrl('/api/admin/stats'));
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setAdminStats(statsData);
+        if (statsData && typeof statsData === 'object' && !statsData.error) {
+          setAdminStats(statsData);
+        }
       }
 
       const ordersRes = await fetch(getApiUrl('/api/orders'));
       if (ordersRes.ok) {
         const ordersData = await ordersRes.json();
-        setAdminOrders(ordersData);
+        if (Array.isArray(ordersData)) {
+          setAdminOrders(ordersData);
+        } else if (ordersData && Array.isArray(ordersData.orders)) {
+          setAdminOrders(ordersData.orders);
+        } else {
+          setAdminOrders([]);
+        }
+      } else {
+        setAdminOrders([]);
       }
 
       fetchStaffList();
@@ -1262,7 +1296,7 @@ export default function App() {
     }
     setIsChangingStaffPassword(true);
     try {
-      const res = await fetch('/api/admin/change-password', {
+      const res = await fetch(getApiUrl('/api/admin/change-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1288,7 +1322,7 @@ export default function App() {
 
   const updateOrderStatus = async (orderId: string, orderStatus: string, note?: string) => {
     try {
-      const res = await fetch(`/api/orders/${orderId}/status`, {
+      const res = await fetch(getApiUrl(`/api/orders/${orderId}/status`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderStatus, note })
@@ -1744,7 +1778,7 @@ export default function App() {
 
                   {/* Single Horizontal Row for All Festive Products */}
                   <div className="flex flex-nowrap overflow-x-auto no-scrollbar gap-3 pb-1 pt-1 scroll-smooth">
-                    {products.filter(p => p.isFlashDeal || p.isFeatured || p.isNewArrival).map((prod) => (
+                    {safeProducts.filter(p => p && (p.isFlashDeal || p.isFeatured || p.isNewArrival)).map((prod) => (
                       <div 
                         key={prod.id}
                         onClick={() => {
@@ -2041,7 +2075,7 @@ export default function App() {
                   </div>
 
                   <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar py-2 scroll-smooth">
-                    {products.filter(p => p.isFlashDeal || p.isFeatured || p.isNewArrival).map(prod => (
+                    {safeProducts.filter(p => p && (p.isFlashDeal || p.isFeatured || p.isNewArrival)).map(prod => (
                       <div 
                         key={prod.id}
                         className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer shrink-0 w-60"
@@ -2296,20 +2330,22 @@ export default function App() {
                       Products {selectedCategory ? `- ${categories.find(c => c.id === selectedCategory)?.name}` : ''}
                     </h2>
                     <span className="text-xs text-slate-500">
-                      Showing {products.filter(p => {
+                      Showing {safeProducts.filter(p => {
+                        if (!p) return false;
                         if (selectedCategory && p.categoryId !== selectedCategory) return false;
-                        if (selectedSubcategory && p.subcategoryId.toLowerCase() !== selectedSubcategory.toLowerCase()) return false;
-                        if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.brand.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                        if (selectedSubcategory && (p.subcategoryId || '').toLowerCase() !== selectedSubcategory.toLowerCase()) return false;
+                        if (searchQuery && !(p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) && !(p.brand || '').toLowerCase().includes(searchQuery.toLowerCase())) return false;
                         return true;
                       }).length} items
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
-                    {products.filter(p => {
+                    {safeProducts.filter(p => {
+                      if (!p) return false;
                       if (selectedCategory && p.categoryId !== selectedCategory) return false;
-                      if (selectedSubcategory && p.subcategoryId.toLowerCase() !== selectedSubcategory.toLowerCase()) return false;
-                      if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.brand.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                      if (selectedSubcategory && (p.subcategoryId || '').toLowerCase() !== selectedSubcategory.toLowerCase()) return false;
+                      if (searchQuery && !(p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) && !(p.brand || '').toLowerCase().includes(searchQuery.toLowerCase())) return false;
                       return true;
                     }).map(prod => (
                       <div 
@@ -3771,12 +3807,12 @@ export default function App() {
                     <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/15 text-center">
                       <div className="bg-white/10 rounded-xl p-2.5 backdrop-blur-xs">
                         <p className="text-[10px] uppercase font-bold text-emerald-200">Total Orders</p>
-                        <p className="text-lg font-black text-white mt-0.5">{customerOrders.length}</p>
+                        <p className="text-lg font-black text-white mt-0.5">{(Array.isArray(customerOrders) ? customerOrders : []).length}</p>
                       </div>
                       <div className="bg-white/10 rounded-xl p-2.5 backdrop-blur-xs">
                         <p className="text-[10px] uppercase font-bold text-emerald-200">Active Parcels</p>
                         <p className="text-lg font-black text-amber-300 mt-0.5">
-                          {customerOrders.filter(o => !['Delivered', 'Cancelled'].includes(o.orderStatus)).length}
+                          {(Array.isArray(customerOrders) ? customerOrders : []).filter(o => o && !['Delivered', 'Cancelled'].includes(o.orderStatus || '')).length}
                         </p>
                       </div>
                       <div className="bg-white/10 rounded-xl p-2.5 backdrop-blur-xs">
@@ -3799,7 +3835,7 @@ export default function App() {
                       }`}
                     >
                       <Package className="w-4 h-4" />
-                      <span>My Orders ({customerOrders.length})</span>
+                      <span>My Orders ({(Array.isArray(customerOrders) ? customerOrders : []).length})</span>
                     </button>
                     <button
                       onClick={() => setAccountActiveTab('profile')}
@@ -3832,7 +3868,7 @@ export default function App() {
                         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 text-xs">
                           Loading your orders...
                         </div>
-                      ) : customerOrders.length === 0 ? (
+                      ) : (Array.isArray(customerOrders) ? customerOrders : []).length === 0 ? (
                         <div className="bg-white border border-slate-200 rounded-3xl p-10 text-center shadow-xs">
                           <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
                             <ShoppingBag className="w-8 h-8" />
@@ -3849,7 +3885,7 @@ export default function App() {
                           </button>
                         </div>
                       ) : (
-                        customerOrders.map(ord => (
+                        (Array.isArray(customerOrders) ? customerOrders : []).map(ord => (
                           <div key={ord.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100">
                               <div>
@@ -4667,8 +4703,8 @@ export default function App() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {categories.map(cat => {
-                          const catProductsCount = products.filter(p => p.categoryId === cat.id).length;
+                        {safeCategories.map(cat => {
+                          const catProductsCount = safeProducts.filter(p => p && p.categoryId === cat.id).length;
                           return (
                             <div key={cat.id} className="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between hover:shadow-md transition bg-slate-50/50">
                               <div>
