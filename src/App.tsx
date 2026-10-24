@@ -575,7 +575,13 @@ export default function App() {
           area: registerForm.area
         })
       });
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        showToast('Server response error. Please try again.');
+        return;
+      }
       if (res.ok && data.customer) {
         setCurrentCustomer(data.customer);
         localStorage.setItem('atal_customer', JSON.stringify(data.customer));
@@ -619,7 +625,13 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginForm)
       });
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        showToast('Server response error. Please try again.');
+        return;
+      }
       if (res.ok && data.customer) {
         setCurrentCustomer(data.customer);
         localStorage.setItem('atal_customer', JSON.stringify(data.customer));
@@ -1241,7 +1253,13 @@ export default function App() {
           password: adminLoginForm.password
         })
       });
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        showToast('Server response error during portal login.');
+        return;
+      }
       if (res.ok && data.user) {
         setAdminAuthUser(data.user);
         localStorage.setItem('atal_staff_user', JSON.stringify(data.user));
@@ -1251,7 +1269,7 @@ export default function App() {
         showToast(data.error || 'Invalid email or password.');
       }
     } catch {
-      showToast('Network error during login.');
+      showToast('Network error during login. Please check connection.');
     } finally {
       setIsStaffLoggingIn(false);
     }
