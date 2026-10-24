@@ -959,12 +959,16 @@ export default function App() {
     fetchStoreSettings();
     fetchCarouselSlides();
     
-    // Check URL for product slug e.g. /#product/slug or query ?product=slug
+    // Check URL for hash or pathname routes e.g. #product/slug or #admin or /admin
     const handleHashChange = () => {
       const hash = window.location.hash;
+      const path = window.location.pathname;
+      const search = window.location.search;
       if (hash.startsWith('#product/')) {
         const slug = hash.replace('#product/', '');
         loadProductBySlug(slug);
+      } else if (hash === '#admin' || hash === '#/admin' || path.toLowerCase().includes('/admin') || search.toLowerCase().includes('admin')) {
+        setCurrentView('admin');
       }
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -973,6 +977,13 @@ export default function App() {
     if (window.location.hash.startsWith('#product/')) {
       const slug = window.location.hash.replace('#product/', '');
       loadProductBySlug(slug);
+    } else if (
+      window.location.hash === '#admin' || 
+      window.location.hash === '#/admin' || 
+      window.location.pathname.toLowerCase().includes('/admin') || 
+      window.location.search.toLowerCase().includes('admin')
+    ) {
+      setCurrentView('admin');
     }
 
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -4247,15 +4258,15 @@ export default function App() {
                   </div>
 
                   {/* Stats Grid */}
-                  {adminStats && (
+                  {adminStats && typeof adminStats === 'object' && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-8">
                       <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
                         <p className="text-xs text-slate-400 mb-1">Total Sales</p>
-                        <p className="text-xl font-black text-emerald-700">PKR {adminStats.totalSales.toLocaleString()}</p>
+                        <p className="text-xl font-black text-emerald-700">PKR {(Number(adminStats.totalSales) || 0).toLocaleString()}</p>
                       </div>
                       <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
                         <p className="text-xs text-slate-400 mb-1">Total Orders</p>
-                        <p className="text-xl font-black text-slate-900">{adminStats.totalOrders}</p>
+                        <p className="text-xl font-black text-slate-900">{adminStats.totalOrders || 0}</p>
                       </div>
                       <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
                         <p className="text-xs text-slate-400 mb-1">Registered Customers</p>
@@ -4263,11 +4274,11 @@ export default function App() {
                       </div>
                       <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
                         <p className="text-xs text-slate-400 mb-1">Pending Orders</p>
-                        <p className="text-xl font-black text-amber-600">{adminStats.pendingOrders}</p>
+                        <p className="text-xl font-black text-amber-600">{adminStats.pendingOrders || 0}</p>
                       </div>
                       <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
                         <p className="text-xs text-slate-400 mb-1">Low Stock Alerts</p>
-                        <p className="text-xl font-black text-red-600">{adminStats.lowStockProducts}</p>
+                        <p className="text-xl font-black text-red-600">{adminStats.lowStockProducts || 0}</p>
                       </div>
                     </div>
                   )}
@@ -4278,7 +4289,7 @@ export default function App() {
                       onClick={() => setAdminActiveTab('orders')}
                       className={`px-4 py-2 rounded-xl text-xs font-bold transition ${adminActiveTab === 'orders' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                     >
-                      Orders Management ({adminOrders.length})
+                      Orders Management ({(adminOrders || []).length})
                     </button>
                     <button 
                       onClick={() => setAdminActiveTab('products')}
@@ -4365,8 +4376,10 @@ export default function App() {
                             </tr>
                           </thead>
                           <tbody>
-                            {adminOrders.filter(ord => {
-                              if (adminOrderStatusFilter !== 'all' && ord.orderStatus.toLowerCase() !== adminOrderStatusFilter.toLowerCase()) return false;
+                            {(Array.isArray(adminOrders) ? adminOrders : []).filter(ord => {
+                              if (!ord) return false;
+                              const status = ord.orderStatus || 'Pending Confirmation';
+                              if (adminOrderStatusFilter !== 'all' && status.toLowerCase() !== adminOrderStatusFilter.toLowerCase()) return false;
                               if (adminOrderSearch.trim()) {
                                 const q = adminOrderSearch.trim().toLowerCase();
                                 const matchTracking = ord.trackingNumber && ord.trackingNumber.toLowerCase().includes(q);
@@ -4386,8 +4399,10 @@ export default function App() {
                                 </td>
                               </tr>
                             ) : (
-                              adminOrders.filter(ord => {
-                                if (adminOrderStatusFilter !== 'all' && ord.orderStatus.toLowerCase() !== adminOrderStatusFilter.toLowerCase()) return false;
+                              (Array.isArray(adminOrders) ? adminOrders : []).filter(ord => {
+                                if (!ord) return false;
+                                const status = ord.orderStatus || 'Pending Confirmation';
+                                if (adminOrderStatusFilter !== 'all' && status.toLowerCase() !== adminOrderStatusFilter.toLowerCase()) return false;
                                 if (adminOrderSearch.trim()) {
                                   const q = adminOrderSearch.trim().toLowerCase();
                                   const matchTracking = ord.trackingNumber && ord.trackingNumber.toLowerCase().includes(q);
@@ -4406,10 +4421,10 @@ export default function App() {
                                   <td className="p-3">
                                     <div className="flex items-center gap-1.5">
                                       <span className="font-mono font-black text-xs text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg">
-                                        {ord.trackingNumber}
+                                        {ord.trackingNumber || 'N/A'}
                                       </span>
                                       <button 
-                                        onClick={() => { navigator.clipboard.writeText(ord.trackingNumber); showToast(`Copied Tracking #${ord.trackingNumber}`); }}
+                                        onClick={() => { if (ord.trackingNumber) { navigator.clipboard.writeText(ord.trackingNumber); showToast(`Copied Tracking #${ord.trackingNumber}`); } }}
                                         className="text-slate-400 hover:text-emerald-600 p-1"
                                         title="Copy 8-Digit Tracking Number"
                                       >
@@ -4417,7 +4432,7 @@ export default function App() {
                                       </button>
                                     </div>
                                     <p className="text-[10px] text-slate-400 mt-1 font-mono">
-                                      {ord.orderNumber} • {new Date(ord.createdAt).toLocaleDateString()}
+                                      {ord.orderNumber || 'ORD'} • {ord.createdAt ? new Date(ord.createdAt).toLocaleDateString() : 'N/A'}
                                     </p>
                                   </td>
 
@@ -4430,8 +4445,10 @@ export default function App() {
                                       <button 
                                         onClick={() => { 
                                           const val = ord.transactionReference || ord.transactionId || '';
-                                          navigator.clipboard.writeText(val); 
-                                          showToast(`Copied TID: ${val}`); 
+                                          if (val) {
+                                            navigator.clipboard.writeText(val); 
+                                            showToast(`Copied TID: ${val}`); 
+                                          }
                                         }}
                                         className="text-slate-400 hover:text-amber-600 p-1"
                                         title="Copy Payment Transaction ID"
@@ -4441,7 +4458,7 @@ export default function App() {
                                     </div>
                                     <div className="mt-1 flex items-center gap-1">
                                       <span className="bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[10px] uppercase">
-                                        {ord.paymentMethod}
+                                        {ord.paymentMethod || 'COD'}
                                       </span>
                                       {ord.paymentMethod === 'cod' && (
                                         <span className="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded text-[10px]">
@@ -4453,31 +4470,33 @@ export default function App() {
 
                                   {/* Customer & Phone */}
                                   <td className="p-3">
-                                    <p className="font-bold text-slate-900">{ord.customerName}</p>
+                                    <p className="font-bold text-slate-900">{ord.customerName || 'Customer'}</p>
                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                      <span className="text-[11px] text-slate-500 font-mono">{ord.mobileNumber}</span>
-                                      <a 
-                                        href={`https://wa.me/92${ord.mobileNumber.replace(/^(\+92|0)/, '')}?text=${encodeURIComponent(`Assalam-o-Alaikum ${ord.customerName}, this is ATAL Store regarding your order with 8-Digit Tracking #${ord.trackingNumber} (TID: ${ord.transactionReference || ord.transactionId}).`)}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-emerald-600 hover:text-emerald-700 font-bold text-[10px] flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
-                                        title="Chat with Customer on WhatsApp"
-                                      >
-                                        <MessageCircle className="w-3 h-3" /> WhatsApp
-                                      </a>
+                                      <span className="text-[11px] text-slate-500 font-mono">{ord.mobileNumber || ''}</span>
+                                      {ord.mobileNumber && (
+                                        <a 
+                                          href={`https://wa.me/92${ord.mobileNumber.replace(/^(\+92|0)/, '')}?text=${encodeURIComponent(`Assalam-o-Alaikum ${ord.customerName}, this is ATAL Store regarding your order with 8-Digit Tracking #${ord.trackingNumber} (TID: ${ord.transactionReference || ord.transactionId}).`)}`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-emerald-600 hover:text-emerald-700 font-bold text-[10px] flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
+                                          title="Chat with Customer on WhatsApp"
+                                        >
+                                          <MessageCircle className="w-3 h-3" /> WhatsApp
+                                        </a>
+                                      )}
                                     </div>
                                   </td>
 
                                   {/* City & Address */}
                                   <td className="p-3">
-                                    <p className="font-bold text-slate-700">{ord.city}</p>
-                                    <p className="text-[10px] text-slate-400 line-clamp-1 max-w-[150px]">{ord.address}</p>
+                                    <p className="font-bold text-slate-700">{ord.city || ''}</p>
+                                    <p className="text-[10px] text-slate-400 line-clamp-1 max-w-[150px]">{ord.address || ''}</p>
                                   </td>
 
                                   {/* Total Amount */}
                                   <td className="p-3">
-                                    <p className="font-black text-emerald-700">PKR {ord.totalAmount.toLocaleString()}</p>
-                                    <p className="text-[10px] text-slate-400">{ord.items.length} item(s)</p>
+                                    <p className="font-black text-emerald-700">PKR {(ord.totalAmount || 0).toLocaleString()}</p>
+                                    <p className="text-[10px] text-slate-400">{(ord.items || []).length} item(s)</p>
                                   </td>
 
                                   {/* Status */}
