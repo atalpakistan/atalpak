@@ -1177,31 +1177,41 @@ export default function App() {
 
   const fetchStaffList = async () => {
     try {
-      const res = await fetch('/api/admin/staff');
+      const res = await fetch(getApiUrl('/api/admin/staff'));
       if (res.ok) {
         const data = await res.json();
         setStaffList(data);
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch staff list:', e);
     }
   };
 
   const loadAdminData = async () => {
     try {
-      const statsRes = await fetch('/api/admin/stats');
-      const statsData = await statsRes.json();
-      setAdminStats(statsData);
+      const statsRes = await fetch(getApiUrl('/api/admin/stats'));
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setAdminStats(statsData);
+      }
 
-      const ordersRes = await fetch('/api/orders');
-      const ordersData = await ordersRes.json();
-      setAdminOrders(ordersData);
+      const ordersRes = await fetch(getApiUrl('/api/orders'));
+      if (ordersRes.ok) {
+        const ordersData = await ordersRes.json();
+        setAdminOrders(ordersData);
+      }
 
       fetchStaffList();
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load admin data:', e);
     }
   };
+
+  useEffect(() => {
+    if (adminAuthUser && currentView === 'admin') {
+      loadAdminData();
+    }
+  }, [adminAuthUser, currentView]);
 
   const handleStaffLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1213,6 +1223,7 @@ export default function App() {
       setAdminAuthUser(result.data);
       localStorage.setItem('atal_staff_user', JSON.stringify(result.data));
       showToast(`🎉 ${result.message || `Welcome, ${result.data.name}!`}`);
+      setCurrentView('admin');
       loadAdminData();
     } else {
       showToast(result.error || 'Invalid admin credentials.');
@@ -1224,6 +1235,7 @@ export default function App() {
     setAdminAuthUser(null);
     localStorage.removeItem('atal_staff_user');
     showToast('Signed out of Admin & Staff Portal');
+    setCurrentView('home');
   };
 
   const handleStaffChangePassword = async (e: React.FormEvent) => {
@@ -1379,6 +1391,19 @@ export default function App() {
                   <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -bottom-0.5 -right-0.5 border border-[#062419]"></span>
                 )}
               </button>
+
+              {/* Admin Portal Header Button */}
+              <button 
+                onClick={() => { setCurrentView('admin'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className={`w-7 h-7 rounded-full flex items-center justify-center relative transition ${
+                  adminAuthUser
+                    ? 'bg-purple-600 text-white shadow-xs border border-purple-300' 
+                    : 'bg-emerald-800/80 hover:bg-emerald-700 text-[#f5d77f] border border-emerald-500/50'
+                }`}
+                title={adminAuthUser ? `Admin Portal (${adminAuthUser.name})` : "Admin & Staff Portal"}
+              >
+                <ShieldCheck className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
@@ -1478,6 +1503,19 @@ export default function App() {
               >
                 <User className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{currentCustomer ? `Hi, ${currentCustomer.name.split(' ')[0]}` : 'Account'}</span>
+              </button>
+
+              <button 
+                onClick={() => { setCurrentView('admin'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className={`text-xs font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition ${
+                  adminAuthUser
+                    ? 'bg-purple-50 border-purple-300 text-purple-900 hover:bg-purple-100'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                }`}
+                title="Admin & Staff Portal"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                <span>{adminAuthUser ? `Portal (${adminAuthUser.name.split(' ')[0]})` : 'Admin Portal'}</span>
               </button>
 
               <button 
