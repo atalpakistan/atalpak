@@ -4890,7 +4890,8 @@ export default function App() {
                                         colorsString: existingColors || 'Black, Navy Blue, Maroon, White',
                                         sizesString: existingSizes || 'S, M, L, XL',
                                         isFlashDeal: !!prod.isFlashDeal,
-                                        isFeatured: !!prod.isFeatured
+                                        isFeatured: !!prod.isFeatured,
+                                        sku: (prod as any).sku || prod.variants?.[0]?.sku || ''
                                       });
                                       setIsProductModalOpen(true);
                                     }}
