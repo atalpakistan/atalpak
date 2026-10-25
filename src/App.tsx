@@ -1487,6 +1487,49 @@ export default function App() {
   const [importFileContent, setImportFileContent] = useState<any>(null);
   const [isImportingData, setIsImportingData] = useState(false);
 
+  // Helper to extract and normalize import payload whether object or direct array
+  const parseImportStats = (raw: any) => {
+    if (!raw) return null;
+    let prods: any[] | null = null;
+    let cats: any[] | null = null;
+    let slides: any[] | null = null;
+    let settings: any = null;
+    let orders: any[] | null = null;
+    let customers: any[] | null = null;
+
+    if (Array.isArray(raw)) {
+      if (raw.length > 0) {
+        const first = raw[0];
+        if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
+          prods = raw;
+        } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')))) {
+          cats = raw;
+        } else if (first && (first.badge !== undefined || first.buttonText !== undefined || first.discount !== undefined)) {
+          slides = raw;
+        }
+      }
+    } else if (typeof raw === 'object') {
+      prods = Array.isArray(raw.products) ? raw.products : (Array.isArray(raw.items) ? raw.items : (Array.isArray(raw.catalog) ? raw.catalog : null));
+      cats = Array.isArray(raw.categories) ? raw.categories : (Array.isArray(raw.cats) ? raw.cats : null);
+      slides = Array.isArray(raw.carouselSlides) ? raw.carouselSlides : (Array.isArray(raw.carousel) ? raw.carousel : (Array.isArray(raw.slides) ? raw.slides : (Array.isArray(raw.heroSlides) ? raw.heroSlides : null)));
+      settings = raw.storeSettings || raw.settings || null;
+      orders = Array.isArray(raw.orders) ? raw.orders : null;
+      customers = Array.isArray(raw.customers) ? raw.customers : null;
+    }
+
+    return {
+      storeName: raw?.storeName || settings?.storeName || 'ATAL',
+      products: prods,
+      categories: cats,
+      carouselSlides: slides,
+      storeSettings: settings,
+      orders,
+      customers,
+      cart: raw?.cart || null,
+      wishlist: raw?.wishlist || null
+    };
+  };
+
   const handleExportData = () => {
     try {
       const backupData = {
@@ -1516,64 +1559,73 @@ export default function App() {
   };
 
   const handleImportData = async () => {
-    if (!importFileContent || typeof importFileContent !== 'object') {
+    if (!importFileContent) {
       showToast('Please select a valid ATAL backup JSON file first.');
       return;
     }
+    const stats = parseImportStats(importFileContent);
+    if (!stats) {
+      showToast('Invalid backup JSON file structure.');
+      return;
+    }
+
     setIsImportingData(true);
     try {
-      // 1. Send to backend API for permanent server-side persistence
-      try {
-        const res = await fetch(getApiUrl('/api/admin/import-data'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(importFileContent)
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          console.warn('Backend sync warning during import:', errData);
-        }
-      } catch (backendErr) {
-        console.error('Backend import network warning:', backendErr);
+      // 1. Build normalized payload for backend
+      const payload: any = {};
+      if (Array.isArray(stats.products)) payload.products = stats.products;
+      if (Array.isArray(stats.categories)) payload.categories = stats.categories;
+      if (Array.isArray(stats.carouselSlides)) payload.carouselSlides = stats.carouselSlides;
+      if (stats.storeSettings && typeof stats.storeSettings === 'object') payload.storeSettings = stats.storeSettings;
+      if (Array.isArray(stats.orders)) payload.orders = stats.orders;
+      if (Array.isArray(stats.customers)) payload.customers = stats.customers;
+
+      // 2. Persist to backend server API
+      const res = await fetch(getApiUrl('/api/admin/import-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error('Backend server failed to import backup data');
       }
 
-      // 2. Perform full-store data overwrite on React state & localStorage
-      if (Array.isArray(importFileContent.products)) {
-        setProducts(importFileContent.products);
+      // 3. Immediately overwrite React state & localStorage for instant zero-latency UI update
+      if (Array.isArray(stats.products)) {
+        setProducts(stats.products);
       }
-      if (Array.isArray(importFileContent.categories)) {
-        setCategories(importFileContent.categories);
+      if (Array.isArray(stats.categories)) {
+        setCategories(stats.categories);
       }
-      if (Array.isArray(importFileContent.carouselSlides)) {
-        setCarouselSlides(importFileContent.carouselSlides);
+      if (Array.isArray(stats.carouselSlides)) {
+        setCarouselSlides(stats.carouselSlides);
       }
-      if (importFileContent.storeSettings && typeof importFileContent.storeSettings === 'object') {
-        setStoreSettings(prev => ({ ...prev, ...importFileContent.storeSettings }));
+      if (stats.storeSettings && typeof stats.storeSettings === 'object') {
+        setStoreSettings(prev => ({ ...prev, ...stats.storeSettings }));
       }
-      if (Array.isArray(importFileContent.orders)) {
-        setAdminOrders(importFileContent.orders);
-        try {
-          localStorage.setItem('atal_orders', JSON.stringify(importFileContent.orders));
-        } catch {}
+      if (Array.isArray(stats.orders)) {
+        setAdminOrders(stats.orders);
+        try { localStorage.setItem('atal_orders', JSON.stringify(stats.orders)); } catch {}
       }
-      if (Array.isArray(importFileContent.cart)) {
-        setCart(importFileContent.cart);
-        try {
-          localStorage.setItem('atal_cart', JSON.stringify(importFileContent.cart));
-        } catch {}
+      if (Array.isArray(stats.cart)) {
+        setCart(stats.cart);
+        try { localStorage.setItem('atal_cart', JSON.stringify(stats.cart)); } catch {}
       }
-      if (Array.isArray(importFileContent.wishlist)) {
-        setWishlist(importFileContent.wishlist);
-        try {
-          localStorage.setItem('atal_wishlist', JSON.stringify(importFileContent.wishlist));
-        } catch {}
+      if (Array.isArray(stats.wishlist)) {
+        setWishlist(stats.wishlist);
+        try { localStorage.setItem('atal_wishlist', JSON.stringify(stats.wishlist)); } catch {}
       }
 
       showToast('🎉 Full store data successfully imported and restored!');
       setImportFileContent(null);
-      await loadAdminData();
+
+      // 4. Re-fetch from server to verify full synchronization
       await fetchCategories();
       await fetchProducts();
+      await fetchCarouselSlides();
+      await fetchStoreSettings();
+      await loadAdminData();
     } catch (e) {
       console.error('Import error:', e);
       showToast('Error importing backup data. Please check JSON format.');
@@ -1606,16 +1658,18 @@ export default function App() {
         const parsed = JSON.parse(ev.target?.result as string);
         const prods = Array.isArray(parsed) ? parsed : (parsed.products || parsed.items || parsed.catalog);
         if (Array.isArray(prods) && prods.length > 0) {
-          setProducts(prods);
-          try {
-            await fetch(getApiUrl('/api/admin/import-data'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ products: prods })
-            });
-          } catch {}
-          showToast(`🎉 Successfully imported ${prods.length} products!`);
-          await fetchProducts();
+          const res = await fetch(getApiUrl('/api/admin/import-data'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ products: prods })
+          });
+          if (res.ok) {
+            setProducts(prods);
+            showToast(`🎉 Successfully imported ${prods.length} products!`);
+            await fetchProducts();
+          } else {
+            showToast('Backend error importing products.');
+          }
         } else {
           showToast('Invalid products JSON format.');
         }
@@ -1624,6 +1678,7 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleExportCategories = () => {
@@ -1650,16 +1705,18 @@ export default function App() {
         const parsed = JSON.parse(ev.target?.result as string);
         const cats = Array.isArray(parsed) ? parsed : (parsed.categories || parsed.cats);
         if (Array.isArray(cats) && cats.length > 0) {
-          setCategories(cats);
-          try {
-            await fetch(getApiUrl('/api/admin/import-data'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ categories: cats })
-            });
-          } catch {}
-          showToast(`🎉 Successfully imported ${cats.length} categories!`);
-          await fetchCategories();
+          const res = await fetch(getApiUrl('/api/admin/import-data'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categories: cats })
+          });
+          if (res.ok) {
+            setCategories(cats);
+            showToast(`🎉 Successfully imported ${cats.length} categories!`);
+            await fetchCategories();
+          } else {
+            showToast('Backend error importing categories.');
+          }
         } else {
           showToast('Invalid categories JSON format.');
         }
@@ -1668,6 +1725,7 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   useEffect(() => {
@@ -5837,25 +5895,29 @@ export default function App() {
                             <p className="text-[11px] text-slate-400 mt-2">Select a valid ATAL JSON backup file</p>
                           </div>
 
-                          {importFileContent && (
-                            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl text-xs space-y-1">
-                              <p className="font-bold text-emerald-900">✓ Backup File Verified:</p>
-                              <p className="text-emerald-700">Store Name: <strong>{importFileContent.storeName || 'ATAL'}</strong></p>
-                              <p className="text-emerald-700">Products: <strong>{(importFileContent.products || []).length}</strong> items</p>
-                              <p className="text-emerald-700">Categories: <strong>{(importFileContent.categories || []).length}</strong> categories</p>
-                              <p className="text-emerald-700">Carousel Slides: <strong>{(importFileContent.carouselSlides || []).length}</strong> slides</p>
-                              <p className="text-emerald-700">Orders: <strong>{(importFileContent.orders || []).length}</strong> orders</p>
+                          {importFileContent && (() => {
+                            const stats = parseImportStats(importFileContent);
+                            if (!stats) return null;
+                            return (
+                              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl text-xs space-y-1">
+                                <p className="font-bold text-emerald-900">✓ Backup File Verified:</p>
+                                <p className="text-emerald-700">Store Name: <strong>{stats.storeName}</strong></p>
+                                <p className="text-emerald-700">Products: <strong>{stats.products ? stats.products.length : 0}</strong> items</p>
+                                <p className="text-emerald-700">Categories: <strong>{stats.categories ? stats.categories.length : 0}</strong> categories</p>
+                                <p className="text-emerald-700">Carousel Slides: <strong>{stats.carouselSlides ? stats.carouselSlides.length : 0}</strong> slides</p>
+                                <p className="text-emerald-700">Orders: <strong>{stats.orders ? stats.orders.length : 0}</strong> orders</p>
 
-                              <button
-                                type="button"
-                                disabled={isImportingData}
-                                onClick={handleImportData}
-                                className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow transition text-xs disabled:opacity-50 cursor-pointer"
-                              >
-                                {isImportingData ? 'Restoring Data...' : 'Confirm & Restore Data'}
-                              </button>
-                            </div>
-                          )}
+                                <button
+                                  type="button"
+                                  disabled={isImportingData}
+                                  onClick={handleImportData}
+                                  className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow transition text-xs disabled:opacity-50 cursor-pointer"
+                                >
+                                  {isImportingData ? 'Restoring Data...' : 'Confirm & Restore Data'}
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

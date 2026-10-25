@@ -1724,45 +1724,72 @@ export async function createServer() {
   app.post('/api/admin/import-data', (req, res) => {
     try {
       const data = req.body;
-      if (!data || typeof data !== 'object') {
+      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
         return res.status(400).json({ error: 'Invalid backup payload format.' });
       }
 
       let importedCount = { products: 0, categories: 0, carousel: 0, orders: 0, customers: 0 };
 
-      if (Array.isArray(data.products) && data.products.length > 0) {
-        products = data.products;
-        saveProductsToDisk();
-        importedCount.products = products.length;
-      }
+      // Case A: Direct Array Import
+      if (Array.isArray(data)) {
+        if (data.length > 0) {
+          const first = data[0];
+          if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
+            products = data;
+            saveProductsToDisk();
+            importedCount.products = products.length;
+          } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')))) {
+            categories = data;
+            saveCategoriesToDisk();
+            importedCount.categories = categories.length;
+          } else if (first && (first.badge !== undefined || first.buttonText !== undefined || first.discount !== undefined)) {
+            carouselSlides = data;
+            saveCarouselToDisk();
+            importedCount.carousel = carouselSlides.length;
+          }
+        }
+      } else {
+        // Case B: Full Store / Multi-entity Object Import
+        const prods = data.products || data.items || data.catalog;
+        if (Array.isArray(prods)) {
+          products = prods;
+          saveProductsToDisk();
+          importedCount.products = products.length;
+        }
 
-      if (Array.isArray(data.categories) && data.categories.length > 0) {
-        categories = data.categories;
-        saveCategoriesToDisk();
-        importedCount.categories = categories.length;
-      }
+        const cats = data.categories || data.cats;
+        if (Array.isArray(cats)) {
+          categories = cats;
+          saveCategoriesToDisk();
+          importedCount.categories = categories.length;
+        }
 
-      if (Array.isArray(data.carouselSlides) && data.carouselSlides.length > 0) {
-        carouselSlides = data.carouselSlides;
-        saveCarouselToDisk();
-        importedCount.carousel = carouselSlides.length;
-      }
+        const slides = data.carouselSlides || data.carousel || data.slides || data.heroSlides;
+        if (Array.isArray(slides)) {
+          carouselSlides = slides;
+          saveCarouselToDisk();
+          importedCount.carousel = carouselSlides.length;
+        }
 
-      if (data.storeSettings && typeof data.storeSettings === 'object') {
-        storeSettings = { ...storeSettings, ...data.storeSettings };
-        saveSettingsToDisk();
-      }
+        const settings = data.storeSettings || data.settings;
+        if (settings && typeof settings === 'object') {
+          storeSettings = { ...DEFAULT_STORE_SETTINGS, ...settings };
+          saveSettingsToDisk();
+        }
 
-      if (Array.isArray(data.orders)) {
-        orders = data.orders;
-        saveOrdersToDisk();
-        importedCount.orders = orders.length;
-      }
+        const ords = data.orders;
+        if (Array.isArray(ords)) {
+          orders = ords;
+          saveOrdersToDisk();
+          importedCount.orders = orders.length;
+        }
 
-      if (Array.isArray(data.customers)) {
-        customers = data.customers;
-        saveCustomersToDisk();
-        importedCount.customers = customers.length;
+        const custs = data.customers;
+        if (Array.isArray(custs)) {
+          customers = custs;
+          saveCustomersToDisk();
+          importedCount.customers = customers.length;
+        }
       }
 
       console.log('[Admin Import] Store data imported successfully:', importedCount);
