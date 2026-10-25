@@ -518,7 +518,7 @@ export default function App() {
 
   const [adminStats, setAdminStats] = useState<any>(null);
   const [adminOrders, setAdminOrders] = useState<Order[]>([]);
-  const [adminActiveTab, setAdminActiveTab] = useState<'orders' | 'products' | 'categories' | 'carousel' | 'settings' | 'staff'>('orders');
+  const [adminActiveTab, setAdminActiveTab] = useState<'orders' | 'products' | 'categories' | 'carousel' | 'settings' | 'staff' | 'import-export'>('orders');
 
   // Ultra-safe array helpers to guarantee zero render exceptions
   const safeProducts = Array.isArray(products) ? products : INITIAL_PRODUCTS;
@@ -1481,6 +1481,60 @@ export default function App() {
       fetchStaffList();
     } catch (e) {
       console.error('Failed to load admin data:', e);
+    }
+  };
+
+  const [importFileContent, setImportFileContent] = useState<any>(null);
+  const [isImportingData, setIsImportingData] = useState(false);
+
+  const handleExportData = async () => {
+    try {
+      const res = await fetch(getApiUrl('/api/admin/export-data'));
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `atal_store_backup_${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showToast('📥 Store data exported successfully!');
+      } else {
+        showToast('Failed to export store data');
+      }
+    } catch (e) {
+      showToast('Network error during export');
+    }
+  };
+
+  const handleImportData = async () => {
+    if (!importFileContent) {
+      showToast('Please select a valid ATAL backup JSON file first.');
+      return;
+    }
+    setIsImportingData(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/import-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(importFileContent)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`🎉 ${data.message}`);
+        fetchCategories();
+        fetchProducts();
+        loadAdminData();
+        setImportFileContent(null);
+      } else {
+        showToast(data.error || 'Import failed');
+      }
+    } catch (e) {
+      showToast('Network error during import');
+    } finally {
+      setIsImportingData(false);
     }
   };
 
@@ -4795,6 +4849,12 @@ export default function App() {
                     >
                       Staff & Roles ({(staffList || []).length})
                     </button>
+                    <button 
+                      onClick={() => setAdminActiveTab('import-export')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${adminActiveTab === 'import-export' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    >
+                      📥 Import & Export Data
+                    </button>
                   </div>
 
                   {/* TAB 1: ORDERS MANAGEMENT */}
@@ -5566,6 +5626,92 @@ export default function App() {
                             ))}
                           </tbody>
                         </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB: IMPORT & EXPORT DATA */}
+                  {adminActiveTab === 'import-export' && (
+                    <div className="space-y-6 mb-8">
+                      {/* Export Section */}
+                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                            📤
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-base text-slate-900">Export All Store Data (Backup)</h3>
+                            <p className="text-xs text-slate-500">Download a complete JSON backup of products, categories, carousel slides, settings, orders, and customers.</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleExportData}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-2xl text-xs transition shadow-md flex items-center gap-2 cursor-pointer"
+                        >
+                          <span>📥 Download Full Store Backup (.json)</span>
+                        </button>
+                      </div>
+
+                      {/* Import Section */}
+                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                            📥
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-base text-slate-900">Import & Restore Store Data</h3>
+                            <p className="text-xs text-slate-500">Upload a previously exported ATAL backup JSON file to restore products, categories, carousel slides, and settings.</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 max-w-xl">
+                          <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-5 text-center">
+                            <input 
+                              type="file"
+                              accept=".json"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    try {
+                                      const parsed = JSON.parse(ev.target?.result as string);
+                                      setImportFileContent(parsed);
+                                      showToast('Backup file loaded and ready for import!');
+                                    } catch (err) {
+                                      showToast('Invalid JSON file format.');
+                                      setImportFileContent(null);
+                                    }
+                                  };
+                                  reader.readAsText(file);
+                                }
+                              }}
+                              className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
+                            />
+                            <p className="text-[11px] text-slate-400 mt-2">Select a valid ATAL JSON backup file</p>
+                          </div>
+
+                          {importFileContent && (
+                            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl text-xs space-y-1">
+                              <p className="font-bold text-emerald-900">✓ Backup File Verified:</p>
+                              <p className="text-emerald-700">Store Name: <strong>{importFileContent.storeName || 'ATAL'}</strong></p>
+                              <p className="text-emerald-700">Products: <strong>{(importFileContent.products || []).length}</strong> items</p>
+                              <p className="text-emerald-700">Categories: <strong>{(importFileContent.categories || []).length}</strong> categories</p>
+                              <p className="text-emerald-700">Carousel Slides: <strong>{(importFileContent.carouselSlides || []).length}</strong> slides</p>
+                              <p className="text-emerald-700">Orders: <strong>{(importFileContent.orders || []).length}</strong> orders</p>
+
+                              <button
+                                type="button"
+                                disabled={isImportingData}
+                                onClick={handleImportData}
+                                className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow transition text-xs disabled:opacity-50 cursor-pointer"
+                              >
+                                {isImportingData ? 'Restoring Data...' : 'Confirm & Restore Data'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}

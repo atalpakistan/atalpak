@@ -1698,6 +1698,85 @@ export async function createServer() {
     res.json(storeSettings);
   });
 
+  // 7. Backup / Data Import & Export (Admin)
+  app.get('/api/admin/export-data', (req, res) => {
+    try {
+      const backupData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        storeName: storeSettings.storeName || 'ATAL',
+        products,
+        categories,
+        carouselSlides,
+        storeSettings,
+        orders,
+        customers: customers.map(sanitizeCustomer),
+        staff: staffUsers.map(sanitizeStaffUser)
+      };
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename=atal_store_backup_${Date.now()}.json`);
+      res.json(backupData);
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to generate store backup export' });
+    }
+  });
+
+  app.post('/api/admin/import-data', (req, res) => {
+    try {
+      const data = req.body;
+      if (!data || typeof data !== 'object') {
+        return res.status(400).json({ error: 'Invalid backup payload format.' });
+      }
+
+      let importedCount = { products: 0, categories: 0, carousel: 0, orders: 0, customers: 0 };
+
+      if (Array.isArray(data.products) && data.products.length > 0) {
+        products = data.products;
+        saveProductsToDisk();
+        importedCount.products = products.length;
+      }
+
+      if (Array.isArray(data.categories) && data.categories.length > 0) {
+        categories = data.categories;
+        saveCategoriesToDisk();
+        importedCount.categories = categories.length;
+      }
+
+      if (Array.isArray(data.carouselSlides) && data.carouselSlides.length > 0) {
+        carouselSlides = data.carouselSlides;
+        saveCarouselToDisk();
+        importedCount.carousel = carouselSlides.length;
+      }
+
+      if (data.storeSettings && typeof data.storeSettings === 'object') {
+        storeSettings = { ...storeSettings, ...data.storeSettings };
+        saveSettingsToDisk();
+      }
+
+      if (Array.isArray(data.orders)) {
+        orders = data.orders;
+        saveOrdersToDisk();
+        importedCount.orders = orders.length;
+      }
+
+      if (Array.isArray(data.customers)) {
+        customers = data.customers;
+        saveCustomersToDisk();
+        importedCount.customers = customers.length;
+      }
+
+      console.log('[Admin Import] Store data imported successfully:', importedCount);
+      res.json({
+        success: true,
+        message: 'Store data imported and saved successfully!',
+        importedCount
+      });
+    } catch (e) {
+      console.error('Error importing backup data:', e);
+      res.status(500).json({ error: 'Failed to import store data. Please check JSON file format.' });
+    }
+  });
+
   // Vite integration / Static production serving
   const isProduction = process.env.NODE_ENV === 'production';
   const distPath = path.join(__dirname, 'dist');
