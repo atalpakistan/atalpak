@@ -1582,6 +1582,94 @@ export default function App() {
     }
   };
 
+  const handleExportProducts = () => {
+    try {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `atal_products_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('📥 Products catalog exported successfully!');
+    } catch (e) {
+      showToast('Failed to export products');
+    }
+  };
+
+  const handleImportProducts = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        const prods = Array.isArray(parsed) ? parsed : (parsed.products || parsed.items || parsed.catalog);
+        if (Array.isArray(prods) && prods.length > 0) {
+          setProducts(prods);
+          try {
+            await fetch(getApiUrl('/api/admin/import-data'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ products: prods })
+            });
+          } catch {}
+          showToast(`🎉 Successfully imported ${prods.length} products!`);
+          await fetchProducts();
+        } else {
+          showToast('Invalid products JSON format.');
+        }
+      } catch (err) {
+        showToast('Error reading products file.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExportCategories = () => {
+    try {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(categories, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `atal_categories_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('📥 Categories exported successfully!');
+    } catch (e) {
+      showToast('Failed to export categories');
+    }
+  };
+
+  const handleImportCategories = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        const cats = Array.isArray(parsed) ? parsed : (parsed.categories || parsed.cats);
+        if (Array.isArray(cats) && cats.length > 0) {
+          setCategories(cats);
+          try {
+            await fetch(getApiUrl('/api/admin/import-data'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ categories: cats })
+            });
+          } catch {}
+          showToast(`🎉 Successfully imported ${cats.length} categories!`);
+          await fetchCategories();
+        } else {
+          showToast('Invalid categories JSON format.');
+        }
+      } catch (err) {
+        showToast('Error reading categories file.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   useEffect(() => {
     if (adminAuthUser && currentView === 'admin') {
       loadAdminData();
@@ -5142,33 +5230,46 @@ export default function App() {
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-8">
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-sm text-slate-900">Product Catalog Management</h3>
-                        <button 
-                            onClick={() => {
-                            setEditingProductId(null);
-                            setProductForm({
-                              name: '',
-                              description: '',
-                              categoryId: categories[0]?.id || 'cat-men',
-                              subcategoryId: categories[0]?.subcategories?.[0] || 'T-Shirts',
-                              brand: 'ATAL',
-                              price: 0,
-                              originalPrice: 0,
-                              stock: 20,
-                              imageUrl1: '',
-                              imageUrl2: '',
-                              imageUrl3: '',
-                              colorsString: '',
-                              sizesString: '',
-                              isFlashDeal: false,
-                              isFeatured: true,
-                              sku: ''
-                            });
-                            setIsProductModalOpen(true);
-                          }}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow"
-                        >
-                          <Plus className="w-4 h-4" /> Add New Product
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            type="button"
+                            onClick={handleExportProducts}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
+                          >
+                            📤 Export Products
+                          </button>
+                          <label className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer">
+                            📥 Import Products
+                            <input type="file" accept=".json" onChange={handleImportProducts} className="hidden" />
+                          </label>
+                          <button 
+                              onClick={() => {
+                              setEditingProductId(null);
+                              setProductForm({
+                                name: '',
+                                description: '',
+                                categoryId: categories[0]?.id || 'cat-men',
+                                subcategoryId: categories[0]?.subcategories?.[0] || 'T-Shirts',
+                                brand: 'ATAL',
+                                price: 0,
+                                originalPrice: 0,
+                                stock: 20,
+                                imageUrl1: '',
+                                imageUrl2: '',
+                                imageUrl3: '',
+                                colorsString: '',
+                                sizesString: '',
+                                isFlashDeal: false,
+                                isFeatured: true,
+                                sku: ''
+                              });
+                              setIsProductModalOpen(true);
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow"
+                          >
+                            <Plus className="w-4 h-4" /> Add New Product
+                          </button>
+                        </div>
                       </div>
 
                       <div className="overflow-x-auto">
