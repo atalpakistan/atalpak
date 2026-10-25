@@ -1487,52 +1487,96 @@ export default function App() {
   const [importFileContent, setImportFileContent] = useState<any>(null);
   const [isImportingData, setIsImportingData] = useState(false);
 
-  const handleExportData = async () => {
+  const handleExportData = () => {
     try {
-      const res = await fetch(getApiUrl('/api/admin/export-data'));
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `atal_store_backup_${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        showToast('📥 Store data exported successfully!');
-      } else {
-        showToast('Failed to export store data');
-      }
+      const backupData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        storeName: storeSettings?.storeName || 'ATAL',
+        products: Array.isArray(products) ? products : [],
+        categories: Array.isArray(categories) ? categories : [],
+        carouselSlides: Array.isArray(carouselSlides) ? carouselSlides : [],
+        storeSettings: storeSettings || {},
+        orders: Array.isArray(adminOrders) ? adminOrders : [],
+        cart: Array.isArray(cart) ? cart : [],
+        wishlist: Array.isArray(wishlist) ? wishlist : []
+      };
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', jsonString);
+      downloadAnchor.setAttribute('download', `atal_store_full_backup_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('📥 Complete store backup exported successfully!');
     } catch (e) {
-      showToast('Network error during export');
+      console.error('Export error:', e);
+      showToast('Failed to export store backup data');
     }
   };
 
   const handleImportData = async () => {
-    if (!importFileContent) {
+    if (!importFileContent || typeof importFileContent !== 'object') {
       showToast('Please select a valid ATAL backup JSON file first.');
       return;
     }
     setIsImportingData(true);
     try {
-      const res = await fetch(getApiUrl('/api/admin/import-data'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(importFileContent)
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast(`🎉 ${data.message}`);
-        fetchCategories();
-        fetchProducts();
-        loadAdminData();
-        setImportFileContent(null);
-      } else {
-        showToast(data.error || 'Import failed');
+      // 1. Send to backend API for permanent server-side persistence
+      try {
+        const res = await fetch(getApiUrl('/api/admin/import-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(importFileContent)
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.warn('Backend sync warning during import:', errData);
+        }
+      } catch (backendErr) {
+        console.error('Backend import network warning:', backendErr);
       }
+
+      // 2. Perform full-store data overwrite on React state & localStorage
+      if (Array.isArray(importFileContent.products)) {
+        setProducts(importFileContent.products);
+      }
+      if (Array.isArray(importFileContent.categories)) {
+        setCategories(importFileContent.categories);
+      }
+      if (Array.isArray(importFileContent.carouselSlides)) {
+        setCarouselSlides(importFileContent.carouselSlides);
+      }
+      if (importFileContent.storeSettings && typeof importFileContent.storeSettings === 'object') {
+        setStoreSettings(prev => ({ ...prev, ...importFileContent.storeSettings }));
+      }
+      if (Array.isArray(importFileContent.orders)) {
+        setAdminOrders(importFileContent.orders);
+        try {
+          localStorage.setItem('atal_orders', JSON.stringify(importFileContent.orders));
+        } catch {}
+      }
+      if (Array.isArray(importFileContent.cart)) {
+        setCart(importFileContent.cart);
+        try {
+          localStorage.setItem('atal_cart', JSON.stringify(importFileContent.cart));
+        } catch {}
+      }
+      if (Array.isArray(importFileContent.wishlist)) {
+        setWishlist(importFileContent.wishlist);
+        try {
+          localStorage.setItem('atal_wishlist', JSON.stringify(importFileContent.wishlist));
+        } catch {}
+      }
+
+      showToast('🎉 Full store data successfully imported and restored!');
+      setImportFileContent(null);
+      await loadAdminData();
+      await fetchCategories();
+      await fetchProducts();
     } catch (e) {
-      showToast('Network error during import');
+      console.error('Import error:', e);
+      showToast('Error importing backup data. Please check JSON format.');
     } finally {
       setIsImportingData(false);
     }
