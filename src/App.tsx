@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link, NavLink } from 'react-router-dom';
 import { 
   ShoppingBag, Search, Heart, User, ShieldCheck, Truck, RotateCcw, 
   PhoneCall, ChevronRight, ChevronLeft, Star, X, Plus, Minus, Trash2, CheckCircle2, 
@@ -228,6 +229,8 @@ const HERO_SLIDES: CarouselSlide[] = [
 ];
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentView, setCurrentView] = useState<'home' | 'products' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'orders' | 'support' | 'admin' | 'account'>('home');
   
   // Hero Carousel dynamic state
@@ -275,12 +278,30 @@ export default function App() {
     return () => clearInterval(timer);
   }, [carouselSlides.length]);
   
-  
   // Data states
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('atal_cart');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (Array.isArray(cart)) {
+        localStorage.setItem('atal_cart', JSON.stringify(cart));
+      }
+    } catch (e) {
+      console.error('Error saving cart:', e);
+    }
+  }, [cart]);
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('atal_wishlist');
@@ -539,6 +560,34 @@ export default function App() {
     } as Record<string, number>
   });
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(getApiUrl('/api/categories'));
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch categories:', e);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch(getApiUrl('/api/products'));
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch products:', e);
+    }
+  };
+
   const fetchStoreSettings = async () => {
     try {
       const res = await fetch(getApiUrl('/api/settings'));
@@ -698,6 +747,7 @@ export default function App() {
     localStorage.removeItem('atal_customer');
     setCustomerOrders([]);
     showToast('Signed out of customer account.');
+    navigate('/');
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -1057,78 +1107,91 @@ export default function App() {
     });
   };
 
+  // Step-by-step Back navigation helper with safe fallback
+  const handleBackNavigation = (fallbackPath: string = '/') => {
+    if (window.history.length > 1 && window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate(fallbackPath);
+    }
+  };
+
+  const handleOpenProduct = (prod: Product) => {
+    setSelectedProduct(prod);
+    const vars = getProductVariants(prod);
+    if (vars.length > 0) {
+      setSelectedVariant(vars[0]);
+    } else {
+      setSelectedVariant(null);
+    }
+    setQuantity(1);
+    const targetPath = `/product/${prod.slug || prod.id}`;
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
+  };
+
+  const handleOpenCategory = (catId: string, subcat?: string | null) => {
+    setSelectedCategory(catId);
+    setSelectedSubcategory(subcat || null);
+    const cat = categories.find(c => c.id === catId);
+    const catSlug = cat?.slug || catId;
+    const query = subcat ? `?subcategory=${encodeURIComponent(subcat)}` : '';
+    const targetPath = `/category/${catSlug}${query}`;
+    if (`${location.pathname}${location.search}` !== targetPath) {
+      navigate(targetPath);
+    }
+  };
+
+  const handleOpenShop = (catId?: string | null, subcat?: string | null, search?: string) => {
+    setSelectedCategory(catId || null);
+    setSelectedSubcategory(subcat || null);
+    if (search !== undefined) {
+      setSearchQuery(search);
+    }
+    if (catId) {
+      const cat = categories.find(c => c.id === catId);
+      const catSlug = cat?.slug || catId;
+      const query = subcat ? `?subcategory=${encodeURIComponent(subcat)}` : '';
+      const targetPath = `/category/${catSlug}${query}`;
+      if (`${location.pathname}${location.search}` !== targetPath) {
+        navigate(targetPath);
+      }
+    } else {
+      const params = new URLSearchParams();
+      if (subcat) params.set('subcategory', subcat);
+      if (search) params.set('search', search);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const targetPath = `/shop${qs}`;
+      if (`${location.pathname}${location.search}` !== targetPath) {
+        navigate(targetPath);
+      }
+    }
+  };
+
   // Load initial data
   useEffect(() => {
     fetchCategories();
     fetchProducts();
     fetchStoreSettings();
     fetchCarouselSlides();
-    
-    // Comprehensive URL hash and pathname router
-    const resolveRouteFromUrl = () => {
-      const hash = window.location.hash.toLowerCase();
-      const path = window.location.pathname.toLowerCase();
-      const search = window.location.search.toLowerCase();
-
-      if (window.location.hash.startsWith('#product/')) {
-        const slug = window.location.hash.replace('#product/', '');
-        loadProductBySlug(slug);
-      } else if (hash === '#admin' || hash === '#/admin' || path.includes('/admin') || search.includes('admin')) {
-        setCurrentView('admin');
-      } else if (hash === '#cart' || hash === '#/cart') {
-        setCurrentView('cart');
-      } else if (hash === '#checkout' || hash === '#/checkout') {
-        setCurrentView('checkout');
-      } else if (hash === '#orders' || hash === '#/orders' || hash === '#track') {
-        setCurrentView('orders');
-      } else if (hash === '#account' || hash === '#/account' || hash === '#login') {
-        setCurrentView('account');
-      } else if (hash === '#support' || hash === '#/support' || hash === '#contact') {
-        setCurrentView('support');
-      } else if (hash === '#products' || hash === '#/products' || hash === '#shop') {
-        setCurrentView('products');
-      } else if (hash === '#home' || hash === '' || hash === '#') {
-        setCurrentView('home');
-      }
-    };
-
-    window.addEventListener('hashchange', resolveRouteFromUrl);
-    resolveRouteFromUrl();
-
-    return () => window.removeEventListener('hashchange', resolveRouteFromUrl);
   }, []);
 
-  const fetchCategories = async () => {
-    try {
-      const res = await fetch(getApiUrl('/api/categories'));
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setCategories(data);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to fetch categories:', e);
-    }
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch(getApiUrl('/api/products'));
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setProducts(data);
-        } else if (data && Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(data.products);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to fetch products:', e);
-    }
-  };
-
   const loadProductBySlug = async (slug: string) => {
+    // If already loaded and matching, just set view
+    if (selectedProduct && (selectedProduct.slug === slug || selectedProduct.id === slug)) {
+      setCurrentView('product-detail');
+      return;
+    }
+    // Check local product catalogue first for instant zero-latency view
+    const local = products.find(p => p.slug === slug || p.id === slug);
+    if (local) {
+      setSelectedProduct(local);
+      const vars = getProductVariants(local);
+      if (vars.length > 0) setSelectedVariant(vars[0]);
+      setQuantity(1);
+      setCurrentView('product-detail');
+    }
     try {
       const res = await fetch(getApiUrl(`/api/products/${slug}`));
       if (res.ok) {
@@ -1146,32 +1209,86 @@ export default function App() {
           return;
         }
       }
-      // Fallback search in local products list
-      const found = products.find(p => p.slug === slug || p.id === slug);
-      if (found) {
-        setSelectedProduct(found);
-        const vars = getProductVariants(found);
-        if (vars.length > 0) setSelectedVariant(vars[0]);
-        setQuantity(1);
-        setCurrentView('product-detail');
-      } else {
+      if (!local) {
         setSelectedProduct(null);
         setCurrentView('product-detail');
       }
     } catch (e) {
       console.error('Error loading product by slug:', e);
-      const found = products.find(p => p.slug === slug || p.id === slug);
-      if (found) {
-        setSelectedProduct(found);
-        const vars = getProductVariants(found);
-        if (vars.length > 0) setSelectedVariant(vars[0]);
-        setCurrentView('product-detail');
-      } else {
+      if (!local) {
         setSelectedProduct(null);
         setCurrentView('product-detail');
       }
     }
   };
+
+  // Synchronize React Router URL pathname & query parameters with UI view state
+  useEffect(() => {
+    const rawPath = location.pathname;
+    const path = rawPath.toLowerCase();
+    const searchParams = new URLSearchParams(location.search);
+    const catParam = searchParams.get('category');
+    const subcatParam = searchParams.get('subcategory');
+    const qParam = searchParams.get('search');
+
+    if (qParam !== null) {
+      setSearchQuery(qParam);
+    }
+
+    if (path === '/' || path === '/home' || path === '') {
+      setCurrentView('home');
+      setSelectedProduct(null);
+    } else if (path.startsWith('/product/')) {
+      const slug = decodeURIComponent(rawPath.substring(9).replace(/\/$/, ''));
+      if (slug) {
+        loadProductBySlug(slug);
+      }
+    } else if (path.startsWith('/category/')) {
+      const rawCat = decodeURIComponent(rawPath.substring(10).replace(/\/$/, ''));
+      const matchingCat = categories.find(c => 
+        c.slug.toLowerCase() === rawCat.toLowerCase() || 
+        c.id.toLowerCase() === rawCat.toLowerCase() ||
+        c.name.toLowerCase() === rawCat.toLowerCase()
+      );
+      setSelectedCategory(matchingCat ? matchingCat.id : rawCat);
+      setSelectedSubcategory(subcatParam || null);
+      setSelectedProduct(null);
+      setCurrentView('products');
+    } else if (path === '/shop' || path === '/products') {
+      if (catParam) {
+        const matchingCat = categories.find(c => 
+          c.slug.toLowerCase() === catParam.toLowerCase() || 
+          c.id.toLowerCase() === catParam.toLowerCase()
+        );
+        setSelectedCategory(matchingCat ? matchingCat.id : catParam);
+      } else {
+        setSelectedCategory(null);
+      }
+      setSelectedSubcategory(subcatParam || null);
+      setSelectedProduct(null);
+      setCurrentView('products');
+    } else if (path === '/cart') {
+      setCurrentView('cart');
+      setIsCartOpen(true);
+    } else if (path === '/checkout') {
+      setCurrentView('checkout');
+      setIsCartOpen(false);
+    } else if (path === '/orders' || path === '/track' || path === '/track-order') {
+      setCurrentView('orders');
+    } else if (path === '/account' || path === '/my-account') {
+      setCurrentView('account');
+    } else if (path === '/login') {
+      setAuthMode('login');
+      setCurrentView('account');
+    } else if (path === '/register') {
+      setAuthMode('register');
+      setCurrentView('account');
+    } else if (path === '/support' || path === '/faqs' || path === '/contact') {
+      setCurrentView('support');
+    } else if (path.startsWith('/admin') || path === '/portal') {
+      setCurrentView('admin');
+    }
+  }, [location.pathname, location.search, categories, products]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -1395,7 +1512,7 @@ export default function App() {
     setAdminAuthUser(null);
     localStorage.removeItem('atal_staff_user');
     showToast('Signed out of Admin & Staff Portal');
-    setCurrentView('home');
+    navigate('/');
   };
 
   const handleStaffChangePassword = async (e: React.FormEvent) => {
@@ -1599,7 +1716,7 @@ export default function App() {
             {/* Brand Title with Official ATAL 3D Logo */}
             <div 
               className="flex items-center gap-2 cursor-pointer"
-              onClick={() => { setCurrentView('home'); window.location.hash = ''; }}
+              onClick={() => navigate('/')}
             >
               <img 
                 src="/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg" 
@@ -1655,7 +1772,7 @@ export default function App() {
 
               {/* Customer Account Button */}
               <button 
-                onClick={() => setCurrentView('account')}
+                onClick={() => navigate('/account')}
                 className={`w-7 h-7 rounded-full flex items-center justify-center relative transition ${
                   currentCustomer 
                     ? 'bg-amber-400 text-slate-950 font-black text-xs shadow-xs' 
@@ -1672,8 +1789,6 @@ export default function App() {
                   <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -bottom-0.5 -right-0.5 border border-[#062419]"></span>
                 )}
               </button>
-
-
             </div>
           </div>
 
@@ -1688,7 +1803,7 @@ export default function App() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      setCurrentView('products');
+                      handleOpenShop(null, null, searchQuery);
                     }
                   }}
                   autoFocus
@@ -1721,7 +1836,7 @@ export default function App() {
 
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             {/* Logo */}
-            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setCurrentView('home'); window.location.hash = ''; }}>
+            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
               <img 
                 src="/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg" 
                 alt="ATAL Logo" 
@@ -1745,7 +1860,7 @@ export default function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    setCurrentView('products');
+                    handleOpenShop(null, null, searchQuery);
                   }
                 }}
                 className="w-full bg-slate-100 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
@@ -1756,14 +1871,14 @@ export default function App() {
             {/* Actions */}
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => setCurrentView('orders')}
-                className="text-xs font-semibold text-slate-700 hover:text-emerald-600"
+                onClick={() => navigate('/orders')}
+                className="text-xs font-semibold text-slate-700 hover:text-emerald-600 transition"
               >
                 Track Order
               </button>
 
               <button 
-                onClick={() => setCurrentView('account')}
+                onClick={() => navigate('/account')}
                 className={`text-xs font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition ${
                   currentCustomer
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
@@ -1774,8 +1889,6 @@ export default function App() {
                 <User className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{currentCustomer ? `Hi, ${currentCustomer.name.split(' ')[0]}` : 'Account'}</span>
               </button>
-
-
 
               <button 
                 onClick={() => setIsCartOpen(true)}
@@ -1790,7 +1903,7 @@ export default function App() {
           {/* Categories Nav Header */}
           <div className="bg-slate-900 text-white px-4 py-2 text-xs overflow-x-auto flex gap-6 no-scrollbar">
             <button 
-              onClick={() => { setSelectedCategory(null); setSelectedSubcategory(null); setCurrentView('home'); window.location.hash=''; }}
+              onClick={() => navigate('/')}
               className="hover:text-emerald-400 font-medium whitespace-nowrap"
             >
               Home
@@ -1798,19 +1911,14 @@ export default function App() {
             {categories.map(cat => (
               <button 
                 key={cat.id} 
-                onClick={() => {
-                  setSelectedCategory(cat.id);
-                  setSelectedSubcategory(null);
-                  setCurrentView('products');
-                  window.location.hash = '';
-                }}
+                onClick={() => handleOpenCategory(cat.id, cat.slug)}
                 className="hover:text-emerald-400 whitespace-nowrap font-medium text-slate-200"
               >
                 {cat.name}
               </button>
             ))}
             <button 
-              onClick={() => setCurrentView('support')}
+              onClick={() => navigate('/support')}
               className="hover:text-emerald-400 font-medium whitespace-nowrap text-emerald-300"
             >
               Customer Support
@@ -1948,7 +2056,7 @@ export default function App() {
                       Shop by Category
                     </h3>
                     <span 
-                      onClick={() => { setSelectedCategory(null); setSelectedSubcategory(null); setCurrentView('products'); }}
+                      onClick={() => handleOpenShop()}
                       className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
                     >
                       All ({categories.length})
@@ -1958,7 +2066,7 @@ export default function App() {
                     {categories.map((cat) => (
                       <button 
                         key={cat.id}
-                        onClick={() => { setSelectedCategory(cat.id); setSelectedSubcategory(null); setCurrentView('products'); }}
+                        onClick={() => handleOpenCategory(cat.id, cat.slug)}
                         className="flex flex-col items-center shrink-0 min-w-[66px] max-w-[76px] group cursor-pointer"
                       >
                         <div className="w-14 h-14 rounded-full bg-[#eaf8f0] group-hover:bg-[#d8f3e2] p-1 flex items-center justify-center transition shadow-xs border border-emerald-100 overflow-hidden">
@@ -1983,7 +2091,7 @@ export default function App() {
                       <span className="text-amber-500">⚡</span> Featured Festive Deals
                     </h3>
                     <span 
-                      onClick={() => setCurrentView('products')}
+                      onClick={() => handleOpenShop()}
                       className="text-[11px] font-bold text-red-700 hover:text-red-800 cursor-pointer"
                     >
                       View All
@@ -1995,11 +2103,7 @@ export default function App() {
                     {safeProducts.filter(p => p && (p.isFlashDeal || p.isFeatured || p.isNewArrival)).map((prod) => (
                       <div 
                         key={prod.id}
-                        onClick={() => {
-                          setSelectedProduct(prod);
-                          if (prod.variants?.length) setSelectedVariant(prod.variants[0]);
-                          setCurrentView('product-detail');
-                        }}
+                        onClick={() => handleOpenProduct(prod)}
                         className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition cursor-pointer flex flex-col group shrink-0 w-[170px] sm:w-[195px]"
                       >
                         {/* Image Box */}
@@ -2079,7 +2183,7 @@ export default function App() {
                       All Products Catalog
                     </h3>
                     <span 
-                      onClick={() => setCurrentView('products')}
+                      onClick={() => handleOpenShop()}
                       className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
                     >
                       View All →
@@ -2090,11 +2194,7 @@ export default function App() {
                     {products.map((prod) => (
                       <div 
                         key={prod.id}
-                        onClick={() => {
-                          setSelectedProduct(prod);
-                          if (prod.variants?.length) setSelectedVariant(prod.variants[0]);
-                          setCurrentView('product-detail');
-                        }}
+                        onClick={() => handleOpenProduct(prod)}
                         className="col-span-4 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
                       >
                         <div className="relative aspect-square w-full bg-[#062419] overflow-hidden flex items-center justify-center">
@@ -2181,20 +2281,14 @@ export default function App() {
                             </p>
                             <div className="flex items-center gap-3">
                               <button 
-                                onClick={() => {
-                                  setSelectedCategory(slide.categoryId);
-                                  setCurrentView('products');
-                                }}
+                                onClick={() => handleOpenCategory(slide.categoryId)}
                                 className="bg-[#f5d77f] hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-xl text-sm shadow-lg transition flex items-center gap-2"
                               >
                                 <span>{slide.buttonText}</span>
                                 <ChevronRight className="w-4 h-4" />
                               </button>
                               <button 
-                                onClick={() => {
-                                  setSelectedCategory(null);
-                                  setCurrentView('products');
-                                }}
+                                onClick={() => handleOpenShop()}
                                 className="bg-white/15 hover:bg-white/25 text-white backdrop-blur-sm font-semibold px-5 py-3 rounded-xl text-sm transition"
                               >
                                 Browse All Products
@@ -2248,7 +2342,7 @@ export default function App() {
                     </div>
                     <span 
                       className="text-xs text-emerald-600 hover:text-emerald-700 cursor-pointer font-bold" 
-                      onClick={() => { setSelectedCategory(null); setCurrentView('products'); }}
+                      onClick={() => handleOpenShop()}
                     >
                       View All Categories →
                     </span>
@@ -2257,11 +2351,7 @@ export default function App() {
                     {categories.map(cat => (
                       <div 
                         key={cat.id}
-                        onClick={() => {
-                          setSelectedCategory(cat.id);
-                          setSelectedSubcategory(null);
-                          setCurrentView('products');
-                        }}
+                        onClick={() => handleOpenCategory(cat.id, cat.slug)}
                         className="bg-white border border-slate-200 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer hover:shadow-lg transition group shrink-0 w-44 flex flex-col items-center justify-center"
                       >
                         <div className="w-20 h-20 mx-auto rounded-full overflow-hidden mb-3 shadow-xs border-2 border-emerald-50 group-hover:border-emerald-300 transition">
@@ -2283,7 +2373,7 @@ export default function App() {
                       </div>
                       <span className="text-xs font-bold text-slate-800">All festive offers & new arrivals in one row • Nationwide Delivery</span>
                     </div>
-                    <span className="text-xs font-bold text-red-700 hover:text-red-900 cursor-pointer" onClick={() => setCurrentView('products')}>
+                    <span className="text-xs font-bold text-red-700 hover:text-red-900 cursor-pointer" onClick={() => handleOpenShop()}>
                       See All Deals →
                     </span>
                   </div>
@@ -2293,12 +2383,7 @@ export default function App() {
                       <div 
                         key={prod.id}
                         className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer shrink-0 w-60"
-                        onClick={() => {
-                          setSelectedProduct(prod);
-                          if (prod.variants && prod.variants.length > 0) setSelectedVariant(prod.variants[0]);
-                          setCurrentView('product-detail');
-                          window.location.hash = `product/${prod.slug}`;
-                        }}
+                        onClick={() => handleOpenProduct(prod)}
                       >
                         <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
                           {prod.discountPercentage && (
@@ -2368,7 +2453,7 @@ export default function App() {
                     </div>
                     <span 
                       className="text-xs font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
-                      onClick={() => { setSelectedCategory(null); setSelectedSubcategory(null); setCurrentView('products'); }}
+                      onClick={() => handleOpenShop()}
                     >
                       View All in Catalog →
                     </span>
@@ -2379,12 +2464,7 @@ export default function App() {
                       <div 
                         key={prod.id}
                         className="col-span-4 sm:col-span-2 lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer"
-                        onClick={() => {
-                          setSelectedProduct(prod);
-                          if (prod.variants && prod.variants.length > 0) setSelectedVariant(prod.variants[0]);
-                          setCurrentView('product-detail');
-                          window.location.hash = `product/${prod.slug}`;
-                        }}
+                        onClick={() => handleOpenProduct(prod)}
                       >
                         {prod.discountPercentage && (
                           <span className="absolute top-2.5 left-2.5 bg-red-600 text-white text-[9.5px] font-extrabold px-2 py-0.5 rounded-full z-10 shadow-xs">
@@ -2478,6 +2558,23 @@ export default function App() {
           {/* VIEW: PRODUCT LISTING & SEARCH */}
           {currentView === 'products' && (
             <div className="max-w-7xl mx-auto px-4 py-6">
+              {/* Back to Home Button */}
+              <div className="flex items-center justify-between mb-4">
+                <button 
+                  onClick={() => handleBackNavigation('/')}
+                  className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl transition shadow-xs"
+                  title="Return to Home"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Home</span>
+                </button>
+                {selectedCategory && (
+                  <span className="text-xs font-medium text-slate-500">
+                    Category: <strong className="text-emerald-700">{categories.find(c => c.id === selectedCategory)?.name || 'All'}</strong>
+                  </span>
+                )}
+              </div>
+
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Filters Sidebar */}
                 <div className="w-full md:w-64 bg-slate-50 border border-slate-200 p-4 rounded-2xl h-fit">
@@ -2490,7 +2587,13 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-700 block mb-2">Category</label>
                     <select 
                       value={selectedCategory || ''}
-                      onChange={(e) => { setSelectedCategory(e.target.value || null); setSelectedSubcategory(null); }}
+                      onChange={(e) => { 
+                        if (e.target.value) {
+                          handleOpenCategory(e.target.value);
+                        } else {
+                          handleOpenShop();
+                        }
+                      }}
                       className="w-full bg-white border border-slate-300 rounded-xl p-2 text-xs"
                     >
                       <option value="">All Categories</option>
@@ -2506,7 +2609,7 @@ export default function App() {
                       <label className="text-xs font-bold text-slate-700 block mb-2">Subcategory</label>
                       <select 
                         value={selectedSubcategory || ''}
-                        onChange={(e) => setSelectedSubcategory(e.target.value || null)}
+                        onChange={(e) => handleOpenCategory(selectedCategory, e.target.value || null)}
                         className="w-full bg-white border border-slate-300 rounded-xl p-2 text-xs"
                       >
                         <option value="">All Subcategories</option>
@@ -2530,7 +2633,7 @@ export default function App() {
                   </div>
 
                   <button 
-                    onClick={() => { setSelectedCategory(null); setSelectedSubcategory(null); setSearchQuery(''); }}
+                    onClick={() => { handleOpenShop(); setSearchQuery(''); }}
                     className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-xl text-xs font-bold transition"
                   >
                     Reset Filters
@@ -2565,12 +2668,7 @@ export default function App() {
                       <div 
                         key={prod.id}
                         className="bg-white border border-slate-200 rounded-2xl p-2.5 sm:p-4 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer"
-                        onClick={() => {
-                          setSelectedProduct(prod);
-                          if (prod.variants && prod.variants.length > 0) setSelectedVariant(prod.variants[0]);
-                          setCurrentView('product-detail');
-                          window.location.hash = `product/${prod.slug}`;
-                        }}
+                        onClick={() => handleOpenProduct(prod)}
                       >
                         {prod.discountPercentage && (
                           <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-red-600 text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 sm:px-2 py-0.5 rounded-full z-10">
@@ -2619,22 +2717,35 @@ export default function App() {
               <h2 className="text-xl font-black text-slate-900 mb-2">Product Not Found</h2>
               <p className="text-sm text-slate-500 mb-6">The product you are trying to view could not be located or has been removed from the catalog.</p>
               <button 
-                onClick={() => { setSelectedProduct(null); setCurrentView('home'); window.location.hash = ''; }}
+                onClick={() => handleBackNavigation('/shop')}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow transition text-xs"
               >
-                Return to Store Home
+                Return to Shop Catalog
               </button>
             </div>
           )}
 
           {currentView === 'product-detail' && selectedProduct && !selectedProduct.error && selectedProduct.id && (
             <div className="max-w-7xl mx-auto px-4 py-6">
-              <button 
-                onClick={() => { setSelectedProduct(null); setCurrentView('home'); window.location.hash = ''; }}
-                className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-emerald-600 mb-6"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back to Store
-              </button>
+              <div className="flex items-center justify-between mb-6">
+                <button 
+                  onClick={() => handleBackNavigation('/shop')}
+                  className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl transition shadow-xs"
+                  title="Go back to previous page"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
+                </button>
+                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
+                  <span className="cursor-pointer hover:text-emerald-600" onClick={() => navigate('/')}>Home</span>
+                  <span>/</span>
+                  <span className="cursor-pointer hover:text-emerald-600" onClick={() => handleOpenCategory(selectedProduct.categoryId)}>
+                    {categories.find(c => c.id === selectedProduct.categoryId)?.name || 'Catalog'}
+                  </span>
+                  <span>/</span>
+                  <span className="text-slate-800 font-semibold truncate max-w-[200px]">{selectedProduct.name}</span>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Image Gallery */}
@@ -2722,7 +2833,7 @@ export default function App() {
                     <button 
                       onClick={() => {
                         addToCart(selectedProduct, selectedVariant || undefined, quantity);
-                        setCurrentView('checkout');
+                        navigate('/checkout');
                       }}
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition"
                     >
@@ -2749,6 +2860,45 @@ export default function App() {
                     <h4 className="font-bold text-sm text-slate-900 mb-2">Product Description</h4>
                     <p className="text-xs text-slate-600 leading-relaxed">{selectedProduct.description}</p>
                   </div>
+
+                  {/* Related Products Section */}
+                  <div className="mt-8 border-t border-slate-200 pt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold text-sm text-slate-900">Related Products in this Category</h4>
+                      <button 
+                        type="button"
+                        onClick={() => handleOpenCategory(selectedProduct.categoryId)}
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                      >
+                        View More →
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {safeProducts
+                        .filter(p => p && p.id !== selectedProduct.id && (p.categoryId === selectedProduct.categoryId || p.subcategoryId === selectedProduct.subcategoryId))
+                        .slice(0, 4)
+                        .map(related => (
+                          <div 
+                            key={related.id}
+                            onClick={() => handleOpenProduct(related)}
+                            className="bg-white border border-slate-200 rounded-xl p-2 flex flex-col justify-between hover:shadow-md transition cursor-pointer group"
+                          >
+                            <div className="w-full aspect-square rounded-lg overflow-hidden bg-[#062419] flex items-center justify-center mb-1.5">
+                              <img 
+                                src={related.images[0]} 
+                                alt={related.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                              />
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-emerald-600 font-bold uppercase truncate">{related.brand}</p>
+                              <h5 className="font-bold text-[11px] text-slate-800 line-clamp-1">{related.name}</h5>
+                              <p className="font-black text-[11px] text-slate-900 mt-0.5">PKR {related.price.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2757,9 +2907,20 @@ export default function App() {
           {/* VIEW: PAKISTAN-SPECIFIC CHECKOUT */}
           {currentView === 'checkout' && (
             <div className="max-w-4xl mx-auto px-4 py-6">
-              <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                <ShieldCheck className="w-6 h-6 text-emerald-600" /> Secure Pakistan Checkout
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <button 
+                  type="button"
+                  onClick={() => handleBackNavigation('/cart')}
+                  className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl transition shadow-xs"
+                  title="Go back to Cart"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Cart</span>
+                </button>
+                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-6 h-6 text-emerald-600" /> Secure Pakistan Checkout
+                </h2>
+              </div>
 
               <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Delivery Information */}
@@ -2783,7 +2944,7 @@ export default function App() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setCurrentView('account')}
+                        onClick={() => navigate('/account')}
                         className="text-[11px] font-bold text-emerald-700 hover:underline shrink-0 ml-2"
                       >
                         Account
@@ -2799,7 +2960,7 @@ export default function App() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setCurrentView('account')}
+                        onClick={() => navigate('/account')}
                         className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1 rounded-lg transition shrink-0 ml-2 shadow-xs"
                       >
                         Sign In / Register
@@ -3397,14 +3558,14 @@ export default function App() {
                   onClick={() => { 
                     setTrackingSearchQuery(lastPlacedOrder.trackingNumber);
                     setSearchedOrder(lastPlacedOrder);
-                    setCurrentView('orders'); 
+                    navigate('/orders'); 
                   }}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-xs transition shadow-md"
                 >
                   Track This Order Now
                 </button>
                 <button 
-                  onClick={() => { setCurrentView('home'); }}
+                  onClick={() => { navigate('/'); }}
                   className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3 rounded-xl text-xs transition"
                 >
                   Continue Shopping
@@ -3416,6 +3577,23 @@ export default function App() {
           {/* VIEW: ORDER TRACKING */}
           {currentView === 'orders' && (
             <div className="max-w-4xl mx-auto px-4 py-6">
+              {/* Back Button & Breadcrumbs */}
+              <div className="flex items-center gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={() => handleBackNavigation('/')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back</span>
+                </button>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Link to="/" className="hover:text-emerald-700 font-medium">Home</Link>
+                  <span>/</span>
+                  <span className="font-semibold text-slate-800">Track Order</span>
+                </div>
+              </div>
+
               <h2 className="text-xl font-black text-slate-900 mb-2">Order Tracking & Status</h2>
               <p className="text-xs text-slate-500 mb-6">Track your package live nationwide across Pakistan using your 8-digit tracking number.</p>
 
@@ -3617,6 +3795,23 @@ export default function App() {
           {/* VIEW: CUSTOMER SUPPORT */}
           {currentView === 'support' && (
             <div className="max-w-3xl mx-auto px-4 py-8">
+              {/* Back Button & Breadcrumbs */}
+              <div className="flex items-center gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => handleBackNavigation('/')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back</span>
+                </button>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Link to="/" className="hover:text-emerald-700 font-medium">Home</Link>
+                  <span>/</span>
+                  <span className="font-semibold text-slate-800">Customer Support</span>
+                </div>
+              </div>
+
               <h2 className="text-2xl font-black text-slate-900 mb-2">ATAL Store Customer Support</h2>
               <p className="text-xs text-slate-500 mb-6">We are available 24/7 to assist you with your orders and deliveries across Pakistan.</p>
 
@@ -3718,6 +3913,25 @@ export default function App() {
           {/* ======================================================== */}
           {currentView === 'account' && (
             <div className="max-w-4xl mx-auto px-4 py-8">
+              {/* Back Button & Breadcrumbs */}
+              <div className="flex items-center gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => handleBackNavigation('/')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back</span>
+                </button>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Link to="/" className="hover:text-emerald-700 font-medium">Home</Link>
+                  <span>/</span>
+                  <span className="font-semibold text-slate-800">
+                    {currentCustomer ? 'Customer Account' : (authMode === 'login' ? 'Customer Sign In' : 'Create Account')}
+                  </span>
+                </div>
+              </div>
+
               {!currentCustomer ? (
                 /* AUTH VIEW (REGISTER & LOGIN) */
                 <div className="max-w-lg mx-auto bg-white border border-slate-200 rounded-3xl shadow-xl overflow-hidden">
@@ -4456,8 +4670,8 @@ export default function App() {
                     <div className="text-center pt-2">
                       <button
                         type="button"
-                        onClick={() => setCurrentView('home')}
-                        className="text-slate-500 hover:text-slate-800 text-xs font-medium"
+                        onClick={() => handleBackNavigation('/')}
+                        className="text-slate-500 hover:text-slate-800 text-xs font-medium cursor-pointer"
                       >
                         ← Back to ATAL Store
                       </button>
@@ -4488,6 +4702,16 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => handleBackNavigation('/')}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        title="Return to Customer Storefront"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Storefront</span>
+                      </button>
+
                       <button 
                         onClick={() => setIsStaffPasswordModalOpen(true)}
                         className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
@@ -6287,40 +6511,40 @@ export default function App() {
                   <ul className="space-y-2 text-xs">
                     <li>
                       <button 
-                        onClick={() => { setSelectedCategory('cat-men'); setSelectedSubcategory(null); setCurrentView('products'); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left"
+                        onClick={() => handleOpenCategory('cat-men')} 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left cursor-pointer"
                       >
                         Men's Formal & Casual Wear
                       </button>
                     </li>
                     <li>
                       <button 
-                        onClick={() => { setSelectedCategory('cat-women'); setSelectedSubcategory(null); setCurrentView('products'); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left"
+                        onClick={() => handleOpenCategory('cat-women')} 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left cursor-pointer"
                       >
                         Women's Pret, Lawn & Handbags
                       </button>
                     </li>
                     <li>
                       <button 
-                        onClick={() => { setSelectedCategory('cat-kids'); setSelectedSubcategory(null); setCurrentView('products'); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left"
+                        onClick={() => handleOpenCategory('cat-kids')} 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left cursor-pointer"
                       >
                         Kids Festive & Casual Wear
                       </button>
                     </li>
                     <li>
                       <button 
-                        onClick={() => { setSelectedCategory('cat-cosmetics'); setSelectedSubcategory(null); setCurrentView('products'); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left"
+                        onClick={() => handleOpenCategory('cat-cosmetics')} 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left cursor-pointer"
                       >
                         Cosmetics, Skincare & Perfumes
                       </button>
                     </li>
                     <li>
                       <button 
-                        onClick={() => { setSelectedCategory('cat-electronics'); setSelectedSubcategory(null); setCurrentView('products'); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left"
+                        onClick={() => handleOpenCategory('cat-electronics')} 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition text-left cursor-pointer"
                       >
                         Audio, Earbuds & Smart Gadgets
                       </button>
@@ -6333,47 +6557,72 @@ export default function App() {
                   <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-wider text-xs">Quick Links</h4>
                   <ul className="space-y-2 text-xs">
                     <li>
-                      <button 
-                        onClick={() => { setCurrentView('orders'); }} 
+                      <Link 
+                        to="/" 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
+                      >
+                        <span>Home</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link 
+                        to="/shop" 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
+                      >
+                        <span>Shop Catalog & Categories</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link 
+                        to="/orders" 
                         className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
                       >
                         <Truck className="w-3.5 h-3.5 text-emerald-700" />
                         <span>Track 8-Digit Order</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button 
-                        onClick={() => { setIsWishlistOpen(true); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
-                      >
-                        <Heart className="w-3.5 h-3.5 text-red-500" />
-                        <span>Saved Wishlist ({wishlist.length})</span>
-                      </button>
+                      </Link>
                     </li>
                     <li>
                       <button 
                         onClick={() => { setIsCartOpen(true); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5 cursor-pointer text-left"
                       >
                         <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
                         <span>Shopping Cart ({cart.reduce((a, c) => a + c.quantity, 0)})</span>
                       </button>
                     </li>
                     <li>
-                      <button 
-                        onClick={() => { setCurrentView('support'); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition"
+                      <Link 
+                        to="/checkout" 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
                       >
-                        Customer Support & FAQs
-                      </button>
+                        <span>Secure Checkout</span>
+                      </Link>
                     </li>
                     <li>
-                      <button 
-                        onClick={() => { setCurrentView('admin'); }} 
-                        className="text-slate-700 hover:text-emerald-800 font-medium transition"
+                      <Link 
+                        to="/account" 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
                       >
-                        Admin and Staff Portal
-                      </button>
+                        <User className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>{currentCustomer ? 'My Account' : 'Sign In & Register'}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link 
+                        to="/support" 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
+                      >
+                        <span>Customer Support & FAQs</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link 
+                        to="/admin" 
+                        className="text-slate-700 hover:text-emerald-800 font-medium transition flex items-center gap-1.5"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Admin and Staff Portal</span>
+                      </Link>
                     </li>
                   </ul>
                 </div>
@@ -6442,7 +6691,15 @@ export default function App() {
         <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-1.5 px-2 flex items-center justify-around shadow-lg md:hidden select-none">
           {/* 1. Home (with active warm-amber pill highlight & spring animation) */}
           <button 
-            onClick={() => { setCurrentView('home'); window.location.hash = ''; }}
+            onClick={() => {
+              if (location.pathname !== '/') {
+                navigate('/');
+              } else {
+                setSelectedCategory(null);
+                setSelectedSubcategory(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
             className={`flex flex-col items-center justify-center nav-item-spring cursor-pointer ${
               currentView === 'home' && !isWishlistOpen
                 ? 'bg-[#fef08a] text-slate-950 font-bold px-3 py-1 rounded-full shadow-xs animate-spring-pill' 
@@ -6460,7 +6717,14 @@ export default function App() {
 
           {/* 2. Categories (full category browser) */}
           <button 
-            onClick={() => { setSelectedCategory(null); setSelectedSubcategory(null); setCurrentView('products'); }}
+            onClick={() => {
+              if (location.pathname !== '/shop') {
+                navigate('/shop');
+              } else {
+                setSelectedCategory(null);
+                setSelectedSubcategory(null);
+              }
+            }}
             className={`flex flex-col items-center justify-center nav-item-spring cursor-pointer ${
               currentView === 'products' && !isWishlistOpen
                 ? 'bg-emerald-50 text-emerald-800 font-bold px-3 py-1 rounded-full shadow-xs animate-spring-pill' 
@@ -6478,7 +6742,11 @@ export default function App() {
 
           {/* 3. Account (Customer account with Email, WhatsApp, and Password) */}
           <button 
-            onClick={() => setCurrentView('account')}
+            onClick={() => {
+              if (location.pathname !== '/account') {
+                navigate('/account');
+              }
+            }}
             className={`flex flex-col items-center justify-center nav-item-spring cursor-pointer ${
               currentView === 'account' && !isWishlistOpen
                 ? 'bg-emerald-50 text-emerald-800 font-bold px-3 py-1 rounded-full shadow-xs animate-spring-pill' 
@@ -6503,7 +6771,11 @@ export default function App() {
 
           {/* 4. My Orders (direct 8-digit tracking lookup) */}
           <button 
-            onClick={() => setCurrentView('orders')}
+            onClick={() => {
+              if (location.pathname !== '/orders') {
+                navigate('/orders');
+              }
+            }}
             className={`flex flex-col items-center justify-center nav-item-spring cursor-pointer ${
               currentView === 'orders' && !isWishlistOpen
                 ? 'bg-emerald-50 text-emerald-800 font-bold px-3 py-1 rounded-full shadow-xs animate-spring-pill' 
@@ -6646,7 +6918,15 @@ export default function App() {
                 <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
                   <ShoppingBag className="w-5 h-5 text-emerald-600" /> Your Shopping Cart ({cart.reduce((a,c) => a + c.quantity, 0)})
                 </h3>
-                <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-slate-100 rounded-full">
+                <button 
+                  onClick={() => {
+                    setIsCartOpen(false);
+                    if (location.pathname === '/cart') {
+                      handleBackNavigation('/');
+                    }
+                  }} 
+                  className="p-2 hover:bg-slate-100 rounded-full cursor-pointer"
+                >
                   <X className="w-5 h-5 text-slate-500" />
                 </button>
               </div>
@@ -6702,9 +6982,9 @@ export default function App() {
                   <button 
                     onClick={() => {
                       setIsCartOpen(false);
-                      setCurrentView('checkout');
+                      navigate('/checkout');
                     }}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-xs"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-xs cursor-pointer"
                   >
                     Proceed to Pakistan Checkout
                   </button>
