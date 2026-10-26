@@ -13,6 +13,7 @@ const PRODUCTS_FILE = path.join(__dirname, 'products_data.json');
 const CATEGORIES_FILE = path.join(__dirname, 'categories_data.json');
 const CAROUSEL_FILE = path.join(__dirname, 'carousel_data.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings_data.json');
+const HOMEPAGE_SECTIONS_FILE = path.join(__dirname, 'homepage_sections_data.json');
 const BACKUPS_DIR = path.join(__dirname, 'backups');
 if (!fs.existsSync(BACKUPS_DIR)) {
   try {
@@ -738,6 +739,104 @@ function saveSettingsToDisk() {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(storeSettings, null, 2), 'utf-8');
   } catch (err) {
     console.error('Error saving settings to disk:', err);
+  }
+}
+
+export interface SpotlightItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  image: string;
+  buttonText: string;
+  buttonLink: string;
+  layoutType: 'banner' | 'card' | 'grid';
+  badge?: string;
+}
+
+export interface HomepageSectionsConfig {
+  newLaunch: {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    productIds: string[];
+  };
+  spotlight: {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    items: SpotlightItem[];
+  };
+}
+
+const DEFAULT_HOMEPAGE_SECTIONS: HomepageSectionsConfig = {
+  newLaunch: {
+    enabled: true,
+    title: '⚡ New Launch Collection',
+    subtitle: 'Freshly arrived designer wear, advanced gadgets, and signature cosmetics',
+    productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
+  },
+  spotlight: {
+    enabled: true,
+    title: '🌟 ATAL Spotlight & Featured Promotions',
+    subtitle: 'Handpicked seasonal highlights, exclusive offers, and signature collections',
+    items: [
+      {
+        id: 'spot-1',
+        title: 'ATAL 3D Signature Luxury Bag',
+        subtitle: 'Emerald Green & 24K Gold Hardware',
+        description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters.',
+        image: '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg',
+        buttonText: 'SHOP LUXURY BAG',
+        buttonLink: '/product/atal-signature-3d-luxury-collection',
+        layoutType: 'banner',
+        badge: 'LIMITED EDITION'
+      },
+      {
+        id: 'spot-2',
+        title: 'ATAL Royal Oud Perfumes',
+        subtitle: '24-Hour Long Lasting Fragrance',
+        description: 'Immersive oriental oud and French notes blended into exquisite glass perfume bottles.',
+        image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80',
+        buttonText: 'DISCOVER SCENTS',
+        buttonLink: '/category/cosmetics-perfume',
+        layoutType: 'card',
+        badge: 'BEST SELLER'
+      }
+    ]
+  }
+};
+
+function loadHomepageSectionsFromDisk(): HomepageSectionsConfig {
+  try {
+    if (fs.existsSync(HOMEPAGE_SECTIONS_FILE)) {
+      const data = fs.readFileSync(HOMEPAGE_SECTIONS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          newLaunch: { ...DEFAULT_HOMEPAGE_SECTIONS.newLaunch, ...(parsed.newLaunch || {}) },
+          spotlight: { ...DEFAULT_HOMEPAGE_SECTIONS.spotlight, ...(parsed.spotlight || {}) }
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error reading homepage sections from disk:', err);
+  }
+  try {
+    fs.writeFileSync(HOMEPAGE_SECTIONS_FILE, JSON.stringify(DEFAULT_HOMEPAGE_SECTIONS, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save default homepage sections to disk:', e);
+  }
+  return JSON.parse(JSON.stringify(DEFAULT_HOMEPAGE_SECTIONS));
+}
+
+let homepageSections = loadHomepageSectionsFromDisk();
+
+function saveHomepageSectionsToDisk() {
+  try {
+    fs.writeFileSync(HOMEPAGE_SECTIONS_FILE, JSON.stringify(homepageSections, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving homepage sections to disk:', err);
   }
 }
 
@@ -1768,6 +1867,32 @@ export async function createServer() {
     storeSettings = { ...storeSettings, ...req.body };
     saveSettingsToDisk();
     res.json(storeSettings);
+  });
+
+  // Homepage Sections (New Launch & Spotlight)
+  app.get('/api/homepage-sections', (req, res) => {
+    res.json(homepageSections);
+  });
+
+  app.put('/api/homepage-sections', (req, res) => {
+    try {
+      const { newLaunch, spotlight } = req.body || {};
+      if (newLaunch && typeof newLaunch === 'object') {
+        homepageSections.newLaunch = { ...homepageSections.newLaunch, ...newLaunch };
+      }
+      if (spotlight && typeof spotlight === 'object') {
+        homepageSections.spotlight = { ...homepageSections.spotlight, ...spotlight };
+      }
+      saveHomepageSectionsToDisk();
+      res.json({
+        success: true,
+        message: 'Homepage sections configuration updated successfully!',
+        homepageSections
+      });
+    } catch (e: any) {
+      console.error('Error updating homepage sections:', e);
+      res.status(500).json({ error: `Failed to update homepage sections: ${e.message}` });
+    }
   });
 
   // --------------------------------------------------------------------------
