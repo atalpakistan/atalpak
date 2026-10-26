@@ -628,7 +628,7 @@ export default function App() {
     }
   };
 
-  const [homepageSections, setHomepageSections] = useState<any>({
+  const DEFAULT_HOMEPAGE_SECTIONS = {
     newLaunch: {
       enabled: true,
       title: '⚡ New Launch Collection',
@@ -641,7 +641,9 @@ export default function App() {
       subtitle: 'Handpicked seasonal highlights, exclusive offers, and signature collections',
       items: []
     }
-  });
+  };
+
+  const [homepageSections, setHomepageSections] = useState<any>(DEFAULT_HOMEPAGE_SECTIONS);
 
   const fetchHomepageSections = async () => {
     try {
@@ -649,7 +651,10 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') {
-          setHomepageSections(data);
+          setHomepageSections({
+            newLaunch: { ...DEFAULT_HOMEPAGE_SECTIONS.newLaunch, ...(data.newLaunch || {}) },
+            spotlight: { ...DEFAULT_HOMEPAGE_SECTIONS.spotlight, ...(data.spotlight || {}) }
+          });
         }
       }
     } catch (e) {
