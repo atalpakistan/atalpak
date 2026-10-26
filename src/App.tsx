@@ -633,13 +633,36 @@ export default function App() {
       enabled: true,
       title: '⚡ New Launch Collection',
       subtitle: 'Freshly arrived designer wear, advanced gadgets, and signature cosmetics',
-      productIds: []
+      productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
     },
     spotlight: {
       enabled: true,
       title: '🌟 ATAL Spotlight & Featured Promotions',
       subtitle: 'Handpicked seasonal highlights, exclusive offers, and signature collections',
-      items: []
+      items: [
+        {
+          id: 'spot-1',
+          title: 'ATAL 3D Signature Luxury Bag',
+          subtitle: 'Emerald Green & 24K Gold Hardware',
+          description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters.',
+          image: '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg',
+          buttonText: 'SHOP LUXURY BAG',
+          buttonLink: '/product/prod-festive-1',
+          layoutType: 'banner',
+          badge: 'LIMITED EDITION'
+        },
+        {
+          id: 'spot-2',
+          title: 'ATAL Royal Oud & Couture Fragrances',
+          subtitle: 'Pure Concentrated Perfume Oil',
+          description: 'Enchanting oriental notes of cambodian oud, dark rose, and warm amber crystals.',
+          image: '/assets/aistudio/WhatsApp_Image_2026-10-22_at_9.45.39_AM_5e21af89.jpeg',
+          buttonText: 'DISCOVER FRAGRANCES',
+          buttonLink: '/shop',
+          layoutType: 'banner',
+          badge: 'BESTSELLER'
+        }
+      ]
     }
   };
 
@@ -651,9 +674,17 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') {
+          const loadedNewLaunch = { ...DEFAULT_HOMEPAGE_SECTIONS.newLaunch, ...(data.newLaunch || {}) };
+          const loadedSpotlight = { ...DEFAULT_HOMEPAGE_SECTIONS.spotlight, ...(data.spotlight || {}) };
+          if (!Array.isArray(loadedSpotlight.items) || loadedSpotlight.items.length === 0) {
+            loadedSpotlight.items = DEFAULT_HOMEPAGE_SECTIONS.spotlight.items;
+          }
+          if (!Array.isArray(loadedNewLaunch.productIds) || loadedNewLaunch.productIds.length === 0) {
+            loadedNewLaunch.productIds = DEFAULT_HOMEPAGE_SECTIONS.newLaunch.productIds;
+          }
           setHomepageSections({
-            newLaunch: { ...DEFAULT_HOMEPAGE_SECTIONS.newLaunch, ...(data.newLaunch || {}) },
-            spotlight: { ...DEFAULT_HOMEPAGE_SECTIONS.spotlight, ...(data.spotlight || {}) }
+            newLaunch: loadedNewLaunch,
+            spotlight: loadedSpotlight
           });
         }
       }
@@ -2656,66 +2687,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* NEW LAUNCH SECTION (Mobile) */}
-                {homepageSections.newLaunch?.enabled !== false && (
-                  <div className="mt-5 mx-3 p-3.5 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-2xl border border-emerald-500/30 shadow-md">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-black text-sm text-white flex items-center gap-1.5">
-                          <span>{homepageSections.newLaunch.title || '⚡ New Launch Collection'}</span>
-                        </h3>
-                        {homepageSections.newLaunch.subtitle && (
-                          <p className="text-[10.5px] text-slate-300 line-clamp-1">{homepageSections.newLaunch.subtitle}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleOpenShop()}
-                        className="bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                      >
-                        View All
-                      </button>
-                    </div>
-
-                    <div className="flex flex-nowrap overflow-x-auto no-scrollbar gap-2.5 pb-1">
-                      {activeProducts
-                        .filter(p => {
-                          const ids = homepageSections.newLaunch.productIds;
-                          if (Array.isArray(ids) && ids.length > 0) return ids.includes(p.id);
-                          return p.isNewArrival || p.id.startsWith('prod-festive');
-                        })
-                        .slice(0, 6)
-                        .map(prod => (
-                          <div
-                            key={prod.id}
-                            onClick={() => handleOpenProduct(prod)}
-                            className="bg-white/10 border border-white/15 rounded-xl p-2.5 cursor-pointer shrink-0 w-[150px] flex flex-col justify-between"
-                          >
-                            <div>
-                              <div className="relative aspect-square rounded-lg overflow-hidden mb-2 bg-black/40">
-                                <img src={getPrimaryProductImage(prod)} alt={prod.name} className="w-full h-full object-cover" />
-                                {prod.discountPercentage && (
-                                  <span className="absolute top-1 left-1 bg-red-600 text-white text-[8px] font-black px-1 py-0.5 rounded">
-                                    {prod.discountPercentage}% OFF
-                                  </span>
-                                )}
-                              </div>
-                              <h4 className="font-bold text-[11px] text-white line-clamp-1">{prod.name}</h4>
-                            </div>
-                            <div className="mt-2 flex items-center justify-between pt-1 border-t border-white/10">
-                              <span className="font-black text-[11px] text-emerald-400">Rs {prod.price.toLocaleString()}</span>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); addToCart(prod, prod.variants?.[0]); }}
-                                className="bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded text-[9px]"
-                              >
-                                + Cart
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* SPOTLIGHT SECTION (Mobile) */}
                 {homepageSections.spotlight?.enabled !== false && Array.isArray(homepageSections.spotlight.items) && homepageSections.spotlight.items.length > 0 && (
                   <div className="mt-5 mx-3 p-4 bg-gradient-to-br from-amber-950 via-slate-900 to-purple-950 text-white rounded-2xl border border-amber-500/30 shadow-md space-y-3">
@@ -2829,6 +2800,66 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+
+                {/* NEW LAUNCH SECTION (Mobile) */}
+                {homepageSections.newLaunch?.enabled !== false && (
+                  <div className="mt-6 mx-3 p-3.5 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-2xl border border-emerald-500/30 shadow-md">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-black text-sm text-white flex items-center gap-1.5">
+                          <span>{homepageSections.newLaunch.title || '⚡ New Launch Collection'}</span>
+                        </h3>
+                        {homepageSections.newLaunch.subtitle && (
+                          <p className="text-[10.5px] text-slate-300 line-clamp-1">{homepageSections.newLaunch.subtitle}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleOpenShop()}
+                        className="bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                      >
+                        View All
+                      </button>
+                    </div>
+
+                    <div className="flex flex-nowrap overflow-x-auto no-scrollbar gap-2.5 pb-1">
+                      {activeProducts
+                        .filter(p => {
+                          const ids = homepageSections.newLaunch.productIds;
+                          if (Array.isArray(ids) && ids.length > 0) return ids.includes(p.id);
+                          return p.isNewArrival || p.id.startsWith('prod-festive');
+                        })
+                        .slice(0, 6)
+                        .map(prod => (
+                          <div
+                            key={prod.id}
+                            onClick={() => handleOpenProduct(prod)}
+                            className="bg-white/10 border border-white/15 rounded-xl p-2.5 cursor-pointer shrink-0 w-[150px] flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="relative aspect-square rounded-lg overflow-hidden mb-2 bg-black/40">
+                                <img src={getPrimaryProductImage(prod)} alt={prod.name} className="w-full h-full object-cover" />
+                                {prod.discountPercentage && (
+                                  <span className="absolute top-1 left-1 bg-red-600 text-white text-[8px] font-black px-1 py-0.5 rounded">
+                                    {prod.discountPercentage}% OFF
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="font-bold text-[11px] text-white line-clamp-1">{prod.name}</h4>
+                            </div>
+                            <div className="mt-2 flex items-center justify-between pt-1 border-t border-white/10">
+                              <span className="font-black text-[11px] text-emerald-400">Rs {prod.price.toLocaleString()}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); addToCart(prod, prod.variants?.[0]); }}
+                                className="bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded text-[9px]"
+                              >
+                                + Cart
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ======================================================== */}
@@ -3031,68 +3062,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* NEW LAUNCH SECTION (Desktop) */}
-                {homepageSections.newLaunch?.enabled !== false && (
-                  <div className="max-w-7xl mx-auto px-4 mt-10 p-6 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-3xl border border-emerald-500/30 shadow-xl">
-                    <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
-                      <div>
-                        <h3 className="font-black text-xl text-white flex items-center gap-2">
-                          <span>{homepageSections.newLaunch.title || '⚡ New Launch Collection'}</span>
-                        </h3>
-                        {homepageSections.newLaunch.subtitle && (
-                          <p className="text-xs text-slate-300 mt-1">{homepageSections.newLaunch.subtitle}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleOpenShop()}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5"
-                      >
-                        <span>View All Products</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {activeProducts
-                        .filter(p => {
-                          const ids = homepageSections.newLaunch.productIds;
-                          if (Array.isArray(ids) && ids.length > 0) return ids.includes(p.id);
-                          return p.isNewArrival || p.id.startsWith('prod-festive');
-                        })
-                        .slice(0, 6)
-                        .map(prod => (
-                          <div
-                            key={prod.id}
-                            onClick={() => handleOpenProduct(prod)}
-                            className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-2xl p-3.5 backdrop-blur-sm cursor-pointer transition flex flex-col justify-between group"
-                          >
-                            <div>
-                              <div className="relative aspect-square rounded-xl overflow-hidden mb-3 bg-black/40">
-                                <img src={getPrimaryProductImage(prod)} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                                {prod.discountPercentage && (
-                                  <span className="absolute top-2 left-2 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded">
-                                    {prod.discountPercentage}% OFF
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-amber-300 font-bold uppercase truncate">{prod.brand}</p>
-                              <h4 className="font-bold text-xs text-white line-clamp-1 mt-0.5">{prod.name}</h4>
-                            </div>
-                            <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10">
-                              <span className="font-black text-xs text-emerald-400">Rs {prod.price.toLocaleString()}</span>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); addToCart(prod, prod.variants?.[0]); }}
-                                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[10px] transition"
-                              >
-                                + Cart
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* SPOTLIGHT SECTION (Desktop) */}
                 {homepageSections.spotlight?.enabled !== false && Array.isArray(homepageSections.spotlight.items) && homepageSections.spotlight.items.length > 0 && (
                   <div className="max-w-7xl mx-auto px-4 mt-10 p-6 bg-gradient-to-br from-amber-950 via-slate-900 to-purple-950 text-white rounded-3xl border border-amber-500/30 shadow-xl">
@@ -3220,6 +3189,68 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+
+                {/* NEW LAUNCH SECTION (Desktop) */}
+                {homepageSections.newLaunch?.enabled !== false && (
+                  <div className="max-w-7xl mx-auto px-4 mt-12 p-6 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-3xl border border-emerald-500/30 shadow-xl">
+                    <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
+                      <div>
+                        <h3 className="font-black text-xl text-white flex items-center gap-2">
+                          <span>{homepageSections.newLaunch.title || '⚡ New Launch Collection'}</span>
+                        </h3>
+                        {homepageSections.newLaunch.subtitle && (
+                          <p className="text-xs text-slate-300 mt-1">{homepageSections.newLaunch.subtitle}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleOpenShop()}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5"
+                      >
+                        <span>View All Products</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {activeProducts
+                        .filter(p => {
+                          const ids = homepageSections.newLaunch.productIds;
+                          if (Array.isArray(ids) && ids.length > 0) return ids.includes(p.id);
+                          return p.isNewArrival || p.id.startsWith('prod-festive');
+                        })
+                        .slice(0, 6)
+                        .map(prod => (
+                          <div
+                            key={prod.id}
+                            onClick={() => handleOpenProduct(prod)}
+                            className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-2xl p-3.5 backdrop-blur-sm cursor-pointer transition flex flex-col justify-between group"
+                          >
+                            <div>
+                              <div className="relative aspect-square rounded-xl overflow-hidden mb-3 bg-black/40">
+                                <img src={getPrimaryProductImage(prod)} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                                {prod.discountPercentage && (
+                                  <span className="absolute top-2 left-2 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded">
+                                    {prod.discountPercentage}% OFF
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-amber-300 font-bold uppercase truncate">{prod.brand}</p>
+                              <h4 className="font-bold text-xs text-white line-clamp-1 mt-0.5">{prod.name}</h4>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10">
+                              <span className="font-black text-xs text-emerald-400">Rs {prod.price.toLocaleString()}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); addToCart(prod, prod.variants?.[0]); }}
+                                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[10px] transition"
+                              >
+                                + Cart
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
 
 
                 {/* Trust Badges */}
