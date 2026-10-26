@@ -68,6 +68,8 @@ interface Product {
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
   isNewArrival?: boolean;
+  isActive?: boolean;
+  status?: 'active' | 'inactive';
   error?: string;
 }
 
@@ -78,6 +80,8 @@ interface Category {
   image: string;
   subcategories: string[];
   description: string;
+  isActive?: boolean;
+  status?: 'active' | 'inactive';
 }
 
 interface CartItem {
@@ -538,6 +542,9 @@ export default function App() {
   const [isExecutingImport, setIsExecutingImport] = useState(false);
   const [importReport, setImportReport] = useState<any | null>(null);
 
+  const [adminProductStatusFilter, setAdminProductStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [adminCategoryStatusFilter, setAdminCategoryStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
   // Ultra-safe array helpers to guarantee zero render exceptions
   const safeProducts = Array.isArray(products) ? products : INITIAL_PRODUCTS;
   const safeCategories = Array.isArray(categories) ? categories : INITIAL_CATEGORIES;
@@ -546,6 +553,11 @@ export default function App() {
   const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
   const safeCart = Array.isArray(cart) ? cart : [];
   const safeCarouselSlides = Array.isArray(carouselSlides) ? carouselSlides : HERO_SLIDES;
+
+  // Storefront active filters: products and categories that are ON (isActive !== false)
+  const activeCategories = safeCategories.filter(c => c && c.isActive !== false);
+  const activeCategoryIds = new Set(activeCategories.map(c => c.id));
+  const activeProducts = safeProducts.filter(p => p && p.isActive !== false && activeCategoryIds.has(p.categoryId));
   const [storeSettings, setStoreSettings] = useState({
     storeName: 'ATAL',
     tagline: 'Shop Smart. Live Better',
@@ -801,7 +813,7 @@ export default function App() {
   // Product Modal State
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [productForm, setProductForm] = useState({
+  const [productForm, setProductForm] = useState<any>({
     name: '',
     description: '',
     categoryId: 'cat-men',
@@ -817,7 +829,8 @@ export default function App() {
     sizesString: '',
     isFlashDeal: false,
     isFeatured: true,
-    sku: ''
+    sku: '',
+    isActive: true
   });
 
   // Categories Admin Management State
@@ -828,7 +841,8 @@ export default function App() {
     slug: '',
     image: '',
     subcategories: '',
-    description: ''
+    description: '',
+    isActive: true
   });
 
   const openAddCategoryModal = () => {
@@ -838,7 +852,8 @@ export default function App() {
       slug: '',
       image: '',
       subcategories: '',
-      description: ''
+      description: '',
+      isActive: true
     });
     setIsCategoryModalOpen(true);
   };
@@ -850,19 +865,22 @@ export default function App() {
       slug: cat.slug,
       image: cat.image,
       subcategories: (cat.subcategories || []).join(', '),
-      description: cat.description || ''
+      description: cat.description || '',
+      isActive: cat.isActive !== false
     });
     setIsCategoryModalOpen(true);
   };
 
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isAct = categoryForm.isActive !== false;
     const payload = {
       name: categoryForm.name,
       slug: categoryForm.slug || categoryForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       image: categoryForm.image,
       subcategories: categoryForm.subcategories.split(',').map(s => s.trim()).filter(Boolean),
-      description: categoryForm.description
+      description: categoryForm.description,
+      isActive: isAct
     };
     try {
       if (editingCategoryId) {
@@ -912,6 +930,23 @@ export default function App() {
         }
       }
     });
+  };
+
+  const handleToggleCategoryStatus = async (catId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await fetch(getApiUrl(`/api/categories/${catId}/toggle-status`), { method: 'PUT' });
+      if (res.ok) {
+        const data = await res.json();
+        const statusText = data.isActive ? 'Turned ON (Visible on Storefront)' : 'Turned OFF (Hidden from Storefront)';
+        showToast(`Category ${statusText}`);
+        fetchCategories();
+      } else {
+        showToast('Failed to toggle category status');
+      }
+    } catch {
+      showToast('Network error toggling category status');
+    }
   };
 
   // Carousel Admin Management State
@@ -1030,11 +1065,11 @@ export default function App() {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const colors = productForm.colorsString ? productForm.colorsString.split(',').map(s => s.trim()).filter(Boolean) : ['Standard'];
-    const sizes = productForm.sizesString ? productForm.sizesString.split(',').map(s => s.trim()).filter(Boolean) : ['Standard'];
+    const colors = productForm.colorsString ? String(productForm.colorsString).split(',').map((s: string) => s.trim()).filter(Boolean) : ['Standard'];
+    const sizes = productForm.sizesString ? String(productForm.sizesString).split(',').map((s: string) => s.trim()).filter(Boolean) : ['Standard'];
     const variants: ProductVariant[] = [];
-    colors.forEach((col, cIdx) => {
-      sizes.forEach((sz, sIdx) => {
+    colors.forEach((col: string, cIdx: number) => {
+      sizes.forEach((sz: string, sIdx: number) => {
         variants.push({
           id: `var-${Date.now()}-${cIdx}-${sIdx}`,
           name: `${col} / ${sz}`,
@@ -1066,7 +1101,8 @@ export default function App() {
       images: images,
       variants: variants,
       isFlashDeal: productForm.isFlashDeal,
-      isFeatured: productForm.isFeatured
+      isFeatured: productForm.isFeatured,
+      isActive: productForm.isActive !== false
     };
 
     try {
@@ -1123,6 +1159,23 @@ export default function App() {
         }
       }
     });
+  };
+
+  const handleToggleProductStatus = async (prodId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await fetch(getApiUrl(`/api/products/${prodId}/toggle-status`), { method: 'PUT' });
+      if (res.ok) {
+        const data = await res.json();
+        const statusText = data.isActive ? 'Turned ON (Visible on Storefront)' : 'Turned OFF (Hidden from Storefront)';
+        showToast(`Product ${statusText}`);
+        fetchProducts();
+      } else {
+        showToast('Failed to toggle product status');
+      }
+    } catch {
+      showToast('Network error toggling product status');
+    }
   };
 
   // Step-by-step Back navigation helper with safe fallback
@@ -1611,7 +1664,9 @@ export default function App() {
 
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      const text = ev.target?.result as string;
+      let text = (ev.target?.result as string) || '';
+      // Strip UTF-8 BOM from files saved in Windows Notepad or Excel
+      text = text.replace(/^\uFEFF/, '').trim();
       setImportFileRawText(text);
 
       // Validate instantly with server
@@ -1623,12 +1678,12 @@ export default function App() {
           body: JSON.stringify({ rawContent: text, format })
         });
         const valData = await res.json();
-        if (res.ok && valData.isValid) {
+        if (res.ok && (valData.isValid || valData.valid)) {
           setImportValidation(valData);
           showToast(`✓ File "${file.name}" analyzed and ready for preview!`);
         } else {
           setImportValidation(valData);
-          showToast(`⚠️ File analysis found issues: ${(valData.errors || []).join('; ') || 'Invalid format'}`);
+          showToast(`⚠️ File analysis found issues: ${(valData.errors || []).join('; ') || valData.error || 'Invalid format'}`);
         }
       } catch (err) {
         showToast('Error validating import file format');
@@ -1796,11 +1851,12 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
-        const text = ev.target?.result as string;
+        let text = (ev.target?.result as string) || '';
+        text = text.replace(/^\uFEFF/, '').trim();
         const res = await fetch(getApiUrl('/api/admin/import-data'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawContent: text, format: file.name.endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
+          body: JSON.stringify({ rawContent: text, format: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -1828,11 +1884,12 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
-        const text = ev.target?.result as string;
+        let text = (ev.target?.result as string) || '';
+        text = text.replace(/^\uFEFF/, '').trim();
         const res = await fetch(getApiUrl('/api/admin/import-data'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawContent: text, format: file.name.endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
+          body: JSON.stringify({ rawContent: text, format: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -2274,7 +2331,7 @@ export default function App() {
             >
               Home
             </button>
-            {categories.map(cat => (
+            {activeCategories.map(cat => (
               <button 
                 key={cat.id} 
                 onClick={() => handleOpenCategory(cat.id, cat.slug)}
@@ -5442,7 +5499,8 @@ export default function App() {
                                 sizesString: '',
                                 isFlashDeal: false,
                                 isFeatured: true,
-                                sku: ''
+                                sku: '',
+                                isActive: true
                               });
                               setIsProductModalOpen(true);
                             }}

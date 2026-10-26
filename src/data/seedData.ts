@@ -5,6 +5,8 @@ export interface Category {
   image: string;
   subcategories: string[];
   description: string;
+  isActive?: boolean;
+  status?: 'active' | 'inactive';
 }
 
 export interface ProductVariant {
@@ -38,6 +40,8 @@ export interface Product {
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
   isNewArrival?: boolean;
+  isActive?: boolean;
+  status?: 'active' | 'inactive';
   createdAt: string;
 }
 

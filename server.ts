@@ -151,6 +151,8 @@ interface Product {
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
   isNewArrival?: boolean;
+  isActive?: boolean;
+  status?: 'active' | 'inactive';
   createdAt: string;
 }
 
@@ -161,6 +163,8 @@ interface Category {
   image: string;
   subcategories: string[];
   description: string;
+  isActive?: boolean;
+  status?: 'active' | 'inactive';
 }
 
 interface CartItem {
@@ -851,14 +855,17 @@ export async function createServer() {
 
   // Create Category (Admin)
   app.post('/api/categories', (req, res) => {
-    const { name, slug, image, subcategories, description } = req.body;
+    const { name, slug, image, subcategories, description, isActive } = req.body;
+    const isAct = isActive !== undefined ? Boolean(isActive) : true;
     const newCat: Category = {
       id: `cat-${Date.now()}`,
       name,
       slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       image: image || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80',
       subcategories: subcategories || [],
-      description: description || ''
+      description: description || '',
+      isActive: isAct,
+      status: isAct ? 'active' : 'inactive'
     };
     categories.push(newCat);
     saveCategoriesToDisk();
@@ -872,9 +879,36 @@ export async function createServer() {
     if (idx === -1) {
       return res.status(404).json({ error: 'Category not found' });
     }
-    categories[idx] = { ...categories[idx], ...req.body };
+    const isAct = req.body.isActive !== undefined ? Boolean(req.body.isActive) : categories[idx].isActive;
+    categories[idx] = { 
+      ...categories[idx], 
+      ...req.body,
+      isActive: isAct,
+      status: isAct !== false ? 'active' : 'inactive'
+    };
     saveCategoriesToDisk();
     res.json(categories[idx]);
+  });
+
+  // Toggle Category Status (ON / OFF)
+  app.put('/api/categories/:id/toggle-status', (req, res) => {
+    const { id } = req.params;
+    const idx = categories.findIndex(c => c.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    const currentActive = categories[idx].isActive !== false;
+    const newActive = !currentActive;
+    categories[idx].isActive = newActive;
+    categories[idx].status = newActive ? 'active' : 'inactive';
+    saveCategoriesToDisk();
+    res.json({
+      success: true,
+      id,
+      isActive: newActive,
+      status: categories[idx].status,
+      category: categories[idx]
+    });
   });
 
   // Delete Category (Admin)
@@ -998,6 +1032,7 @@ export async function createServer() {
   // Create Product (Admin)
   app.post('/api/products', (req, res) => {
     const data = req.body;
+    const isAct = data.isActive !== undefined ? Boolean(data.isActive) : true;
     const newProduct: Product = {
       id: `prod-${Date.now()}`,
       slug: data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -1018,6 +1053,8 @@ export async function createServer() {
       isFlashDeal: !!data.isFlashDeal,
       isBestSeller: !!data.isBestSeller,
       isNewArrival: true,
+      isActive: isAct,
+      status: isAct ? 'active' : 'inactive',
       createdAt: new Date().toISOString()
     };
     products.unshift(newProduct);
@@ -1032,9 +1069,36 @@ export async function createServer() {
     if (index === -1) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    products[index] = { ...products[index], ...req.body };
+    const isAct = req.body.isActive !== undefined ? Boolean(req.body.isActive) : products[index].isActive;
+    products[index] = { 
+      ...products[index], 
+      ...req.body,
+      isActive: isAct,
+      status: isAct !== false ? 'active' : 'inactive'
+    };
     saveProductsToDisk();
     res.json(products[index]);
+  });
+
+  // Toggle Product Status (ON / OFF)
+  app.put('/api/products/:id/toggle-status', (req, res) => {
+    const { id } = req.params;
+    const index = products.findIndex(p => p.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    const currentActive = products[index].isActive !== false;
+    const newActive = !currentActive;
+    products[index].isActive = newActive;
+    products[index].status = newActive ? 'active' : 'inactive';
+    saveProductsToDisk();
+    res.json({
+      success: true,
+      id,
+      isActive: newActive,
+      status: products[index].status,
+      product: products[index]
+    });
   });
 
   // Delete Product (Admin)
@@ -1810,8 +1874,37 @@ export async function createServer() {
     return [header, ...lines].join('\r\n');
   }
 
-  // Helper: Parse standard CSV string to array of objects
-  function parseCsv(text: string): Record<string, string>[] {
+  function parseActiveBoolean(val: any): boolean {
+    if (val === undefined || val === null || val === '') return true;
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'number') return val !== 0;
+    const s = String(val).trim().toLowerCase();
+    if (s === 'off' || s === 'inactive' || s === 'false' || s === '0' || s === 'no' || s === 'disabled') {
+      return false;
+    }
+    return true;
+  }
+
+  function normalizeKey(str: string): string {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  // Enhanced CSV parser with auto-detected delimiter and RFC-4180 quote support
+  function parseCsvUniversal(text: string): Record<string, string>[] {
+    if (!text || !text.trim()) return [];
+    
+    // Auto-detect delimiter from the first line
+    const firstLine = text.split(/\r?\n/)[0] || '';
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    let delimiter = ',';
+    if (semicolonCount > commaCount && semicolonCount >= tabCount) {
+      delimiter = ';';
+    } else if (tabCount > commaCount && tabCount > semicolonCount) {
+      delimiter = '\t';
+    }
+
     const lines: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -1856,7 +1949,7 @@ export async function createServer() {
           } else {
             inQ = !inQ;
           }
-        } else if (c === ',' && !inQ) {
+        } else if (c === delimiter && !inQ) {
           cols.push(col.trim());
           col = '';
         } else {
@@ -1867,18 +1960,302 @@ export async function createServer() {
       return cols;
     };
 
-    const headers = parseLine(lines[0]);
+    const rawHeaders = parseLine(lines[0]);
     const results: Record<string, string>[] = [];
     for (let i = 1; i < lines.length; i++) {
       const vals = parseLine(lines[i]);
       if (vals.length === 0 || (vals.length === 1 && !vals[0])) continue;
       const row: Record<string, string> = {};
-      headers.forEach((h, idx) => {
+      rawHeaders.forEach((h, idx) => {
         row[h] = vals[idx] !== undefined ? vals[idx] : '';
       });
       results.push(row);
     }
     return results;
+  }
+
+  // Universal parser for JSON, CSV, wrappers, BOM, and code fences
+  function parseUniversalImportPayload(
+    rawContent: any,
+    formatHint?: string,
+    directData?: any
+  ): {
+    success: boolean;
+    data: {
+      products?: any[];
+      categories?: any[];
+      carouselSlides?: any[];
+      storeSettings?: any;
+      orders?: any[];
+      customers?: any[];
+    };
+    inferredFormat: 'json' | 'csv';
+    error?: string;
+  } {
+    let target = directData;
+
+    // 1. If string is passed (either rawContent or csv)
+    if ((!target || (typeof target === 'object' && Object.keys(target).length === 0)) && typeof rawContent === 'string' && rawContent.trim()) {
+      let str = rawContent.trim();
+
+      // Check for base64 data URL
+      if (str.startsWith('data:')) {
+        const commaIdx = str.indexOf(',');
+        if (commaIdx !== -1) {
+          const meta = str.substring(0, commaIdx);
+          const body = str.substring(commaIdx + 1);
+          try {
+            if (meta.includes(';base64')) {
+              str = Buffer.from(body, 'base64').toString('utf-8');
+            } else {
+              str = decodeURIComponent(body);
+            }
+          } catch (e) {
+            // keep str as is
+          }
+        }
+      }
+
+      // Strip UTF-8 BOM if present
+      str = str.replace(/^\uFEFF/, '').trim();
+
+      // Strip markdown code fences if pasted into input
+      str = str.replace(/^```[a-zA-Z]*\r?\n/, '').replace(/\r?\n```\s*$/, '').trim();
+
+      // Determine whether to parse as JSON or CSV
+      const looksLikeJson = str.startsWith('{') || str.startsWith('[');
+      const isExplicitCsv = formatHint === 'csv' && !looksLikeJson;
+
+      if (!isExplicitCsv) {
+        // Try JSON parse first
+        let parsedJson: any = null;
+        let jsonError: string | null = null;
+        try {
+          parsedJson = JSON.parse(str);
+        } catch (e: any) {
+          jsonError = e.message;
+          // Try cleaning trailing commas
+          try {
+            const cleaned = str.replace(/,\s*([\]\}])/g, '$1');
+            parsedJson = JSON.parse(cleaned);
+            jsonError = null;
+          } catch (e2) {
+            // failed json
+          }
+        }
+
+        if (parsedJson !== null) {
+          target = parsedJson;
+        } else if (looksLikeJson) {
+          return {
+            success: false,
+            data: {},
+            inferredFormat: 'json',
+            error: `Invalid JSON syntax: ${jsonError || 'Failed to parse JSON file'}`
+          };
+        }
+      }
+
+      // If not parsed as JSON, try CSV parsing
+      if (!target) {
+        const rows = parseCsvUniversal(str);
+        if (rows.length > 0) {
+          const firstRow = rows[0];
+          const normMap: Record<string, string> = {};
+          Object.keys(firstRow).forEach(k => {
+            normMap[normalizeKey(k)] = k;
+          });
+
+          const getVal = (r: Record<string, string>, ...keys: string[]) => {
+            for (const k of keys) {
+              const direct = r[k];
+              if (direct !== undefined && direct !== '') return direct;
+              const normKey = normalizeKey(k);
+              const foundOrig = normMap[normKey];
+              if (foundOrig && r[foundOrig] !== undefined && r[foundOrig] !== '') return r[foundOrig];
+            }
+            return '';
+          };
+
+          const hasProductName = Boolean(getVal(firstRow, 'Product Name', 'name', 'product_name', 'Title', 'Product Title', 'Product', 'Item'));
+          const hasPrice = Boolean(getVal(firstRow, 'Price (PKR)', 'price', 'Unit Price', 'Price'));
+          const hasCategoryName = Boolean(getVal(firstRow, 'Category Name', 'category_name', 'Category Title'));
+          const hasSubcategories = Boolean(getVal(firstRow, 'Subcategories', 'subcategories', 'Sub Categories'));
+
+          if (hasProductName || hasPrice) {
+            const parsedProds = rows.map((r, idx) => {
+              const pName = getVal(r, 'Product Name', 'name', 'Title', 'Product Title', 'Product') || 'Unnamed Product';
+              const pId = getVal(r, 'Product ID', 'id', 'ProductID') || `prod-csv-${Date.now()}-${idx}`;
+              const pSlug = getVal(r, 'Slug', 'slug') || pName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+              const pCatId = getVal(r, 'Category ID', 'categoryId', 'Category') || categories[0]?.id || 'cat-women';
+              const pSub = getVal(r, 'Subcategory', 'subcategoryId', 'Sub-category') || 'General';
+              const pPrice = Number(getVal(r, 'Price (PKR)', 'price', 'Price') || 0);
+              const pOrigPrice = getVal(r, 'Original Price (PKR)', 'originalPrice', 'Original Price');
+              const pStock = Number(getVal(r, 'Stock Units', 'Stock', 'stock', 'Quantity', 'Qty') || 10);
+              const pBrand = getVal(r, 'Brand', 'brand') || 'ATAL';
+              const pImg = getVal(r, 'Image URL', 'image', 'Image', 'images', 'ImageUrl');
+              const pDesc = getVal(r, 'Description', 'description', 'desc') || '';
+              const pSku = getVal(r, 'SKU', 'sku') || `ATAL-${pId}`;
+              const statusVal = getVal(r, 'Status (On/Off)', 'Status', 'status', 'isActive', 'Active', 'On/Off');
+              const isActive = parseActiveBoolean(statusVal);
+
+              return {
+                id: pId,
+                name: pName,
+                slug: pSlug,
+                brand: pBrand,
+                categoryId: pCatId,
+                subcategoryId: pSub,
+                price: pPrice,
+                originalPrice: pOrigPrice ? Number(pOrigPrice) : undefined,
+                stock: pStock,
+                rating: 5.0,
+                reviewCount: 0,
+                images: pImg ? [pImg] : ['/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg'],
+                variants: [{ id: `var-${pId}`, name: 'Standard', sku: pSku, price: pPrice, stock: pStock }],
+                description: pDesc,
+                isActive,
+                status: isActive ? 'active' : 'inactive',
+                createdAt: new Date().toISOString()
+              };
+            });
+
+            return {
+              success: true,
+              data: { products: parsedProds },
+              inferredFormat: 'csv'
+            };
+          } else if (hasCategoryName || hasSubcategories) {
+            const parsedCats = rows.map((r, idx) => {
+              const cName = getVal(r, 'Category Name', 'name', 'category_name') || 'New Category';
+              const cId = getVal(r, 'Category ID', 'id', 'categoryId') || `cat-csv-${Date.now()}-${idx}`;
+              const cSlug = getVal(r, 'Slug', 'slug') || cName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+              const subcatsStr = getVal(r, 'Subcategories', 'subcategories') || '';
+              const subcats = subcatsStr ? subcatsStr.split(/[;,]/).map((s: string) => s.trim()).filter(Boolean) : [];
+              const cDesc = getVal(r, 'Description', 'description') || '';
+              const cImg = getVal(r, 'Image URL', 'image', 'Image') || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80';
+              const statusVal = getVal(r, 'Status (On/Off)', 'Status', 'status', 'isActive', 'Active', 'On/Off');
+              const isActive = parseActiveBoolean(statusVal);
+
+              return {
+                id: cId,
+                name: cName,
+                slug: cSlug,
+                subcategories: subcats,
+                description: cDesc,
+                image: cImg,
+                isActive,
+                status: isActive ? 'active' : 'inactive'
+              };
+            });
+
+            return {
+              success: true,
+              data: { categories: parsedCats },
+              inferredFormat: 'csv'
+            };
+          }
+        }
+      }
+    }
+
+    if (!target) {
+      return {
+        success: false,
+        data: {},
+        inferredFormat: 'json',
+        error: 'Empty or unreadable import file. Please check file format.'
+      };
+    }
+
+    // Unwrap envelope wrappers if needed
+    while (target && typeof target === 'object' && !Array.isArray(target)) {
+      if (target.products || target.categories || target.carouselSlides || target.storeSettings || target.orders || target.customers) {
+        break;
+      }
+      if (target.data && (typeof target.data === 'object' || Array.isArray(target.data))) {
+        target = target.data;
+      } else if (target.result && (typeof target.result === 'object' || Array.isArray(target.result))) {
+        target = target.result;
+      } else if (target.backup && (typeof target.backup === 'object' || Array.isArray(target.backup))) {
+        target = target.backup;
+      } else if (target.payload && (typeof target.payload === 'object' || Array.isArray(target.payload))) {
+        target = target.payload;
+      } else if (target.catalog && (typeof target.catalog === 'object' || Array.isArray(target.catalog))) {
+        target = target.catalog;
+      } else {
+        break;
+      }
+    }
+
+    const normalizedData: {
+      products?: any[];
+      categories?: any[];
+      carouselSlides?: any[];
+      storeSettings?: any;
+      orders?: any[];
+      customers?: any[];
+    } = {};
+
+    if (Array.isArray(target)) {
+      if (target.length > 0) {
+        const first = target[0];
+        if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
+          normalizedData.products = target;
+        } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')) || (first.name && first.image && !first.price))) {
+          normalizedData.categories = target;
+        } else if (first && (first.badge !== undefined || first.buttonText !== undefined)) {
+          normalizedData.carouselSlides = target;
+        } else if (first && (first.orderNumber !== undefined || first.trackingNumber !== undefined)) {
+          normalizedData.orders = target;
+        } else if (first && (first.whatsapp !== undefined && first.email !== undefined && !first.price)) {
+          normalizedData.customers = target;
+        } else {
+          normalizedData.products = target;
+        }
+      }
+    } else if (typeof target === 'object') {
+      if (Array.isArray(target.products)) normalizedData.products = target.products;
+      else if (Array.isArray(target.items)) normalizedData.products = target.items;
+      else if (Array.isArray(target.catalog)) normalizedData.products = target.catalog;
+
+      if (Array.isArray(target.categories)) normalizedData.categories = target.categories;
+      else if (Array.isArray(target.cats)) normalizedData.categories = target.cats;
+
+      if (Array.isArray(target.carouselSlides)) normalizedData.carouselSlides = target.carouselSlides;
+      else if (Array.isArray(target.carousel)) normalizedData.carouselSlides = target.carousel;
+      else if (Array.isArray(target.slides)) normalizedData.carouselSlides = target.slides;
+
+      if (target.storeSettings && typeof target.storeSettings === 'object') normalizedData.storeSettings = target.storeSettings;
+      else if (target.settings && typeof target.settings === 'object') normalizedData.storeSettings = target.settings;
+
+      if (Array.isArray(target.orders)) normalizedData.orders = target.orders;
+      if (Array.isArray(target.customers)) normalizedData.customers = target.customers;
+    }
+
+    const hasAny = Boolean(
+      (normalizedData.products && normalizedData.products.length > 0) ||
+      (normalizedData.categories && normalizedData.categories.length > 0) ||
+      (normalizedData.carouselSlides && normalizedData.carouselSlides.length > 0) ||
+      (normalizedData.orders && normalizedData.orders.length > 0) ||
+      (normalizedData.customers && normalizedData.customers.length > 0) ||
+      normalizedData.storeSettings
+    );
+
+    if (!hasAny) {
+      return {
+        success: false,
+        data: {},
+        inferredFormat: 'json',
+        error: 'No recognizable products, categories, or store data found in the import file.'
+      };
+    }
+
+    return {
+      success: true,
+      data: normalizedData,
+      inferredFormat: 'json'
+    };
   }
 
   // 7.1 Backup Snapshots Management Endpoints
@@ -2014,6 +2391,7 @@ export async function createServer() {
             { key: 'isBestSeller', label: 'Best Seller' },
             { key: 'isNewArrival', label: 'New Arrival' },
             { key: 'images', label: 'Image URL', transform: (v) => Array.isArray(v) ? v[0] || '' : '' },
+            { key: 'isActive', label: 'Status (On/Off)', transform: v => v !== false ? 'ON' : 'OFF' },
             { key: 'description', label: 'Description' }
           ]);
           return res.send(csv);
@@ -2028,6 +2406,7 @@ export async function createServer() {
             { key: 'subcategories', label: 'Subcategories', transform: v => Array.isArray(v) ? v.join('; ') : '' },
             { key: 'description', label: 'Description' },
             { key: 'image', label: 'Image URL' },
+            { key: 'isActive', label: 'Status (On/Off)', transform: v => v !== false ? 'ON' : 'OFF' },
             { key: 'productCount', label: 'Total Products', transform: (_, r) => products.filter(p => p.categoryId === r.id).length }
           ]);
           return res.send(csv);
@@ -2185,88 +2564,21 @@ export async function createServer() {
   // 7.3 Pre-Import Validation & Preview API
   app.post('/api/admin/validate-import', (req, res) => {
     try {
-      let { data, csv, rawContent, format, mode = 'update_existing' } = req.body || {};
+      const { data, csv, rawContent, format } = req.body || {};
+      const parsedResult = parseUniversalImportPayload(rawContent || csv, format, data);
 
-      // If rawContent passed from frontend
-      if (typeof rawContent === 'string' && rawContent.trim()) {
-        const trimmed = rawContent.trim();
-        const isCsvFormat = format === 'csv' || (!trimmed.startsWith('{') && !trimmed.startsWith('['));
-        if (isCsvFormat) {
-          csv = trimmed;
-        } else {
-          try {
-            data = JSON.parse(trimmed);
-          } catch (e: any) {
-            return res.status(400).json({ isValid: false, valid: false, errors: [`JSON Parse Error: ${e.message}`] });
-          }
-        }
+      if (!parsedResult.success || !parsedResult.data) {
+        return res.status(400).json({
+          isValid: false,
+          valid: false,
+          errors: [parsedResult.error || 'Invalid or unrecognized import file format.']
+        });
       }
 
-      // If raw CSV string provided, parse into rows
-      if (typeof csv === 'string' && csv.trim()) {
-        const rows = parseCsv(csv);
-        if (rows.length > 0) {
-          const first = rows[0];
-          if (first['Product Name'] || first['price'] || first['Price (PKR)'] || first['name']) {
-            data = {
-              products: rows.map((r, idx) => ({
-                id: r['Product ID'] || r['id'] || `prod-csv-${Date.now()}-${idx}`,
-                name: r['Product Name'] || r['name'] || 'Unnamed Product',
-                slug: (r['Slug'] || r['slug'] || r['Product Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                brand: r['Brand'] || r['brand'] || 'ATAL',
-                categoryId: r['Category ID'] || r['categoryId'] || categories[0]?.id || 'cat-women',
-                subcategoryId: r['Subcategory'] || r['subcategoryId'] || 'General',
-                price: Number(r['Price (PKR)'] || r['price'] || 0),
-                originalPrice: r['Original Price (PKR)'] ? Number(r['Original Price (PKR)']) : undefined,
-                stock: Number(r['Stock Units'] || r['Stock'] || r['stock'] || 10),
-                rating: 5.0,
-                reviewCount: 0,
-                images: r['Image URL'] ? [r['Image URL']] : ['/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg'],
-                variants: [],
-                createdAt: new Date().toISOString()
-              }))
-            };
-          } else if (first['Category Name'] || first['subcategories'] || first['Subcategories']) {
-            data = {
-              categories: rows.map((r, idx) => ({
-                id: r['Category ID'] || r['id'] || `cat-csv-${Date.now()}-${idx}`,
-                name: r['Category Name'] || r['name'] || 'New Category',
-                slug: (r['Slug'] || r['slug'] || r['Category Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                subcategories: (r['Subcategories'] || r['subcategories'] || '').split(';').map((s: string) => s.trim()).filter(Boolean),
-                description: r['Description'] || r['description'] || '',
-                image: r['Image URL'] || r['image'] || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80'
-              }))
-            };
-          }
-        }
-      }
-
-      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
-        return res.status(400).json({ isValid: false, valid: false, errors: ['Empty or invalid import payload.'] });
-      }
-
-      let inProds: any[] = [];
-      let inCats: any[] = [];
-      let inSlides: any[] = [];
-      let inOrders: any[] = [];
-
-      if (Array.isArray(data)) {
-        if (data.length > 0) {
-          const first = data[0];
-          if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
-            inProds = data;
-          } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')))) {
-            inCats = data;
-          } else if (first && (first.badge !== undefined || first.buttonText !== undefined)) {
-            inSlides = data;
-          }
-        }
-      } else {
-        inProds = data.products || data.items || data.catalog || [];
-        inCats = data.categories || data.cats || [];
-        inSlides = data.carouselSlides || data.carousel || data.slides || data.heroSlides || [];
-        inOrders = data.orders || [];
-      }
+      const inProds = parsedResult.data.products || [];
+      const inCats = parsedResult.data.categories || [];
+      const inSlides = parsedResult.data.carouselSlides || [];
+      const inOrders = parsedResult.data.orders || [];
 
       // Calculate simulation
       const currentCatIds = new Set(categories.map(c => c.id));
@@ -2307,7 +2619,9 @@ export async function createServer() {
         }
       });
 
-      const detectedType = inCats.length > 0 && inProds.length > 0 ? 'Full Store Backup' : (inCats.length > 0 ? 'Categories Hierarchy' : (inProds.length > 0 ? 'Products Catalog' : (inOrders.length > 0 ? 'Orders Records' : 'General Store Data')));
+      const detectedType = inCats.length > 0 && inProds.length > 0 
+        ? 'Full Store Backup' 
+        : (inCats.length > 0 ? 'Categories Hierarchy' : (inProds.length > 0 ? 'Products Catalog' : (inOrders.length > 0 ? 'Orders Records' : 'General Store Data')));
 
       const stats = {
         categories: { incomingCount: inCats.length, toAddCount: catsToAdd, toUpdateCount: catsToUpdate, toSkipCount: 0 },
@@ -2325,15 +2639,15 @@ export async function createServer() {
       res.json({
         isValid: true,
         valid: true,
-        fileType: format || (csv ? 'csv' : 'json'),
+        fileType: parsedResult.inferredFormat,
         inferredType: detectedType,
         stats,
         summary: stats,
         categoryIntegrity,
         warnings: warnings.slice(0, 5),
         errors: [],
-        sampleProducts: inProds.slice(0, 3).map((p: any) => ({ name: p.name, price: p.price, stock: p.stock, brand: p.brand })),
-        sampleCategories: inCats.slice(0, 3).map((c: any) => ({ name: c.name, subcategoriesCount: (c.subcategories || []).length }))
+        sampleProducts: inProds.slice(0, 3).map((p: any) => ({ name: p.name, price: p.price, stock: p.stock, brand: p.brand, isActive: p.isActive !== false })),
+        sampleCategories: inCats.slice(0, 3).map((c: any) => ({ name: c.name, subcategoriesCount: (c.subcategories || []).length, isActive: c.isActive !== false }))
       });
     } catch (err: any) {
       console.error('Validation error:', err);
@@ -2344,95 +2658,22 @@ export async function createServer() {
   // 7.4 Robust Mode-Based Import API (Add New, Update Existing, Full Restore)
   app.post('/api/admin/import-data', (req, res) => {
     try {
-      let { data, csv, rawContent, format, mode = 'update_existing', confirmFullRestore = false } = req.body || {};
+      const { data, csv, rawContent, format, mode = 'update_existing' } = req.body || {};
+      const parsedResult = parseUniversalImportPayload(rawContent || csv, format, data);
 
-      // If rawContent passed from frontend
-      if (typeof rawContent === 'string' && rawContent.trim()) {
-        const trimmed = rawContent.trim();
-        const isCsvFormat = format === 'csv' || (!trimmed.startsWith('{') && !trimmed.startsWith('['));
-        if (isCsvFormat) {
-          csv = trimmed;
-        } else {
-          try {
-            data = JSON.parse(trimmed);
-          } catch (e: any) {
-            return res.status(400).json({ success: false, error: `JSON Parse Error: ${e.message}` });
-          }
-        }
-      }
-
-      // Auto-parse CSV if passed
-      if (typeof csv === 'string' && csv.trim()) {
-        const rows = parseCsv(csv);
-        if (rows.length > 0) {
-          const first = rows[0];
-          if (first['Product Name'] || first['price'] || first['Price (PKR)'] || first['name']) {
-            data = {
-              products: rows.map((r, idx) => ({
-                id: r['Product ID'] || r['id'] || `prod-csv-${Date.now()}-${idx}`,
-                name: r['Product Name'] || r['name'] || 'Unnamed Product',
-                slug: (r['Slug'] || r['slug'] || r['Product Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                brand: r['Brand'] || r['brand'] || 'ATAL',
-                categoryId: r['Category ID'] || r['categoryId'] || categories[0]?.id || 'cat-women',
-                subcategoryId: r['Subcategory'] || r['subcategoryId'] || 'General',
-                price: Number(r['Price (PKR)'] || r['price'] || 0),
-                originalPrice: r['Original Price (PKR)'] ? Number(r['Original Price (PKR)']) : undefined,
-                stock: Number(r['Stock Units'] || r['Stock'] || r['stock'] || 10),
-                rating: 5.0,
-                reviewCount: 0,
-                images: r['Image URL'] ? [r['Image URL']] : ['/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg'],
-                variants: [],
-                createdAt: new Date().toISOString()
-              }))
-            };
-          } else if (first['Category Name'] || first['subcategories'] || first['Subcategories']) {
-            data = {
-              categories: rows.map((r, idx) => ({
-                id: r['Category ID'] || r['id'] || `cat-csv-${Date.now()}-${idx}`,
-                name: r['Category Name'] || r['name'] || 'New Category',
-                slug: (r['Slug'] || r['slug'] || r['Category Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                subcategories: (r['Subcategories'] || r['subcategories'] || '').split(';').map((s: string) => s.trim()).filter(Boolean),
-                description: r['Description'] || r['description'] || '',
-                image: r['Image URL'] || r['image'] || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80'
-              }))
-            };
-          }
-        }
-      }
-
-      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
-        return res.status(400).json({ error: 'Invalid backup payload format.' });
+      if (!parsedResult.success || !parsedResult.data) {
+        return res.status(400).json({ success: false, error: parsedResult.error || 'Invalid backup payload format.' });
       }
 
       // Step 1: Automatic Safety Snapshot Backup before modifying database
       const autoSnapshot = createBackupSnapshot(`Auto-backup before ${mode} import`);
 
-      let inProds: any[] | null = null;
-      let inCats: any[] | null = null;
-      let inSlides: any[] | null = null;
-      let inSettings: any = null;
-      let inOrders: any[] | null = null;
-      let inCustomers: any[] | null = null;
-
-      if (Array.isArray(data)) {
-        if (data.length > 0) {
-          const first = data[0];
-          if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
-            inProds = data;
-          } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')))) {
-            inCats = data;
-          } else if (first && (first.badge !== undefined || first.buttonText !== undefined || first.discount !== undefined)) {
-            inSlides = data;
-          }
-        }
-      } else {
-        inProds = data.products || data.items || data.catalog || null;
-        inCats = data.categories || data.cats || null;
-        inSlides = data.carouselSlides || data.carousel || data.slides || data.heroSlides || null;
-        inSettings = data.storeSettings || data.settings || null;
-        inOrders = data.orders || null;
-        inCustomers = data.customers || null;
-      }
+      const inProds: any[] | null = parsedResult.data.products || null;
+      const inCats: any[] | null = parsedResult.data.categories || null;
+      const inSlides: any[] | null = parsedResult.data.carouselSlides || null;
+      const inSettings: any = parsedResult.data.storeSettings || null;
+      const inOrders: any[] | null = parsedResult.data.orders || null;
+      const inCustomers: any[] | null = parsedResult.data.customers || null;
 
       const stats = {
         categories: { added: 0, updated: 0, skipped: 0, total: 0 },
@@ -2446,20 +2687,33 @@ export async function createServer() {
       if (Array.isArray(inCats)) {
         stats.categories.total = inCats.length;
         if (mode === 'full_restore') {
-          categories = inCats;
+          categories = inCats.map((cat: any) => {
+            const isAct = cat.isActive !== undefined ? parseActiveBoolean(cat.isActive) : true;
+            return {
+              ...cat,
+              isActive: isAct,
+              status: isAct ? 'active' : 'inactive'
+            };
+          });
           stats.categories.updated = inCats.length;
         } else {
           inCats.forEach((cat: any) => {
+            const isAct = cat.isActive !== undefined ? parseActiveBoolean(cat.isActive) : true;
+            const normalizedCat = {
+              ...cat,
+              isActive: isAct,
+              status: isAct ? 'active' : 'inactive'
+            };
             const idx = categories.findIndex(c => c.id === cat.id || c.slug === cat.slug);
             if (idx !== -1) {
               if (mode === 'update_existing') {
-                categories[idx] = { ...categories[idx], ...cat, id: categories[idx].id };
+                categories[idx] = { ...categories[idx], ...normalizedCat, id: categories[idx].id };
                 stats.categories.updated++;
               } else {
                 stats.categories.skipped++;
               }
             } else {
-              categories.push(cat);
+              categories.push(normalizedCat);
               stats.categories.added++;
             }
           });
@@ -2480,10 +2734,13 @@ export async function createServer() {
             const match = categories.find(c => c.slug === prod.categoryId || c.name.toLowerCase() === (prod.categoryName || '').toLowerCase());
             resolvedCatId = match ? match.id : (categories[0]?.id || 'cat-women');
           }
+          const isAct = prod.isActive !== undefined ? parseActiveBoolean(prod.isActive) : true;
           return {
             ...prod,
             categoryId: resolvedCatId,
-            variants: Array.isArray(prod.variants) ? prod.variants : []
+            variants: Array.isArray(prod.variants) ? prod.variants : [],
+            isActive: isAct,
+            status: isAct ? 'active' : 'inactive'
           };
         });
 
