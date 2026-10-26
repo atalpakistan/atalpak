@@ -1,0 +1,631 @@
+{
+  "id": "backup-1793037553709",
+  "note": "Auto-backup before update_existing import",
+  "version": "2.0",
+  "createdAt": "2026-10-26T17:59:13.709Z",
+  "storeName": "ATAL",
+  "counts": {
+    "products": 10,
+    "categories": 5,
+    "carouselSlides": 4,
+    "orders": 0,
+    "customers": 0
+  },
+  "products": [
+    {
+      "id": "prod-festive-1",
+      "slug": "atal-signature-3d-luxury-collection",
+      "name": "ATAL 3D Signature Luxury Bag",
+      "description": "Iconic ATAL luxury designer bag crafted with emerald green metallic trims, gold geometric hardware, and signature architectural silhouette.",
+      "categoryId": "cat-women",
+      "subcategoryId": "Bags & Clutches",
+      "brand": "ATAL SIGNATURE",
+      "price": 3950,
+      "originalPrice": 5490,
+      "discountPercentage": 28,
+      "rating": 4.9,
+      "reviewCount": 382,
+      "images": [
+        "/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg",
+        "/assets/atal_signature_bag_1792525744513.jpg",
+        "/public/assets/aistudio/WhatsApp_Image_2026-10-19_at_8.37.40_PM_e34dc877.jpeg"
+      ],
+      "variants": [
+        {
+          "id": "v-fest-1",
+          "name": "Emerald & 24K Gold Edition",
+          "sku": "ATAL-BAG-EM-GLD",
+          "price": 3950,
+          "originalPrice": 5490,
+          "stock": 24,
+          "color": "Emerald Green"
+        }
+      ],
+      "stock": 24,
+      "isFeatured": true,
+      "isFlashDeal": true,
+      "isBestSeller": true,
+      "isNewArrival": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-festive-2",
+      "slug": "atal-luxury-festive-pret-couture",
+      "name": "ATAL Luxury Festive Pret Couture",
+      "description": "Exquisite Pakistani festive pret collection featuring heritage zardozi threadwork, hand-embroidered organza dupatta, and pure raw silk shirt in deep emerald.",
+      "categoryId": "cat-women",
+      "subcategoryId": "Festive Pret",
+      "brand": "ATAL COUTURE",
+      "price": 4890,
+      "originalPrice": 6800,
+      "discountPercentage": 28,
+      "rating": 5,
+      "reviewCount": 420,
+      "images": [
+        "/assets/atal_festive_pret_1792525761752.jpg",
+        "/assets/hero_festive_banner_1792525781469.jpg",
+        "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v-fest-2",
+          "name": "Emerald / Small",
+          "sku": "ATAL-FEST-EM-S",
+          "price": 4890,
+          "originalPrice": 6800,
+          "size": "S",
+          "color": "Emerald Green",
+          "stock": 15
+        },
+        {
+          "id": "v-fest-3",
+          "name": "Emerald / Medium",
+          "sku": "ATAL-FEST-EM-M",
+          "price": 4890,
+          "originalPrice": 6800,
+          "size": "M",
+          "color": "Emerald Green",
+          "stock": 20
+        },
+        {
+          "id": "v-fest-4",
+          "name": "Emerald / Large",
+          "sku": "ATAL-FEST-EM-L",
+          "price": 4890,
+          "originalPrice": 6800,
+          "size": "L",
+          "color": "Emerald Green",
+          "stock": 12
+        }
+      ],
+      "stock": 47,
+      "isFeatured": true,
+      "isFlashDeal": true,
+      "isBestSeller": true,
+      "isNewArrival": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-1",
+      "slug": "wireless-earbuds-pro-active-noise-cancelling",
+      "name": "ATAL Pods Pro Active Noise Cancelling Wireless Earbuds",
+      "description": "Immersive sound quality with active noise cancellation, 30-hour battery life with charging case, Bluetooth 5.3, sweat resistance, and crystal clear microphone for calls.",
+      "categoryId": "cat-electronics",
+      "subcategoryId": "Earbuds and Headphones",
+      "brand": "ATAL Audio",
+      "price": 3499,
+      "originalPrice": 5999,
+      "discountPercentage": 42,
+      "rating": 4.8,
+      "reviewCount": 328,
+      "images": [
+        "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v1",
+          "name": "Matte Black",
+          "sku": "ATAL-POD-BLK",
+          "price": 3499,
+          "originalPrice": 5999,
+          "stock": 45,
+          "color": "Black"
+        },
+        {
+          "id": "v2",
+          "name": "Pearl White",
+          "sku": "ATAL-POD-WHT",
+          "price": 3499,
+          "originalPrice": 5999,
+          "stock": 30,
+          "color": "White"
+        }
+      ],
+      "stock": 75,
+      "isFeatured": true,
+      "isFlashDeal": true,
+      "isBestSeller": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-2",
+      "slug": "mens-luxury-lawn-shalwar-kameez-embbroidered",
+      "name": "Men's Premium Cotton Shalwar Kameez Suit",
+      "description": "Exquisite summer weight cotton fabric with subtle collar embroidery and executive cut. Designed for festive occasions and formal daily wear in Pakistan climate.",
+      "categoryId": "cat-men",
+      "subcategoryId": "Shalwar Kameez",
+      "brand": "ATAL Men",
+      "price": 2850,
+      "originalPrice": 4200,
+      "discountPercentage": 32,
+      "rating": 4.6,
+      "reviewCount": 194,
+      "images": [
+        "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v3",
+          "name": "Off White / Medium",
+          "sku": "ATAL-SK-OW-M",
+          "price": 2850,
+          "size": "M",
+          "color": "White",
+          "stock": 15
+        },
+        {
+          "id": "v4",
+          "name": "Off White / Large",
+          "sku": "ATAL-SK-OW-L",
+          "price": 2850,
+          "size": "L",
+          "color": "White",
+          "stock": 20
+        },
+        {
+          "id": "v5",
+          "name": "Charcoal Grey / Large",
+          "sku": "ATAL-SK-CG-L",
+          "price": 2850,
+          "size": "L",
+          "color": "Grey",
+          "stock": 12
+        }
+      ],
+      "stock": 47,
+      "isFeatured": true,
+      "isNewArrival": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-3",
+      "slug": "womens-embbroidered-chiffon-formal-kurtis",
+      "name": "Women's Luxury Embroidered Chiffon Kurti",
+      "description": "Stunning festive kurti featuring intricate thread work, hand embellishments, and breathable inner lining. Perfect for weddings and formal parties.",
+      "categoryId": "cat-women",
+      "subcategoryId": "Kurtis",
+      "brand": "ATAL Haute",
+      "price": 3999,
+      "originalPrice": 6500,
+      "discountPercentage": 38,
+      "rating": 4.9,
+      "reviewCount": 412,
+      "images": [
+        "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1618244972963-dbee1a7edc95?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v6",
+          "name": "Royal Blue / Small",
+          "sku": "ATAL-KURT-BL-S",
+          "price": 3999,
+          "size": "S",
+          "color": "Blue",
+          "stock": 10
+        },
+        {
+          "id": "v7",
+          "name": "Royal Blue / Medium",
+          "sku": "ATAL-KURT-BL-M",
+          "price": 3999,
+          "size": "M",
+          "color": "Blue",
+          "stock": 25
+        },
+        {
+          "id": "v8",
+          "name": "Blush Pink / Medium",
+          "sku": "ATAL-KURT-PK-M",
+          "price": 3999,
+          "size": "M",
+          "color": "Pink",
+          "stock": 18
+        }
+      ],
+      "stock": 53,
+      "isFeatured": true,
+      "isBestSeller": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-4",
+      "slug": "smart-fitness-watch-amoled-bluetooth-calling",
+      "name": "ATAL Watch Ultra Smart Fitness & Bluetooth Calling Watch",
+      "description": "Bright AMOLED display with always-on feature, 100+ sports modes, IP67 waterproof, health monitoring (heart rate, SpO2, sleep), and 7-day battery life.",
+      "categoryId": "cat-electronics",
+      "subcategoryId": "Smart Watches",
+      "brand": "ATAL Tech",
+      "price": 4999,
+      "originalPrice": 8999,
+      "discountPercentage": 44,
+      "rating": 4.7,
+      "reviewCount": 285,
+      "images": [
+        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v9",
+          "name": "Titanium Silver with Orange Strap",
+          "sku": "ATAL-W-SLV",
+          "price": 4999,
+          "stock": 22,
+          "color": "Silver"
+        },
+        {
+          "id": "v10",
+          "name": "Midnight Black with Black Strap",
+          "sku": "ATAL-W-BLK",
+          "price": 4999,
+          "stock": 35,
+          "color": "Black"
+        }
+      ],
+      "stock": 57,
+      "isFlashDeal": true,
+      "isFeatured": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-5",
+      "slug": "vitamin-c-brightening-face-serum-hyaluronic-acid",
+      "name": "ATAL Glow Radiance Vitamin C Face Serum (30ml)",
+      "description": "Advanced antioxidant formula with 20% Vitamin C, Hyaluronic Acid, and Niacinamide. Fades dark spots, boosts collagen, and gives glowing skin.",
+      "categoryId": "cat-cosmetics",
+      "subcategoryId": "Serums",
+      "brand": "ATAL Skincare",
+      "price": 1299,
+      "originalPrice": 2200,
+      "discountPercentage": 41,
+      "rating": 4.8,
+      "reviewCount": 512,
+      "images": [
+        "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1608248597359-2e094770220c?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v11",
+          "name": "30ml Bottle",
+          "sku": "ATAL-SER-VC",
+          "price": 1299,
+          "stock": 120
+        }
+      ],
+      "stock": 120,
+      "isBestSeller": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-6",
+      "slug": "mens-luxury-long-lasting-oud-perfume-100ml",
+      "name": "ATAL Royal Oud Oriental Signature Perfume (100ml)",
+      "description": "A captivating blend of rich Cambodian oud, warm amber, and smoky woods. Designed for sophisticated evenings and long-lasting freshness up to 24 hours.",
+      "categoryId": "cat-cosmetics",
+      "subcategoryId": "Perfumes for Men",
+      "brand": "ATAL Fragrances",
+      "price": 2499,
+      "originalPrice": 4500,
+      "discountPercentage": 44,
+      "rating": 4.9,
+      "reviewCount": 230,
+      "images": [
+        "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v12",
+          "name": "100ml Eau de Parfum",
+          "sku": "ATAL-PERF-OUD",
+          "price": 2499,
+          "stock": 65
+        }
+      ],
+      "stock": 65,
+      "isFeatured": true,
+      "isNewArrival": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-7",
+      "slug": "kids-electric-ride-on-jeep-remote-control",
+      "name": "Kids 12V Electric Ride-On Jeep with Remote Control",
+      "description": "Safe, rechargeable battery-powered jeep with parental remote control, working LED headlights, music player via USB, and sturdy off-road wheels.",
+      "categoryId": "cat-kids",
+      "subcategoryId": "Toys",
+      "brand": "ATAL Play",
+      "price": 18999,
+      "originalPrice": 25999,
+      "discountPercentage": 27,
+      "rating": 4.8,
+      "reviewCount": 88,
+      "images": [
+        "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v13",
+          "name": "Red Off-Road Jeep",
+          "sku": "ATAL-TOY-JEEP-RED",
+          "price": 18999,
+          "color": "Red",
+          "stock": 8
+        },
+        {
+          "id": "v14",
+          "name": "Jet Black Jeep",
+          "sku": "ATAL-TOY-JEEP-BLK",
+          "price": 18999,
+          "color": "Black",
+          "stock": 5
+        }
+      ],
+      "stock": 13,
+      "isFeatured": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    },
+    {
+      "id": "prod-8",
+      "slug": "heavy-bass-bluetooth-wireless-party-speaker",
+      "name": "ATAL ThunderBox RGB Wireless Bluetooth Speaker",
+      "description": "40W stereo sound with deep bass, dynamic RGB LED light show, TWS pairing support, FM radio, USB/TF card playback, and 12-hour playtime.",
+      "categoryId": "cat-electronics",
+      "subcategoryId": "Speakers",
+      "brand": "ATAL Audio",
+      "price": 5499,
+      "originalPrice": 8500,
+      "discountPercentage": 35,
+      "rating": 4.7,
+      "reviewCount": 142,
+      "images": [
+        "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=800&q=80"
+      ],
+      "variants": [
+        {
+          "id": "v15",
+          "name": "Black Thunder",
+          "sku": "ATAL-SPK-THUN",
+          "price": 5499,
+          "stock": 24
+        }
+      ],
+      "stock": 24,
+      "isBestSeller": true,
+      "createdAt": "2026-10-26T17:24:03.515Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-men",
+      "name": "Men",
+      "slug": "men",
+      "image": "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?auto=format&fit=crop&w=600&q=80",
+      "subcategories": [
+        "T-Shirts",
+        "Shirts",
+        "Polo Shirts",
+        "Jeans and Trousers",
+        "Shalwar Kameez",
+        "Jackets and Hoodies",
+        "Sandals and Slippers",
+        "Watches",
+        "Wallets",
+        "Belts",
+        "Men Accessories"
+      ],
+      "description": "Modern & traditional menswear crafted for comfort and elegance."
+    },
+    {
+      "id": "cat-women",
+      "name": "Women",
+      "slug": "women",
+      "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+      "subcategories": [
+        "Dresses",
+        "Casual Wear",
+        "Formal Wear",
+        "Kurtis",
+        "Shalwar Kameez",
+        "Abayas and Hijabs",
+        "Women Shoes",
+        "Handbags",
+        "Purses and Clutches",
+        "Jewellery",
+        "Watches",
+        "Fashion Accessories"
+      ],
+      "description": "Trendy eastern and western wear, luxury handbags, and accessories."
+    },
+    {
+      "id": "cat-kids",
+      "name": "Kids",
+      "slug": "kids",
+      "image": "https://images.unsplash.com/photo-1503944583220-7eeec8587d5a?auto=format&fit=crop&w=600&q=80",
+      "subcategories": [
+        "Boys Clothing",
+        "Girls Clothing",
+        "Baby Clothing",
+        "Newborn Essentials",
+        "Kids Shoes",
+        "School Bags",
+        "Toys",
+        "Kids Accessories"
+      ],
+      "description": "Safe, colorful, and durable clothing and toys for children of all ages."
+    },
+    {
+      "id": "cat-cosmetics",
+      "name": "Cosmetics & Perfume",
+      "slug": "cosmetics-perfume",
+      "image": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80",
+      "subcategories": [
+        "Makeup",
+        "Face Wash",
+        "Skincare",
+        "Face Creams",
+        "Serums",
+        "Sunscreen",
+        "Facial Kits",
+        "Hair Care",
+        "Body Care",
+        "Perfumes for Men",
+        "Perfumes for Women",
+        "Unisex Perfumes",
+        "Body Sprays",
+        "Beauty Accessories"
+      ],
+      "description": "100% original skincare, cosmetics, and signature oriental & western perfumes."
+    },
+    {
+      "id": "cat-electronics",
+      "name": "Electronics",
+      "slug": "electronics",
+      "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+      "subcategories": [
+        "Mobile Accessories",
+        "Earbuds and Headphones",
+        "Speakers",
+        "Smart Watches",
+        "Chargers and Cables",
+        "Power Banks",
+        "Computer Accessories",
+        "Home Electronics",
+        "Gaming Accessories",
+        "Other Electronic Gadgets"
+      ],
+      "description": "High-performance gadgets, wireless audio, and smart accessories."
+    }
+  ],
+  "carouselSlides": [
+    {
+      "id": 1,
+      "badge": "PAKISTAN FESTIVE SALE",
+      "brand": "ATAL PAKISTAN",
+      "title": "Up to 50% Off Luxury Pret & Fragrances",
+      "subtitle": "ELEGANT ATTIRE • PREMIUM TECH • EXQUISITE SCENTS",
+      "discount": "UPTO 40% OFF",
+      "buttonText": "SHOP NOW!",
+      "image": "/assets/hero_festive_banner_1792525781469.jpg",
+      "categoryId": "cat-women"
+    },
+    {
+      "id": 2,
+      "badge": "ROYAL OUD & PERFUMES",
+      "brand": "ATAL PARFUMS",
+      "title": "Signature Long-Lasting Fragrances & Attars",
+      "subtitle": "FRENCH NOTES • ARABIAN OUD • LUXURY BOTTLES",
+      "discount": "FLAT 30% OFF",
+      "buttonText": "DISCOVER SCENTS",
+      "image": "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=1200&q=80",
+      "categoryId": "cat-cosmetics"
+    },
+    {
+      "id": 3,
+      "badge": "SMART AUDIO & TECH ⚡",
+      "brand": "ATAL PRO TECH",
+      "title": "Wireless ANC Earbuds & Smartwatches",
+      "subtitle": "CRYSTAL HD SOUND • 40H BATTERY • WATER RESISTANT",
+      "discount": "SPECIAL OFFER",
+      "buttonText": "UPGRADE AUDIO",
+      "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=1200&q=80",
+      "categoryId": "cat-electronics"
+    },
+    {
+      "id": 4,
+      "badge": "ARTISANAL LEATHER",
+      "brand": "ATAL COUTURE",
+      "title": "Signature Quilted Handbags & Clutches",
+      "subtitle": "PREMIUM FINISH • EMBOSSED LOGO • 24K GOLD HARDWARE",
+      "discount": "NEW ARRIVAL",
+      "buttonText": "EXPLORE BAGS",
+      "image": "/assets/atal_signature_bag_1792525744513.jpg",
+      "categoryId": "cat-women"
+    }
+  ],
+  "storeSettings": {
+    "storeName": "ATAL",
+    "tagline": "Shop Smart. Live Better",
+    "supportPhone": "+92 371 9150297",
+    "supportEmail": "contact.to.atal@gmail.com",
+    "whatsappNumber": "923719150297",
+    "freeShippingThreshold": 9999,
+    "defaultShippingCharge": 290,
+    "codEnabled": true,
+    "codDeliveryChargesMandatory": true,
+    "jazzcashEnabled": true,
+    "easypaisaEnabled": true,
+    "cardEnabled": true,
+    "codAdvanceShipping": true,
+    "easypaisaAccountTitle": "Omar Farooq",
+    "easypaisaAccountNumber": "03719150297",
+    "easypaisaQrImage": "/assets/aistudio/WhatsApp_Image_2026-10-20_at_11.24.41_PM_3cd4a1f7.jpeg",
+    "jazzcashAccountTitle": "Umer Farooq",
+    "jazzcashAccountNumber": "03719150297",
+    "jazzcashQrImage": "/assets/aistudio/WhatsApp_Image_2026-10-20_at_11.26.22_PM_96ced8c4.jpeg",
+    "bankEnabled": true,
+    "bankName": "HBL (Habib Bank Limited)",
+    "bankAccountTitle": "Umer Farooq",
+    "bankAccountNumber": "50627918149903",
+    "bankQrImage": "/assets/aistudio/WhatsApp_Image_2026-10-22_at_9.45.39_AM_5e21af89.jpeg",
+    "couponsEnabled": true,
+    "coupons": {
+      "wellcome5": 0.05,
+      "atal8": 0.08
+    }
+  },
+  "orders": [],
+  "customers": [],
+  "staff": [
+    {
+      "id": "staff-admin-1",
+      "email": "uatal.pk@gmail.com",
+      "name": "Umer (Admin)",
+      "role": "admin",
+      "isPasswordChangeable": true,
+      "createdAt": "2026-10-01T00:00:00.000Z"
+    },
+    {
+      "id": "staff-emp-1",
+      "email": "ali@atal.com",
+      "name": "Ali (Employee)",
+      "role": "employee",
+      "isPasswordChangeable": true,
+      "createdAt": "2026-10-01T00:00:00.000Z"
+    }
+  ]
+}

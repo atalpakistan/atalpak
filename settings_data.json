@@ -1,0 +1,31 @@
+{
+  "storeName": "ATAL",
+  "tagline": "Shop Smart. Live Better",
+  "supportPhone": "+92 371 9150297",
+  "supportEmail": "contact.to.atal@gmail.com",
+  "whatsappNumber": "923719150297",
+  "freeShippingThreshold": 9999,
+  "defaultShippingCharge": 290,
+  "codEnabled": true,
+  "codDeliveryChargesMandatory": true,
+  "jazzcashEnabled": true,
+  "easypaisaEnabled": true,
+  "cardEnabled": true,
+  "codAdvanceShipping": true,
+  "easypaisaAccountTitle": "Omar Farooq",
+  "easypaisaAccountNumber": "03719150297",
+  "easypaisaQrImage": "/assets/aistudio/WhatsApp_Image_2026-10-20_at_11.24.41_PM_3cd4a1f7.jpeg",
+  "jazzcashAccountTitle": "Umer Farooq",
+  "jazzcashAccountNumber": "03719150297",
+  "jazzcashQrImage": "/assets/aistudio/WhatsApp_Image_2026-10-20_at_11.26.22_PM_96ced8c4.jpeg",
+  "bankEnabled": true,
+  "bankName": "HBL (Habib Bank Limited)",
+  "bankAccountTitle": "Umer Farooq",
+  "bankAccountNumber": "50627918149903",
+  "bankQrImage": "/assets/aistudio/WhatsApp_Image_2026-10-22_at_9.45.39_AM_5e21af89.jpeg",
+  "couponsEnabled": true,
+  "coupons": {
+    "wellcome5": 0.05,
+    "atal8": 0.08
+  }
+}

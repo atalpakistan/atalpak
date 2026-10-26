@@ -13,6 +13,14 @@ const PRODUCTS_FILE = path.join(__dirname, 'products_data.json');
 const CATEGORIES_FILE = path.join(__dirname, 'categories_data.json');
 const CAROUSEL_FILE = path.join(__dirname, 'carousel_data.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings_data.json');
+const BACKUPS_DIR = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUPS_DIR)) {
+  try {
+    fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+  } catch (err) {
+    console.error('Failed to create backups directory:', err);
+  }
+}
 
 export interface StaffUser {
   id: string;
@@ -1698,13 +1706,30 @@ export async function createServer() {
     res.json(storeSettings);
   });
 
-  // 7. Backup / Data Import & Export (Admin)
-  app.get('/api/admin/export-data', (req, res) => {
+  // --------------------------------------------------------------------------
+  // 7. COMPREHENSIVE DATA MANAGEMENT, BACKUPS, EXPORTS & RESTORE SYSTEM
+  // --------------------------------------------------------------------------
+
+  // Helper: Create full snapshot backup on server disk
+  function createBackupSnapshot(note = 'Manual Snapshot') {
     try {
-      const backupData = {
-        version: '1.0',
-        exportedAt: new Date().toISOString(),
+      if (!fs.existsSync(BACKUPS_DIR)) {
+        fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+      }
+      const id = `backup-${Date.now()}`;
+      const snapshot = {
+        id,
+        note,
+        version: '2.0',
+        createdAt: new Date().toISOString(),
         storeName: storeSettings.storeName || 'ATAL',
+        counts: {
+          products: products.length,
+          categories: categories.length,
+          carouselSlides: carouselSlides.length,
+          orders: orders.length,
+          customers: customers.length
+        },
         products,
         categories,
         carouselSlides,
@@ -1713,94 +1738,881 @@ export async function createServer() {
         customers: customers.map(sanitizeCustomer),
         staff: staffUsers.map(sanitizeStaffUser)
       };
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename=atal_store_backup_${Date.now()}.json`);
-      res.json(backupData);
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to generate store backup export' });
+      const filePath = path.join(BACKUPS_DIR, `${id}.json`);
+      fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2), 'utf-8');
+      const stats = fs.statSync(filePath);
+      return {
+        id,
+        filename: `${id}.json`,
+        note,
+        createdAt: snapshot.createdAt,
+        sizeBytes: stats.size,
+        counts: snapshot.counts
+      };
+    } catch (err) {
+      console.error('Error creating backup snapshot:', err);
+      return null;
+    }
+  }
+
+  // Helper: List all backup snapshots on server disk
+  function listBackupSnapshots() {
+    try {
+      if (!fs.existsSync(BACKUPS_DIR)) {
+        fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+        return [];
+      }
+      const files = fs.readdirSync(BACKUPS_DIR).filter(f => f.endsWith('.json'));
+      const list: any[] = [];
+      for (const f of files) {
+        try {
+          const fullPath = path.join(BACKUPS_DIR, f);
+          const stats = fs.statSync(fullPath);
+          const raw = fs.readFileSync(fullPath, 'utf-8');
+          const content = JSON.parse(raw);
+          list.push({
+            id: content.id || f.replace('.json', ''),
+            filename: f,
+            note: content.note || 'System Backup Snapshot',
+            createdAt: content.createdAt || stats.mtime.toISOString(),
+            sizeBytes: stats.size,
+            counts: content.counts || {
+              products: Array.isArray(content.products) ? content.products.length : 0,
+              categories: Array.isArray(content.categories) ? content.categories.length : 0,
+              carouselSlides: Array.isArray(content.carouselSlides) ? content.carouselSlides.length : 0,
+              orders: Array.isArray(content.orders) ? content.orders.length : 0,
+              customers: Array.isArray(content.customers) ? content.customers.length : 0
+            }
+          });
+        } catch (e) {
+          // ignore corrupted files
+        }
+      }
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (err) {
+      console.error('Error listing backup snapshots:', err);
+      return [];
+    }
+  }
+
+  // Helper: Convert array of objects to standard CSV string
+  function toCsv(rows: any[], columns: { key: string; label: string; transform?: (val: any, row: any) => any }[]): string {
+    const header = columns.map(c => `"${c.label.replace(/"/g, '""')}"`).join(',');
+    const lines = rows.map(r => {
+      return columns.map(c => {
+        let v = c.transform ? c.transform(r[c.key], r) : r[c.key];
+        if (v === undefined || v === null) v = '';
+        if (typeof v === 'object') v = JSON.stringify(v);
+        const s = String(v).replace(/"/g, '""');
+        return `"${s}"`;
+      }).join(',');
+    });
+    return [header, ...lines].join('\r\n');
+  }
+
+  // Helper: Parse standard CSV string to array of objects
+  function parseCsv(text: string): Record<string, string>[] {
+    const lines: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const next = text[i + 1];
+      if (char === '"') {
+        if (inQuotes && next === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (current.trim().length > 0) {
+          lines.push(current);
+        }
+        current = '';
+        if (char === '\r' && next === '\n') {
+          i++;
+        }
+      } else {
+        current += char;
+      }
+    }
+    if (current.trim().length > 0) {
+      lines.push(current);
+    }
+    if (lines.length === 0) return [];
+
+    const parseLine = (line: string): string[] => {
+      const cols: string[] = [];
+      let col = '';
+      let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        const n = line[i + 1];
+        if (c === '"') {
+          if (inQ && n === '"') {
+            col += '"';
+            i++;
+          } else {
+            inQ = !inQ;
+          }
+        } else if (c === ',' && !inQ) {
+          cols.push(col.trim());
+          col = '';
+        } else {
+          col += c;
+        }
+      }
+      cols.push(col.trim());
+      return cols;
+    };
+
+    const headers = parseLine(lines[0]);
+    const results: Record<string, string>[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = parseLine(lines[i]);
+      if (vals.length === 0 || (vals.length === 1 && !vals[0])) continue;
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        row[h] = vals[idx] !== undefined ? vals[idx] : '';
+      });
+      results.push(row);
+    }
+    return results;
+  }
+
+  // 7.1 Backup Snapshots Management Endpoints
+  app.get('/api/admin/backups', (req, res) => {
+    const list = listBackupSnapshots();
+    res.json(list);
+  });
+
+  app.post('/api/admin/backups/create', (req, res) => {
+    const { note } = req.body || {};
+    const snapshot = createBackupSnapshot(note || 'Manual Admin Snapshot');
+    if (!snapshot) {
+      return res.status(500).json({ error: 'Failed to create backup snapshot on disk.' });
+    }
+    res.json({
+      success: true,
+      message: 'Backup snapshot created successfully!',
+      snapshot
+    });
+  });
+
+  app.post('/api/admin/backups/:id/restore', (req, res) => {
+    try {
+      const { id } = req.params;
+      const filePath = path.join(BACKUPS_DIR, `${id}.json`);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: `Backup snapshot ${id} not found.` });
+      }
+
+      // Auto-backup current state before restoring an earlier snapshot
+      createBackupSnapshot(`Auto-backup before restoring ${id}`);
+
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+      if (Array.isArray(data.products)) {
+        products = data.products;
+        saveProductsToDisk();
+      }
+      if (Array.isArray(data.categories)) {
+        categories = data.categories;
+        saveCategoriesToDisk();
+      }
+      if (Array.isArray(data.carouselSlides)) {
+        carouselSlides = data.carouselSlides;
+        saveCarouselToDisk();
+      }
+      if (data.storeSettings && typeof data.storeSettings === 'object') {
+        storeSettings = { ...DEFAULT_STORE_SETTINGS, ...data.storeSettings };
+        saveSettingsToDisk();
+      }
+      if (Array.isArray(data.orders)) {
+        orders = data.orders;
+        saveOrdersToDisk();
+      }
+      if (Array.isArray(data.customers)) {
+        customers = data.customers;
+        saveCustomersToDisk();
+      }
+
+      console.log(`[Admin Restore] Successfully restored system state from snapshot ${id}`);
+      res.json({
+        success: true,
+        message: `System successfully restored to snapshot from ${data.createdAt || id}!`,
+        counts: {
+          products: products.length,
+          categories: categories.length,
+          carouselSlides: carouselSlides.length,
+          orders: orders.length,
+          customers: customers.length
+        }
+      });
+    } catch (err: any) {
+      console.error('Error restoring snapshot:', err);
+      res.status(500).json({ error: `Failed to restore snapshot: ${err.message}` });
     }
   });
 
-  app.post('/api/admin/import-data', (req, res) => {
+  app.get('/api/admin/backups/:id/download', (req, res) => {
+    const { id } = req.params;
+    const filePath = path.join(BACKUPS_DIR, `${id}.json`);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Snapshot file not found' });
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=${id}.json`);
+    res.sendFile(filePath);
+  });
+
+  app.delete('/api/admin/backups/:id', (req, res) => {
+    const { id } = req.params;
+    const filePath = path.join(BACKUPS_DIR, `${id}.json`);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+        return res.json({ success: true, message: 'Snapshot removed from disk.' });
+      } catch (e: any) {
+        return res.status(500).json({ error: `Failed to delete snapshot: ${e.message}` });
+      }
+    }
+    res.status(404).json({ error: 'Snapshot not found' });
+  });
+
+  // 7.2 Multi-Format Export API (JSON & CSV for all entities)
+  app.get('/api/admin/export-data', (req, res) => {
     try {
-      const data = req.body;
-      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
-        return res.status(400).json({ error: 'Invalid backup payload format.' });
+      const type = (req.query.type as string) || 'all';
+      const format = ((req.query.format as string) || 'json').toLowerCase();
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      // Format CSV
+      if (format === 'csv') {
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+
+        if (type === 'products') {
+          res.setHeader('Content-Disposition', `attachment; filename=atal_products_${dateStr}.csv`);
+          const csv = toCsv(products, [
+            { key: 'id', label: 'Product ID' },
+            { key: 'sku', label: 'SKU', transform: (v, r) => r.variants?.[0]?.sku || r.id },
+            { key: 'name', label: 'Product Name' },
+            { key: 'slug', label: 'Slug' },
+            { key: 'brand', label: 'Brand' },
+            { key: 'categoryId', label: 'Category ID' },
+            { key: 'categoryName', label: 'Category Name', transform: (_, r) => categories.find(c => c.id === r.categoryId)?.name || r.categoryId },
+            { key: 'subcategoryId', label: 'Subcategory' },
+            { key: 'price', label: 'Price (PKR)' },
+            { key: 'originalPrice', label: 'Original Price (PKR)' },
+            { key: 'discountPercentage', label: 'Discount %' },
+            { key: 'stock', label: 'Stock Units' },
+            { key: 'rating', label: 'Rating' },
+            { key: 'reviewCount', label: 'Review Count' },
+            { key: 'isFeatured', label: 'Featured' },
+            { key: 'isFlashDeal', label: 'Flash Deal' },
+            { key: 'isBestSeller', label: 'Best Seller' },
+            { key: 'isNewArrival', label: 'New Arrival' },
+            { key: 'images', label: 'Image URL', transform: (v) => Array.isArray(v) ? v[0] || '' : '' },
+            { key: 'description', label: 'Description' }
+          ]);
+          return res.send(csv);
+        }
+
+        if (type === 'categories') {
+          res.setHeader('Content-Disposition', `attachment; filename=atal_categories_${dateStr}.csv`);
+          const csv = toCsv(categories, [
+            { key: 'id', label: 'Category ID' },
+            { key: 'name', label: 'Category Name' },
+            { key: 'slug', label: 'Slug' },
+            { key: 'subcategories', label: 'Subcategories', transform: v => Array.isArray(v) ? v.join('; ') : '' },
+            { key: 'description', label: 'Description' },
+            { key: 'image', label: 'Image URL' },
+            { key: 'productCount', label: 'Total Products', transform: (_, r) => products.filter(p => p.categoryId === r.id).length }
+          ]);
+          return res.send(csv);
+        }
+
+        if (type === 'variations') {
+          res.setHeader('Content-Disposition', `attachment; filename=atal_product_variations_${dateStr}.csv`);
+          const flatVars: any[] = [];
+          products.forEach(p => {
+            (p.variants || []).forEach(v => {
+              flatVars.push({
+                productId: p.id,
+                productName: p.name,
+                variantId: v.id,
+                sku: v.sku,
+                variantName: v.name,
+                color: v.color || '',
+                size: v.size || '',
+                price: v.price,
+                originalPrice: v.originalPrice || '',
+                stock: v.stock
+              });
+            });
+          });
+          const csv = toCsv(flatVars, [
+            { key: 'productId', label: 'Product ID' },
+            { key: 'productName', label: 'Product Name' },
+            { key: 'variantId', label: 'Variant ID' },
+            { key: 'sku', label: 'SKU' },
+            { key: 'variantName', label: 'Variant Title' },
+            { key: 'color', label: 'Color' },
+            { key: 'size', label: 'Size' },
+            { key: 'price', label: 'Price (PKR)' },
+            { key: 'originalPrice', label: 'Original Price (PKR)' },
+            { key: 'stock', label: 'Stock' }
+          ]);
+          return res.send(csv);
+        }
+
+        if (type === 'inventory') {
+          res.setHeader('Content-Disposition', `attachment; filename=atal_inventory_${dateStr}.csv`);
+          const csv = toCsv(products, [
+            { key: 'id', label: 'Product ID' },
+            { key: 'sku', label: 'SKU', transform: (_, r) => r.variants?.[0]?.sku || r.id },
+            { key: 'name', label: 'Product Name' },
+            { key: 'brand', label: 'Brand' },
+            { key: 'subcategoryId', label: 'Subcategory' },
+            { key: 'stock', label: 'Stock Quantity' },
+            { key: 'price', label: 'Unit Price (PKR)' },
+            { key: 'status', label: 'Inventory Status', transform: (_, r) => r.stock <= 0 ? 'Out of Stock' : (r.stock < 10 ? 'Low Stock Alert' : 'In Stock') }
+          ]);
+          return res.send(csv);
+        }
+
+        if (type === 'orders') {
+          res.setHeader('Content-Disposition', `attachment; filename=atal_orders_${dateStr}.csv`);
+          const csv = toCsv(orders, [
+            { key: 'orderNumber', label: 'Order ID' },
+            { key: 'trackingNumber', label: '8-Digit Tracking' },
+            { key: 'customerName', label: 'Customer Name' },
+            { key: 'mobileNumber', label: 'Mobile Number' },
+            { key: 'email', label: 'Email' },
+            { key: 'city', label: 'City' },
+            { key: 'province', label: 'Province' },
+            { key: 'address', label: 'Address' },
+            { key: 'subtotal', label: 'Subtotal (PKR)' },
+            { key: 'discount', label: 'Discount (PKR)' },
+            { key: 'shippingCharges', label: 'Shipping (PKR)' },
+            { key: 'totalAmount', label: 'Total Amount (PKR)' },
+            { key: 'paymentMethod', label: 'Payment Method' },
+            { key: 'paymentStatus', label: 'Payment Status' },
+            { key: 'transactionReference', label: 'Transaction ID (TID)' },
+            { key: 'orderStatus', label: 'Order Status' },
+            { key: 'createdAt', label: 'Order Date' }
+          ]);
+          return res.send(csv);
+        }
+
+        if (type === 'customers') {
+          res.setHeader('Content-Disposition', `attachment; filename=atal_customers_${dateStr}.csv`);
+          const csv = toCsv(customers, [
+            { key: 'id', label: 'Customer ID' },
+            { key: 'name', label: 'Full Name' },
+            { key: 'email', label: 'Email' },
+            { key: 'whatsapp', label: 'WhatsApp Number' },
+            { key: 'city', label: 'City', transform: (_, r) => r.defaultAddress?.city || '' },
+            { key: 'province', label: 'Province', transform: (_, r) => r.defaultAddress?.province || '' },
+            { key: 'address', label: 'Address', transform: (_, r) => r.defaultAddress?.address || '' },
+            { key: 'createdAt', label: 'Registration Date' }
+          ]);
+          return res.send(csv);
+        }
       }
 
-      let importedCount = { products: 0, categories: 0, carousel: 0, orders: 0, customers: 0 };
+      // Format JSON
+      res.setHeader('Content-Type', 'application/json');
 
-      // Case A: Direct Array Import
+      if (type === 'products') {
+        res.setHeader('Content-Disposition', `attachment; filename=atal_products_${dateStr}.json`);
+        return res.json({ exportedAt: new Date().toISOString(), count: products.length, products });
+      }
+
+      if (type === 'categories') {
+        res.setHeader('Content-Disposition', `attachment; filename=atal_categories_${dateStr}.json`);
+        return res.json({ exportedAt: new Date().toISOString(), count: categories.length, categories });
+      }
+
+      if (type === 'carousel') {
+        res.setHeader('Content-Disposition', `attachment; filename=atal_carousel_${dateStr}.json`);
+        return res.json({ exportedAt: new Date().toISOString(), count: carouselSlides.length, carouselSlides });
+      }
+
+      if (type === 'settings') {
+        res.setHeader('Content-Disposition', `attachment; filename=atal_settings_${dateStr}.json`);
+        return res.json({ exportedAt: new Date().toISOString(), storeSettings });
+      }
+
+      if (type === 'orders') {
+        res.setHeader('Content-Disposition', `attachment; filename=atal_orders_${dateStr}.json`);
+        return res.json({ exportedAt: new Date().toISOString(), count: orders.length, orders });
+      }
+
+      if (type === 'customers') {
+        res.setHeader('Content-Disposition', `attachment; filename=atal_customers_${dateStr}.json`);
+        return res.json({ exportedAt: new Date().toISOString(), count: customers.length, customers: customers.map(sanitizeCustomer) });
+      }
+
+      // Default: All Data Full Backup
+      res.setHeader('Content-Disposition', `attachment; filename=atal_full_store_backup_${Date.now()}.json`);
+      res.json({
+        version: '2.0',
+        exportedAt: new Date().toISOString(),
+        storeName: storeSettings.storeName || 'ATAL',
+        counts: {
+          products: products.length,
+          categories: categories.length,
+          carouselSlides: carouselSlides.length,
+          orders: orders.length,
+          customers: customers.length
+        },
+        products,
+        categories,
+        carouselSlides,
+        storeSettings,
+        orders,
+        customers: customers.map(sanitizeCustomer),
+        staff: staffUsers.map(sanitizeStaffUser)
+      });
+    } catch (e: any) {
+      console.error('Export error:', e);
+      res.status(500).json({ error: `Failed to generate export: ${e.message}` });
+    }
+  });
+
+  // 7.3 Pre-Import Validation & Preview API
+  app.post('/api/admin/validate-import', (req, res) => {
+    try {
+      let { data, csv, rawContent, format, mode = 'update_existing' } = req.body || {};
+
+      // If rawContent passed from frontend
+      if (typeof rawContent === 'string' && rawContent.trim()) {
+        const trimmed = rawContent.trim();
+        const isCsvFormat = format === 'csv' || (!trimmed.startsWith('{') && !trimmed.startsWith('['));
+        if (isCsvFormat) {
+          csv = trimmed;
+        } else {
+          try {
+            data = JSON.parse(trimmed);
+          } catch (e: any) {
+            return res.status(400).json({ isValid: false, valid: false, errors: [`JSON Parse Error: ${e.message}`] });
+          }
+        }
+      }
+
+      // If raw CSV string provided, parse into rows
+      if (typeof csv === 'string' && csv.trim()) {
+        const rows = parseCsv(csv);
+        if (rows.length > 0) {
+          const first = rows[0];
+          if (first['Product Name'] || first['price'] || first['Price (PKR)'] || first['name']) {
+            data = {
+              products: rows.map((r, idx) => ({
+                id: r['Product ID'] || r['id'] || `prod-csv-${Date.now()}-${idx}`,
+                name: r['Product Name'] || r['name'] || 'Unnamed Product',
+                slug: (r['Slug'] || r['slug'] || r['Product Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                brand: r['Brand'] || r['brand'] || 'ATAL',
+                categoryId: r['Category ID'] || r['categoryId'] || categories[0]?.id || 'cat-women',
+                subcategoryId: r['Subcategory'] || r['subcategoryId'] || 'General',
+                price: Number(r['Price (PKR)'] || r['price'] || 0),
+                originalPrice: r['Original Price (PKR)'] ? Number(r['Original Price (PKR)']) : undefined,
+                stock: Number(r['Stock Units'] || r['Stock'] || r['stock'] || 10),
+                rating: 5.0,
+                reviewCount: 0,
+                images: r['Image URL'] ? [r['Image URL']] : ['/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg'],
+                variants: [],
+                createdAt: new Date().toISOString()
+              }))
+            };
+          } else if (first['Category Name'] || first['subcategories'] || first['Subcategories']) {
+            data = {
+              categories: rows.map((r, idx) => ({
+                id: r['Category ID'] || r['id'] || `cat-csv-${Date.now()}-${idx}`,
+                name: r['Category Name'] || r['name'] || 'New Category',
+                slug: (r['Slug'] || r['slug'] || r['Category Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                subcategories: (r['Subcategories'] || r['subcategories'] || '').split(';').map((s: string) => s.trim()).filter(Boolean),
+                description: r['Description'] || r['description'] || '',
+                image: r['Image URL'] || r['image'] || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80'
+              }))
+            };
+          }
+        }
+      }
+
+      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
+        return res.status(400).json({ isValid: false, valid: false, errors: ['Empty or invalid import payload.'] });
+      }
+
+      let inProds: any[] = [];
+      let inCats: any[] = [];
+      let inSlides: any[] = [];
+      let inOrders: any[] = [];
+
       if (Array.isArray(data)) {
         if (data.length > 0) {
           const first = data[0];
           if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
-            products = data;
-            saveProductsToDisk();
-            importedCount.products = products.length;
+            inProds = data;
           } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')))) {
-            categories = data;
-            saveCategoriesToDisk();
-            importedCount.categories = categories.length;
-          } else if (first && (first.badge !== undefined || first.buttonText !== undefined || first.discount !== undefined)) {
-            carouselSlides = data;
-            saveCarouselToDisk();
-            importedCount.carousel = carouselSlides.length;
+            inCats = data;
+          } else if (first && (first.badge !== undefined || first.buttonText !== undefined)) {
+            inSlides = data;
           }
         }
       } else {
-        // Case B: Full Store / Multi-entity Object Import
-        const prods = data.products || data.items || data.catalog;
-        if (Array.isArray(prods)) {
-          products = prods;
-          saveProductsToDisk();
-          importedCount.products = products.length;
+        inProds = data.products || data.items || data.catalog || [];
+        inCats = data.categories || data.cats || [];
+        inSlides = data.carouselSlides || data.carousel || data.slides || data.heroSlides || [];
+        inOrders = data.orders || [];
+      }
+
+      // Calculate simulation
+      const currentCatIds = new Set(categories.map(c => c.id));
+      const currentCatSlugs = new Set(categories.map(c => c.slug));
+      const inCatIds = new Set(inCats.map((c: any) => c.id).filter(Boolean));
+
+      let catsToAdd = 0;
+      let catsToUpdate = 0;
+      inCats.forEach((c: any) => {
+        if (currentCatIds.has(c.id) || currentCatSlugs.has(c.slug)) {
+          catsToUpdate++;
+        } else {
+          catsToAdd++;
+        }
+      });
+
+      const currentProdIds = new Set(products.map(p => p.id));
+      const currentProdSkus = new Set(products.map(p => p.variants?.[0]?.sku).filter(Boolean));
+      const currentProdSlugs = new Set(products.map(p => p.slug));
+
+      let prodsToAdd = 0;
+      let prodsToUpdate = 0;
+      let prodsValidCat = 0;
+      const warnings: string[] = [];
+
+      inProds.forEach((p: any) => {
+        const pSku = p.variants?.[0]?.sku;
+        if (currentProdIds.has(p.id) || (pSku && currentProdSkus.has(pSku)) || currentProdSlugs.has(p.slug)) {
+          prodsToUpdate++;
+        } else {
+          prodsToAdd++;
         }
 
-        const cats = data.categories || data.cats;
-        if (Array.isArray(cats)) {
-          categories = cats;
-          saveCategoriesToDisk();
-          importedCount.categories = categories.length;
+        if (currentCatIds.has(p.categoryId) || inCatIds.has(p.categoryId)) {
+          prodsValidCat++;
+        } else {
+          warnings.push(`Product "${p.name}" references category ID "${p.categoryId}" which will be safely preserved.`);
         }
+      });
 
-        const slides = data.carouselSlides || data.carousel || data.slides || data.heroSlides;
-        if (Array.isArray(slides)) {
-          carouselSlides = slides;
-          saveCarouselToDisk();
-          importedCount.carousel = carouselSlides.length;
-        }
+      const detectedType = inCats.length > 0 && inProds.length > 0 ? 'Full Store Backup' : (inCats.length > 0 ? 'Categories Hierarchy' : (inProds.length > 0 ? 'Products Catalog' : (inOrders.length > 0 ? 'Orders Records' : 'General Store Data')));
 
-        const settings = data.storeSettings || data.settings;
-        if (settings && typeof settings === 'object') {
-          storeSettings = { ...DEFAULT_STORE_SETTINGS, ...settings };
-          saveSettingsToDisk();
-        }
+      const stats = {
+        categories: { incomingCount: inCats.length, toAddCount: catsToAdd, toUpdateCount: catsToUpdate, toSkipCount: 0 },
+        products: { incomingCount: inProds.length, toAddCount: prodsToAdd, toUpdateCount: prodsToUpdate, toSkipCount: 0 },
+        carouselSlides: { incomingCount: inSlides.length },
+        orders: { incomingCount: inOrders.length, toAddCount: inOrders.length }
+      };
 
-        const ords = data.orders;
-        if (Array.isArray(ords)) {
-          orders = ords;
-          saveOrdersToDisk();
-          importedCount.orders = orders.length;
-        }
+      const categoryIntegrity = {
+        totalReferenced: inProds.length,
+        validReferences: prodsValidCat,
+        missingParentIds: []
+      };
 
-        const custs = data.customers;
-        if (Array.isArray(custs)) {
-          customers = custs;
-          saveCustomersToDisk();
-          importedCount.customers = customers.length;
+      res.json({
+        isValid: true,
+        valid: true,
+        fileType: format || (csv ? 'csv' : 'json'),
+        inferredType: detectedType,
+        stats,
+        summary: stats,
+        categoryIntegrity,
+        warnings: warnings.slice(0, 5),
+        errors: [],
+        sampleProducts: inProds.slice(0, 3).map((p: any) => ({ name: p.name, price: p.price, stock: p.stock, brand: p.brand })),
+        sampleCategories: inCats.slice(0, 3).map((c: any) => ({ name: c.name, subcategoriesCount: (c.subcategories || []).length }))
+      });
+    } catch (err: any) {
+      console.error('Validation error:', err);
+      res.status(400).json({ isValid: false, valid: false, errors: [`Invalid format: ${err.message}`] });
+    }
+  });
+
+  // 7.4 Robust Mode-Based Import API (Add New, Update Existing, Full Restore)
+  app.post('/api/admin/import-data', (req, res) => {
+    try {
+      let { data, csv, rawContent, format, mode = 'update_existing', confirmFullRestore = false } = req.body || {};
+
+      // If rawContent passed from frontend
+      if (typeof rawContent === 'string' && rawContent.trim()) {
+        const trimmed = rawContent.trim();
+        const isCsvFormat = format === 'csv' || (!trimmed.startsWith('{') && !trimmed.startsWith('['));
+        if (isCsvFormat) {
+          csv = trimmed;
+        } else {
+          try {
+            data = JSON.parse(trimmed);
+          } catch (e: any) {
+            return res.status(400).json({ success: false, error: `JSON Parse Error: ${e.message}` });
+          }
         }
       }
 
-      console.log('[Admin Import] Store data imported successfully:', importedCount);
+      // Auto-parse CSV if passed
+      if (typeof csv === 'string' && csv.trim()) {
+        const rows = parseCsv(csv);
+        if (rows.length > 0) {
+          const first = rows[0];
+          if (first['Product Name'] || first['price'] || first['Price (PKR)'] || first['name']) {
+            data = {
+              products: rows.map((r, idx) => ({
+                id: r['Product ID'] || r['id'] || `prod-csv-${Date.now()}-${idx}`,
+                name: r['Product Name'] || r['name'] || 'Unnamed Product',
+                slug: (r['Slug'] || r['slug'] || r['Product Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                brand: r['Brand'] || r['brand'] || 'ATAL',
+                categoryId: r['Category ID'] || r['categoryId'] || categories[0]?.id || 'cat-women',
+                subcategoryId: r['Subcategory'] || r['subcategoryId'] || 'General',
+                price: Number(r['Price (PKR)'] || r['price'] || 0),
+                originalPrice: r['Original Price (PKR)'] ? Number(r['Original Price (PKR)']) : undefined,
+                stock: Number(r['Stock Units'] || r['Stock'] || r['stock'] || 10),
+                rating: 5.0,
+                reviewCount: 0,
+                images: r['Image URL'] ? [r['Image URL']] : ['/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg'],
+                variants: [],
+                createdAt: new Date().toISOString()
+              }))
+            };
+          } else if (first['Category Name'] || first['subcategories'] || first['Subcategories']) {
+            data = {
+              categories: rows.map((r, idx) => ({
+                id: r['Category ID'] || r['id'] || `cat-csv-${Date.now()}-${idx}`,
+                name: r['Category Name'] || r['name'] || 'New Category',
+                slug: (r['Slug'] || r['slug'] || r['Category Name'] || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                subcategories: (r['Subcategories'] || r['subcategories'] || '').split(';').map((s: string) => s.trim()).filter(Boolean),
+                description: r['Description'] || r['description'] || '',
+                image: r['Image URL'] || r['image'] || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80'
+              }))
+            };
+          }
+        }
+      }
+
+      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
+        return res.status(400).json({ error: 'Invalid backup payload format.' });
+      }
+
+      // Step 1: Automatic Safety Snapshot Backup before modifying database
+      const autoSnapshot = createBackupSnapshot(`Auto-backup before ${mode} import`);
+
+      let inProds: any[] | null = null;
+      let inCats: any[] | null = null;
+      let inSlides: any[] | null = null;
+      let inSettings: any = null;
+      let inOrders: any[] | null = null;
+      let inCustomers: any[] | null = null;
+
+      if (Array.isArray(data)) {
+        if (data.length > 0) {
+          const first = data[0];
+          if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
+            inProds = data;
+          } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')))) {
+            inCats = data;
+          } else if (first && (first.badge !== undefined || first.buttonText !== undefined || first.discount !== undefined)) {
+            inSlides = data;
+          }
+        }
+      } else {
+        inProds = data.products || data.items || data.catalog || null;
+        inCats = data.categories || data.cats || null;
+        inSlides = data.carouselSlides || data.carousel || data.slides || data.heroSlides || null;
+        inSettings = data.storeSettings || data.settings || null;
+        inOrders = data.orders || null;
+        inCustomers = data.customers || null;
+      }
+
+      const stats = {
+        categories: { added: 0, updated: 0, skipped: 0, total: 0 },
+        products: { added: 0, updated: 0, skipped: 0, total: 0 },
+        carouselSlides: { added: 0, updated: 0, skipped: 0, total: 0 },
+        orders: { added: 0, updated: 0, skipped: 0, total: 0 },
+        customers: { added: 0, updated: 0, skipped: 0, total: 0 }
+      };
+
+      // 1. Process Categories
+      if (Array.isArray(inCats)) {
+        stats.categories.total = inCats.length;
+        if (mode === 'full_restore') {
+          categories = inCats;
+          stats.categories.updated = inCats.length;
+        } else {
+          inCats.forEach((cat: any) => {
+            const idx = categories.findIndex(c => c.id === cat.id || c.slug === cat.slug);
+            if (idx !== -1) {
+              if (mode === 'update_existing') {
+                categories[idx] = { ...categories[idx], ...cat, id: categories[idx].id };
+                stats.categories.updated++;
+              } else {
+                stats.categories.skipped++;
+              }
+            } else {
+              categories.push(cat);
+              stats.categories.added++;
+            }
+          });
+        }
+        saveCategoriesToDisk();
+      }
+
+      // 2. Process Products (Ensure Category Relationships)
+      if (Array.isArray(inProds)) {
+        stats.products.total = inProds.length;
+        const validCategoryIds = new Set(categories.map(c => c.id));
+
+        // Sanitize incoming products and map to valid category if needed
+        const sanitizedProds = inProds.map((prod: any) => {
+          let resolvedCatId = prod.categoryId;
+          if (!validCategoryIds.has(resolvedCatId)) {
+            // Find by matching slug or name in categories
+            const match = categories.find(c => c.slug === prod.categoryId || c.name.toLowerCase() === (prod.categoryName || '').toLowerCase());
+            resolvedCatId = match ? match.id : (categories[0]?.id || 'cat-women');
+          }
+          return {
+            ...prod,
+            categoryId: resolvedCatId,
+            variants: Array.isArray(prod.variants) ? prod.variants : []
+          };
+        });
+
+        if (mode === 'full_restore') {
+          products = sanitizedProds;
+          stats.products.updated = sanitizedProds.length;
+        } else {
+          sanitizedProds.forEach((prod: any) => {
+            const prodSku = prod.variants?.[0]?.sku;
+            const idx = products.findIndex(p => p.id === prod.id || (prodSku && p.variants?.[0]?.sku === prodSku) || p.slug === prod.slug);
+            if (idx !== -1) {
+              if (mode === 'update_existing') {
+                products[idx] = { ...products[idx], ...prod, id: products[idx].id };
+                stats.products.updated++;
+              } else {
+                stats.products.skipped++;
+              }
+            } else {
+              products.unshift(prod);
+              stats.products.added++;
+            }
+          });
+        }
+        saveProductsToDisk();
+      }
+
+      // 3. Process Carousel Slides
+      if (Array.isArray(inSlides)) {
+        stats.carouselSlides.total = inSlides.length;
+        if (mode === 'full_restore') {
+          carouselSlides = inSlides;
+          stats.carouselSlides.updated = inSlides.length;
+        } else {
+          inSlides.forEach((slide: any) => {
+            const idx = carouselSlides.findIndex(s => String(s.id) === String(slide.id));
+            if (idx !== -1) {
+              if (mode === 'update_existing') {
+                carouselSlides[idx] = { ...carouselSlides[idx], ...slide, id: carouselSlides[idx].id };
+                stats.carouselSlides.updated++;
+              } else {
+                stats.carouselSlides.skipped++;
+              }
+            } else {
+              carouselSlides.push(slide);
+              stats.carouselSlides.added++;
+            }
+          });
+        }
+        saveCarouselToDisk();
+      }
+
+      // 4. Process Store Settings
+      if (inSettings && typeof inSettings === 'object') {
+        if (mode === 'full_restore') {
+          storeSettings = { ...DEFAULT_STORE_SETTINGS, ...inSettings };
+        } else {
+          storeSettings = { ...storeSettings, ...inSettings };
+        }
+        saveSettingsToDisk();
+      }
+
+      // 5. Process Orders
+      if (Array.isArray(inOrders)) {
+        stats.orders.total = inOrders.length;
+        if (mode === 'full_restore') {
+          orders = inOrders;
+          stats.orders.updated = inOrders.length;
+        } else {
+          inOrders.forEach((ord: any) => {
+            const idx = orders.findIndex(o => o.id === ord.id || o.trackingNumber === ord.trackingNumber);
+            if (idx !== -1) {
+              if (mode === 'update_existing') {
+                orders[idx] = { ...orders[idx], ...ord };
+                stats.orders.updated++;
+              } else {
+                stats.orders.skipped++;
+              }
+            } else {
+              orders.unshift(ord);
+              stats.orders.added++;
+            }
+          });
+        }
+        saveOrdersToDisk();
+      }
+
+      // 6. Process Customers
+      if (Array.isArray(inCustomers)) {
+        stats.customers.total = inCustomers.length;
+        if (mode === 'full_restore') {
+          customers = inCustomers;
+          stats.customers.updated = inCustomers.length;
+        } else {
+          inCustomers.forEach((cust: any) => {
+            const idx = customers.findIndex(c => c.id === cust.id || c.email.toLowerCase() === cust.email.toLowerCase());
+            if (idx !== -1) {
+              if (mode === 'update_existing') {
+                customers[idx] = { ...customers[idx], ...cust };
+                stats.customers.updated++;
+              } else {
+                stats.customers.skipped++;
+              }
+            } else {
+              customers.push(cust);
+              stats.customers.added++;
+            }
+          });
+        }
+        saveCustomersToDisk();
+      }
+
+      console.log(`[Admin Import] Store data imported in mode '${mode}'. Auto-backup created: ${autoSnapshot?.id}`, stats);
       res.json({
         success: true,
-        message: 'Store data imported and saved successfully!',
-        importedCount
+        message: `Data import successfully executed in '${mode.replace('_', ' ').toUpperCase()}' mode!`,
+        mode,
+        autoBackupId: autoSnapshot?.id,
+        stats,
+        currentCounts: {
+          products: products.length,
+          categories: categories.length,
+          carouselSlides: carouselSlides.length,
+          orders: orders.length,
+          customers: customers.length
+        }
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error importing backup data:', e);
-      res.status(500).json({ error: 'Failed to import store data. Please check JSON file format.' });
+      res.status(500).json({ error: `Failed to import store data: ${e.message}` });
     }
   });
 

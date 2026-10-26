@@ -1,0 +1,102 @@
+[
+  {
+    "id": "cat-men",
+    "name": "Men",
+    "slug": "men",
+    "image": "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?auto=format&fit=crop&w=600&q=80",
+    "subcategories": [
+      "T-Shirts",
+      "Shirts",
+      "Polo Shirts",
+      "Jeans and Trousers",
+      "Shalwar Kameez",
+      "Jackets and Hoodies",
+      "Sandals and Slippers",
+      "Watches",
+      "Wallets",
+      "Belts",
+      "Men Accessories"
+    ],
+    "description": "Modern & traditional menswear crafted for comfort and elegance."
+  },
+  {
+    "id": "cat-women",
+    "name": "Women",
+    "slug": "women",
+    "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+    "subcategories": [
+      "Dresses",
+      "Casual Wear",
+      "Formal Wear",
+      "Kurtis",
+      "Shalwar Kameez",
+      "Abayas and Hijabs",
+      "Women Shoes",
+      "Handbags",
+      "Purses and Clutches",
+      "Jewellery",
+      "Watches",
+      "Fashion Accessories"
+    ],
+    "description": "Trendy eastern and western wear, luxury handbags, and accessories."
+  },
+  {
+    "id": "cat-kids",
+    "name": "Kids",
+    "slug": "kids",
+    "image": "https://images.unsplash.com/photo-1503944583220-7eeec8587d5a?auto=format&fit=crop&w=600&q=80",
+    "subcategories": [
+      "Boys Clothing",
+      "Girls Clothing",
+      "Baby Clothing",
+      "Newborn Essentials",
+      "Kids Shoes",
+      "School Bags",
+      "Toys",
+      "Kids Accessories"
+    ],
+    "description": "Safe, colorful, and durable clothing and toys for children of all ages."
+  },
+  {
+    "id": "cat-cosmetics",
+    "name": "Cosmetics & Perfume",
+    "slug": "cosmetics-perfume",
+    "image": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80",
+    "subcategories": [
+      "Makeup",
+      "Face Wash",
+      "Skincare",
+      "Face Creams",
+      "Serums",
+      "Sunscreen",
+      "Facial Kits",
+      "Hair Care",
+      "Body Care",
+      "Perfumes for Men",
+      "Perfumes for Women",
+      "Unisex Perfumes",
+      "Body Sprays",
+      "Beauty Accessories"
+    ],
+    "description": "100% original skincare, cosmetics, and signature oriental & western perfumes."
+  },
+  {
+    "id": "cat-electronics",
+    "name": "Electronics",
+    "slug": "electronics",
+    "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+    "subcategories": [
+      "Mobile Accessories",
+      "Earbuds and Headphones",
+      "Speakers",
+      "Smart Watches",
+      "Chargers and Cables",
+      "Power Banks",
+      "Computer Accessories",
+      "Home Electronics",
+      "Gaming Accessories",
+      "Other Electronic Gadgets"
+    ],
+    "description": "High-performance gadgets, wireless audio, and smart accessories."
+  }
+]

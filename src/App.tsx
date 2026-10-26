@@ -12,7 +12,8 @@ import {
   TrendingUp, DollarSign, AlertTriangle, Eye, EyeOff, Edit, Check, Lock, Globe,
   Copy, MessageCircle, Home, LayoutGrid, Baby, Sparkles, Zap, Wifi, BatteryMedium, Mail,
   LogOut, KeyRound, MapPin, Send, CheckCheck, RefreshCw, FileText, ExternalLink,
-  Instagram, Facebook, Landmark
+  Instagram, Facebook, Landmark, Download, Upload, Database, History, FileSpreadsheet,
+  HardDrive, AlertCircle, Layers, ArrowDownUp, FileDown
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { authService } from './services/auth';
@@ -518,7 +519,24 @@ export default function App() {
 
   const [adminStats, setAdminStats] = useState<any>(null);
   const [adminOrders, setAdminOrders] = useState<Order[]>([]);
-  const [adminActiveTab, setAdminActiveTab] = useState<'orders' | 'products' | 'categories' | 'carousel' | 'settings' | 'staff' | 'import-export'>('orders');
+  const [adminActiveTab, setAdminActiveTab] = useState<'orders' | 'products' | 'categories' | 'carousel' | 'settings' | 'staff' | 'import-export' | 'data-management'>('orders');
+
+  // Data Management, Snapshots, and Advanced Import/Export States
+  const [dataMgmtTab, setDataMgmtTab] = useState<'export' | 'import' | 'backups'>('export');
+  const [backupSnapshots, setBackupSnapshots] = useState<any[]>([]);
+  const [isLoadingBackups, setIsLoadingBackups] = useState(false);
+  const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
+  const [manualSnapshotNote, setManualSnapshotNote] = useState('');
+  const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
+
+  const [importSelectedFile, setImportSelectedFile] = useState<File | null>(null);
+  const [importFileRawText, setImportFileRawText] = useState<string>('');
+  const [importFileFormat, setImportFileFormat] = useState<'json' | 'csv'>('json');
+  const [importValidation, setImportValidation] = useState<any | null>(null);
+  const [isValidatingImport, setIsValidatingImport] = useState(false);
+  const [importMode, setImportMode] = useState<'update_existing' | 'add_new' | 'full_restore'>('update_existing');
+  const [isExecutingImport, setIsExecutingImport] = useState(false);
+  const [importReport, setImportReport] = useState<any | null>(null);
 
   // Ultra-safe array helpers to guarantee zero render exceptions
   const safeProducts = Array.isArray(products) ? products : INITIAL_PRODUCTS;
@@ -1454,6 +1472,247 @@ export default function App() {
     }
   };
 
+  const fetchBackupSnapshots = async () => {
+    setIsLoadingBackups(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/backups'));
+      if (res.ok) {
+        const data = await res.json();
+        setBackupSnapshots(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to load backup snapshots:', err);
+    } finally {
+      setIsLoadingBackups(false);
+    }
+  };
+
+  const handleCreateManualSnapshot = async () => {
+    setIsCreatingSnapshot(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/backups/create'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: manualSnapshotNote.trim() || 'Manual Admin Snapshot' })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('🛡️ Backup snapshot created successfully!');
+        setManualSnapshotNote('');
+        fetchBackupSnapshots();
+      } else {
+        showToast(data.error || 'Failed to create backup snapshot');
+      }
+    } catch {
+      showToast('Network error while creating snapshot');
+    } finally {
+      setIsCreatingSnapshot(false);
+    }
+  };
+
+  const handleRestoreSnapshot = (snapshotId: string, filename: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: '⚠️ Restore System from Backup Snapshot',
+      message: `Are you sure you want to restore the entire ATAL Store database from snapshot "${filename}"? A safety backup will automatically be generated before restoration.`,
+      confirmText: 'Yes, Restore Now',
+      confirmColor: 'bg-amber-600',
+      onConfirm: async () => {
+        setIsRestoringSnapshot(true);
+        try {
+          const res = await fetch(getApiUrl(`/api/admin/backups/${snapshotId}/restore`), {
+            method: 'POST'
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            showToast(`🎉 State successfully restored! Pre-restore backup ID: ${data.autoBackupId || 'saved'}`);
+            await fetchCategories();
+            await fetchProducts();
+            await fetchCarouselSlides();
+            await fetchStoreSettings();
+            await loadAdminData();
+            await fetchBackupSnapshots();
+          } else {
+            showToast(data.error || 'Failed to restore snapshot');
+          }
+        } catch {
+          showToast('Network error while restoring snapshot');
+        } finally {
+          setIsRestoringSnapshot(false);
+        }
+      }
+    });
+  };
+
+  const handleDeleteSnapshot = (snapshotId: string, filename: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Backup Snapshot',
+      message: `Are you sure you want to permanently delete snapshot "${filename}"? This action cannot be undone.`,
+      confirmText: 'Delete Snapshot',
+      confirmColor: 'bg-red-600',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(getApiUrl(`/api/admin/backups/${snapshotId}`), {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            showToast('Snapshot deleted');
+            fetchBackupSnapshots();
+          } else {
+            showToast('Failed to delete snapshot');
+          }
+        } catch {
+          showToast('Error deleting snapshot');
+        }
+      }
+    });
+  };
+
+  const triggerDataExport = (type: string, format: 'json' | 'csv' = 'json') => {
+    try {
+      const url = getApiUrl(`/api/admin/export-data?type=${type}&format=${format}`);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `atal_${type}_${Date.now()}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast(`📥 Exporting ${type.toUpperCase()} in ${format.toUpperCase()} format...`);
+    } catch {
+      showToast('Failed to start export download');
+    }
+  };
+
+  const triggerSnapshotDownload = (id: string, filename: string) => {
+    try {
+      const url = getApiUrl(`/api/admin/backups/${id}/download`);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      showToast('Failed to download snapshot file');
+    }
+  };
+
+  const handleFileSelectedForImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportSelectedFile(file);
+    setImportReport(null);
+    setImportValidation(null);
+
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
+    const format = isCsv ? 'csv' : 'json';
+    setImportFileFormat(format);
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const text = ev.target?.result as string;
+      setImportFileRawText(text);
+
+      // Validate instantly with server
+      setIsValidatingImport(true);
+      try {
+        const res = await fetch(getApiUrl('/api/admin/validate-import'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawContent: text, format })
+        });
+        const valData = await res.json();
+        if (res.ok && valData.isValid) {
+          setImportValidation(valData);
+          showToast(`✓ File "${file.name}" analyzed and ready for preview!`);
+        } else {
+          setImportValidation(valData);
+          showToast(`⚠️ File analysis found issues: ${(valData.errors || []).join('; ') || 'Invalid format'}`);
+        }
+      } catch (err) {
+        showToast('Error validating import file format');
+      } finally {
+        setIsValidatingImport(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const executeImportPayload = async () => {
+    if (!importFileRawText) {
+      showToast('No import file loaded');
+      return;
+    }
+    setIsExecutingImport(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/import-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rawContent: importFileRawText,
+          format: importFileFormat,
+          mode: importMode
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setImportReport(data);
+        showToast(`🎉 Import successful! Auto-backup ID: ${data.autoBackupId || 'saved'}`);
+        await fetchCategories();
+        await fetchProducts();
+        await fetchCarouselSlides();
+        await fetchStoreSettings();
+        await loadAdminData();
+        await fetchBackupSnapshots();
+      } else {
+        showToast(data.error || 'Import failed on server');
+        setImportReport(data);
+      }
+    } catch {
+      showToast('Network error during import');
+    } finally {
+      setIsExecutingImport(false);
+    }
+  };
+
+  const handleExecuteValidatedImport = () => {
+    if (!importValidation?.isValid) {
+      showToast('Please upload a valid file before importing.');
+      return;
+    }
+
+    if (importMode === 'full_restore') {
+      setConfirmDialog({
+        isOpen: true,
+        title: '⚠️ Confirm Full Restore Import',
+        message: 'Full Restore mode will replace your current catalog and settings with the contents of this backup. An automated safety backup snapshot will be created before proceeding. Do you wish to proceed?',
+        confirmText: 'Yes, Full Restore',
+        confirmColor: 'bg-red-600',
+        onConfirm: () => {
+          executeImportPayload();
+        }
+      });
+    } else {
+      executeImportPayload();
+    }
+  };
+
+  const downloadImportReport = () => {
+    if (!importReport) return;
+    try {
+      const jsonStr = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(importReport, null, 2))}`;
+      const a = document.createElement('a');
+      a.href = jsonStr;
+      a.download = `atal_import_report_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      showToast('Failed to download report');
+    }
+  };
+
   const loadAdminData = async () => {
     try {
       const statsRes = await fetch(getApiUrl('/api/admin/stats'));
@@ -1479,6 +1738,7 @@ export default function App() {
       }
 
       fetchStaffList();
+      fetchBackupSnapshots();
     } catch (e) {
       console.error('Failed to load admin data:', e);
     }
@@ -1487,166 +1747,47 @@ export default function App() {
   const [importFileContent, setImportFileContent] = useState<any>(null);
   const [isImportingData, setIsImportingData] = useState(false);
 
-  // Helper to extract and normalize import payload whether object or direct array
-  const parseImportStats = (raw: any) => {
-    if (!raw) return null;
-    let prods: any[] | null = null;
-    let cats: any[] | null = null;
-    let slides: any[] | null = null;
-    let settings: any = null;
-    let orders: any[] | null = null;
-    let customers: any[] | null = null;
-
-    if (Array.isArray(raw)) {
-      if (raw.length > 0) {
-        const first = raw[0];
-        if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
-          prods = raw;
-        } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')))) {
-          cats = raw;
-        } else if (first && (first.badge !== undefined || first.buttonText !== undefined || first.discount !== undefined)) {
-          slides = raw;
-        }
-      }
-    } else if (typeof raw === 'object') {
-      prods = Array.isArray(raw.products) ? raw.products : (Array.isArray(raw.items) ? raw.items : (Array.isArray(raw.catalog) ? raw.catalog : null));
-      cats = Array.isArray(raw.categories) ? raw.categories : (Array.isArray(raw.cats) ? raw.cats : null);
-      slides = Array.isArray(raw.carouselSlides) ? raw.carouselSlides : (Array.isArray(raw.carousel) ? raw.carousel : (Array.isArray(raw.slides) ? raw.slides : (Array.isArray(raw.heroSlides) ? raw.heroSlides : null)));
-      settings = raw.storeSettings || raw.settings || null;
-      orders = Array.isArray(raw.orders) ? raw.orders : null;
-      customers = Array.isArray(raw.customers) ? raw.customers : null;
-    }
-
-    return {
-      storeName: raw?.storeName || settings?.storeName || 'ATAL',
-      products: prods,
-      categories: cats,
-      carouselSlides: slides,
-      storeSettings: settings,
-      orders,
-      customers,
-      cart: raw?.cart || null,
-      wishlist: raw?.wishlist || null
-    };
-  };
-
   const handleExportData = () => {
-    try {
-      const backupData = {
-        version: '1.0',
-        exportedAt: new Date().toISOString(),
-        storeName: storeSettings?.storeName || 'ATAL',
-        products: Array.isArray(products) ? products : [],
-        categories: Array.isArray(categories) ? categories : [],
-        carouselSlides: Array.isArray(carouselSlides) ? carouselSlides : [],
-        storeSettings: storeSettings || {},
-        orders: Array.isArray(adminOrders) ? adminOrders : [],
-        cart: Array.isArray(cart) ? cart : [],
-        wishlist: Array.isArray(wishlist) ? wishlist : []
-      };
-      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute('href', jsonString);
-      downloadAnchor.setAttribute('download', `atal_store_full_backup_${Date.now()}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('📥 Complete store backup exported successfully!');
-    } catch (e) {
-      console.error('Export error:', e);
-      showToast('Failed to export store backup data');
-    }
+    triggerDataExport('all', 'json');
   };
 
   const handleImportData = async () => {
     if (!importFileContent) {
-      showToast('Please select a valid ATAL backup JSON file first.');
+      showToast('Please select a valid ATAL backup file first.');
       return;
     }
-    const stats = parseImportStats(importFileContent);
-    if (!stats) {
-      showToast('Invalid backup JSON file structure.');
-      return;
-    }
-
     setIsImportingData(true);
     try {
-      // 1. Build normalized payload for backend
-      const payload: any = {};
-      if (Array.isArray(stats.products)) payload.products = stats.products;
-      if (Array.isArray(stats.categories)) payload.categories = stats.categories;
-      if (Array.isArray(stats.carouselSlides)) payload.carouselSlides = stats.carouselSlides;
-      if (stats.storeSettings && typeof stats.storeSettings === 'object') payload.storeSettings = stats.storeSettings;
-      if (Array.isArray(stats.orders)) payload.orders = stats.orders;
-      if (Array.isArray(stats.customers)) payload.customers = stats.customers;
-
-      // 2. Persist to backend server API
       const res = await fetch(getApiUrl('/api/admin/import-data'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          rawContent: JSON.stringify(importFileContent),
+          format: 'json',
+          mode: 'update_existing'
+        })
       });
-
-      if (!res.ok) {
-        throw new Error('Backend server failed to import backup data');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('🎉 Full store data successfully imported and restored!');
+        setImportFileContent(null);
+        await fetchCategories();
+        await fetchProducts();
+        await fetchCarouselSlides();
+        await fetchStoreSettings();
+        await loadAdminData();
+      } else {
+        showToast(data.error || 'Backend failed to import backup data');
       }
-
-      // 3. Immediately overwrite React state & localStorage for instant zero-latency UI update
-      if (Array.isArray(stats.products)) {
-        setProducts(stats.products);
-      }
-      if (Array.isArray(stats.categories)) {
-        setCategories(stats.categories);
-      }
-      if (Array.isArray(stats.carouselSlides)) {
-        setCarouselSlides(stats.carouselSlides);
-      }
-      if (stats.storeSettings && typeof stats.storeSettings === 'object') {
-        setStoreSettings(prev => ({ ...prev, ...stats.storeSettings }));
-      }
-      if (Array.isArray(stats.orders)) {
-        setAdminOrders(stats.orders);
-        try { localStorage.setItem('atal_orders', JSON.stringify(stats.orders)); } catch {}
-      }
-      if (Array.isArray(stats.cart)) {
-        setCart(stats.cart);
-        try { localStorage.setItem('atal_cart', JSON.stringify(stats.cart)); } catch {}
-      }
-      if (Array.isArray(stats.wishlist)) {
-        setWishlist(stats.wishlist);
-        try { localStorage.setItem('atal_wishlist', JSON.stringify(stats.wishlist)); } catch {}
-      }
-
-      showToast('🎉 Full store data successfully imported and restored!');
-      setImportFileContent(null);
-
-      // 4. Re-fetch from server to verify full synchronization
-      await fetchCategories();
-      await fetchProducts();
-      await fetchCarouselSlides();
-      await fetchStoreSettings();
-      await loadAdminData();
-    } catch (e) {
-      console.error('Import error:', e);
-      showToast('Error importing backup data. Please check JSON format.');
+    } catch {
+      showToast('Error importing backup data');
     } finally {
       setIsImportingData(false);
     }
   };
 
   const handleExportProducts = () => {
-    try {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `atal_products_${Date.now()}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('📥 Products catalog exported successfully!');
-    } catch (e) {
-      showToast('Failed to export products');
-    }
+    triggerDataExport('products', 'json');
   };
 
   const handleImportProducts = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1655,23 +1796,19 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
-        const parsed = JSON.parse(ev.target?.result as string);
-        const prods = Array.isArray(parsed) ? parsed : (parsed.products || parsed.items || parsed.catalog);
-        if (Array.isArray(prods) && prods.length > 0) {
-          const res = await fetch(getApiUrl('/api/admin/import-data'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ products: prods })
-          });
-          if (res.ok) {
-            setProducts(prods);
-            showToast(`🎉 Successfully imported ${prods.length} products!`);
-            await fetchProducts();
-          } else {
-            showToast('Backend error importing products.');
-          }
+        const text = ev.target?.result as string;
+        const res = await fetch(getApiUrl('/api/admin/import-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawContent: text, format: file.name.endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`🎉 Successfully imported products! (Snapshot: ${data.autoBackupId || 'saved'})`);
+          await fetchProducts();
+          await loadAdminData();
         } else {
-          showToast('Invalid products JSON format.');
+          showToast(data.error || 'Failed to import products.');
         }
       } catch (err) {
         showToast('Error reading products file.');
@@ -1682,18 +1819,7 @@ export default function App() {
   };
 
   const handleExportCategories = () => {
-    try {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(categories, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `atal_categories_${Date.now()}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('📥 Categories exported successfully!');
-    } catch (e) {
-      showToast('Failed to export categories');
-    }
+    triggerDataExport('categories', 'json');
   };
 
   const handleImportCategories = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1702,23 +1828,19 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
-        const parsed = JSON.parse(ev.target?.result as string);
-        const cats = Array.isArray(parsed) ? parsed : (parsed.categories || parsed.cats);
-        if (Array.isArray(cats) && cats.length > 0) {
-          const res = await fetch(getApiUrl('/api/admin/import-data'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ categories: cats })
-          });
-          if (res.ok) {
-            setCategories(cats);
-            showToast(`🎉 Successfully imported ${cats.length} categories!`);
-            await fetchCategories();
-          } else {
-            showToast('Backend error importing categories.');
-          }
+        const text = ev.target?.result as string;
+        const res = await fetch(getApiUrl('/api/admin/import-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rawContent: text, format: file.name.endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`🎉 Successfully imported categories! (Snapshot: ${data.autoBackupId || 'saved'})`);
+          await fetchCategories();
+          await loadAdminData();
         } else {
-          showToast('Invalid categories JSON format.');
+          showToast(data.error || 'Failed to import categories.');
         }
       } catch (err) {
         showToast('Error reading categories file.');
@@ -5040,10 +5162,11 @@ export default function App() {
                       Staff & Roles ({(staffList || []).length})
                     </button>
                     <button 
-                      onClick={() => setAdminActiveTab('import-export')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${adminActiveTab === 'import-export' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                      onClick={() => { setAdminActiveTab('data-management'); fetchBackupSnapshots(); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${adminActiveTab === 'data-management' || adminActiveTab === 'import-export' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                     >
-                      📥 Import & Export Data
+                      <Database className="w-3.5 h-3.5" />
+                      <span>Data Management & Backups</span>
                     </button>
                   </div>
 
@@ -5833,93 +5956,841 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* TAB: IMPORT & EXPORT DATA */}
-                  {adminActiveTab === 'import-export' && (
+                  {/* TAB: DATA MANAGEMENT, BACKUP & RESTORATION */}
+                  {(adminActiveTab === 'data-management' || adminActiveTab === 'import-export') && (
                     <div className="space-y-6 mb-8">
-                      {/* Export Section */}
+                      {/* Top Header & Sub-Tab Navigation */}
                       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
-                            📤
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-5 border-b border-slate-100">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/20">
+                              <Database className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <h3 className="font-black text-lg text-slate-900">Data Management & Backup Center</h3>
+                              <p className="text-xs text-slate-500">
+                                Enterprise-grade export, validation preview, safe import, and point-in-time database snapshot backups.
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-bold text-base text-slate-900">Export All Store Data (Backup)</h3>
-                            <p className="text-xs text-slate-500">Download a complete JSON backup of products, categories, carousel slides, settings, orders, and customers.</p>
+                          
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => triggerDataExport('all', 'json')}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center gap-2 cursor-pointer"
+                              title="Download complete database in JSON format"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span>Quick Full Backup (.json)</span>
+                            </button>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleExportData}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-2xl text-xs transition shadow-md flex items-center gap-2 cursor-pointer"
-                        >
-                          <span>📥 Download Full Store Backup (.json)</span>
-                        </button>
+
+                        {/* Sub-Tabs Selector */}
+                        <div className="flex flex-wrap gap-2 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => setDataMgmtTab('export')}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                              dataMgmtTab === 'export'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            <Download className="w-4 h-4 text-emerald-400" />
+                            <span>Export Center (JSON & CSV)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDataMgmtTab('import')}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                              dataMgmtTab === 'import'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            <Upload className="w-4 h-4 text-amber-400" />
+                            <span>Smart Import & Restore</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDataMgmtTab('backups');
+                              fetchBackupSnapshots();
+                            }}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                              dataMgmtTab === 'backups'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            <History className="w-4 h-4 text-blue-400" />
+                            <span>Backup Snapshots History ({backupSnapshots.length})</span>
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Import Section */}
-                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                            📥
+                      {/* SUB-TAB 1: EXPORT CENTER */}
+                      {dataMgmtTab === 'export' && (
+                        <div className="space-y-4">
+                          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 flex items-start gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="text-xs text-emerald-900">
+                              <p className="font-bold">Permanent Server-Side Storage & Instant Downloads</p>
+                              <p className="text-emerald-700 mt-0.5">
+                                All exports are generated live directly from the persistent database on the server. You can download individual entity tables in CSV spreadsheet format for Excel/Google Sheets, or full JSON packages for website migration and backup restores.
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-bold text-base text-slate-900">Import & Restore Store Data</h3>
-                            <p className="text-xs text-slate-500">Upload a previously exported ATAL backup JSON file to restore products, categories, carousel slides, and settings.</p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* Card 1: Full Backup */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                                    <Database className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-purple-50 text-purple-700 px-2.5 py-0.5 rounded-full border border-purple-200">
+                                    All Data
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Complete Store Backup</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  Products, categories, subcategories, carousel slides, settings, customer orders, and registered accounts.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('all', 'json')}
+                                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Download Complete JSON</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 2: Categories (High Priority) */}
+                            <div className="bg-white border-2 border-emerald-500/50 rounded-2xl p-5 shadow-xs flex flex-col justify-between relative">
+                              <span className="absolute -top-2.5 right-4 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs">
+                                Highest Priority
+                              </span>
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                    <Layers className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                                    {categories.length} Categories
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Categories & Subcategories</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  Category ID, slug, title, description, category image URL, subcategory list array, and display ordering.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('categories', 'json')}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> JSON
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('categories', 'csv')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> CSV
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 3: Products Catalog */}
+                            <div className="bg-white border-2 border-emerald-500/50 rounded-2xl p-5 shadow-xs flex flex-col justify-between relative">
+                              <span className="absolute -top-2.5 right-4 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs">
+                                Highest Priority
+                              </span>
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                    <Package className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                                    {products.length} Products
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Products Catalog</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  Product ID, SKU, title, slug, price, sale price, stock, category linkages, descriptions, and 3+ photo URLs.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('products', 'json')}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> JSON
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('products', 'csv')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> CSV
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 4: Variations, Sizes, Colors & Stock */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                                    <SlidersHorizontal className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200">
+                                    SKUs & Variants
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Product Variations & Sizes</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  Granular variant breakdown: color, size, individual SKU, unit price, and allocated inventory.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('variations', 'json')}
+                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> JSON
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('variations', 'csv')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> CSV
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 5: Inventory & Stock Records */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                                    <TrendingUp className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded-full border border-amber-200">
+                                    Warehouse
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Inventory & Stock Records</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  Stock levels, stock statuses (In Stock, Low Stock, Out of Stock), unit retail prices, and product SKUs.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('inventory', 'json')}
+                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> JSON
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('inventory', 'csv')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600" /> CSV
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 6: Customer Orders */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                    <ShoppingBag className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                                    {(adminOrders || []).length} Orders
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Orders & Payment Records</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  8-Digit Tracking Numbers, TID Transaction IDs, Customer contact, Shipping address, Order items, and Total PKR.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('orders', 'json')}
+                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> JSON
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('orders', 'csv')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> CSV
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 7: Customers & Delivery Addresses */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+                                    <User className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-teal-50 text-teal-700 px-2.5 py-0.5 rounded-full border border-teal-200">
+                                    Accounts
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Customers & Addresses</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  Authorized customer directory, WhatsApp numbers, email IDs, cities, provinces, and default delivery addresses.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('customers', 'json')}
+                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> JSON
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('customers', 'csv')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5 text-teal-600" /> CSV
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 8: Hero Carousel & Banners */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
+                                    <Sparkles className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-orange-50 text-orange-700 px-2.5 py-0.5 rounded-full border border-orange-200">
+                                    {carouselSlides.length} Slides
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Hero Carousel & Banners</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  Promotional banners, festive sale badges, discount tags, button action texts, and banner image paths.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('carousel', 'json')}
+                                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Carousel JSON</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card 9: Website Settings & Gateways */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
+                                    <Settings className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-[10px] font-bold bg-slate-50 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">
+                                    Configuration
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-sm text-slate-900">Store Settings & Gateways</h4>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                  JazzCash, Easypaisa, Bank transfer accounts, QR code images, delivery charges, coupons, and support contacts.
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDataExport('settings', 'json')}
+                                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Settings JSON</span>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      )}
 
-                        <div className="space-y-4 max-w-xl">
-                          <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-5 text-center">
-                            <input 
-                              type="file"
-                              accept=".json"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (ev) => {
-                                    try {
-                                      const parsed = JSON.parse(ev.target?.result as string);
-                                      setImportFileContent(parsed);
-                                      showToast('Backup file loaded and ready for import!');
-                                    } catch (err) {
-                                      showToast('Invalid JSON file format.');
-                                      setImportFileContent(null);
-                                    }
-                                  };
-                                  reader.readAsText(file);
-                                }
-                              }}
-                              className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
-                            />
-                            <p className="text-[11px] text-slate-400 mt-2">Select a valid ATAL JSON backup file</p>
+                      {/* SUB-TAB 2: SMART IMPORT & RESTORE */}
+                      {dataMgmtTab === 'import' && (
+                        <div className="space-y-6">
+                          {/* Upload Box */}
+                          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                                <Upload className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-base text-slate-900">Upload Backup File (.json or .csv)</h4>
+                                <p className="text-xs text-slate-500">
+                                  Select an ATAL JSON backup or CSV spreadsheet. The system will pre-validate integrity and preview changes before modifying data.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 transition rounded-2xl p-8 text-center bg-slate-50/50">
+                              <div className="max-w-md mx-auto space-y-3">
+                                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+                                  <FileSpreadsheet className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <p className="font-bold text-sm text-slate-800">Choose a JSON or CSV file to import</p>
+                                  <p className="text-xs text-slate-400 mt-0.5">Supports ATAL full database JSON, products CSV, categories CSV, orders CSV, etc.</p>
+                                </div>
+                                <input
+                                  type="file"
+                                  accept=".json,.csv"
+                                  onChange={handleFileSelectedForImport}
+                                  className="w-full text-xs file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
+                                />
+                                {importSelectedFile && (
+                                  <p className="text-xs text-emerald-800 font-mono font-bold mt-2">
+                                    Selected: {importSelectedFile.name} ({(importSelectedFile.size / 1024).toFixed(1)} KB)
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
-                          {importFileContent && (() => {
-                            const stats = parseImportStats(importFileContent);
-                            if (!stats) return null;
-                            return (
-                              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl text-xs space-y-1">
-                                <p className="font-bold text-emerald-900">✓ Backup File Verified:</p>
-                                <p className="text-emerald-700">Store Name: <strong>{stats.storeName}</strong></p>
-                                <p className="text-emerald-700">Products: <strong>{stats.products ? stats.products.length : 0}</strong> items</p>
-                                <p className="text-emerald-700">Categories: <strong>{stats.categories ? stats.categories.length : 0}</strong> categories</p>
-                                <p className="text-emerald-700">Carousel Slides: <strong>{stats.carouselSlides ? stats.carouselSlides.length : 0}</strong> slides</p>
-                                <p className="text-emerald-700">Orders: <strong>{stats.orders ? stats.orders.length : 0}</strong> orders</p>
+                          {/* Pre-Import Validation & Simulation Preview Card */}
+                          {isValidatingImport && (
+                            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                              <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+                              <span>Analyzing file structure, validating category hierarchies, and comparing existing records...</span>
+                            </div>
+                          )}
+
+                          {importValidation && !isValidatingImport && (
+                            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
+                              {/* Validation Status Header */}
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100">
+                                <div className="flex items-center gap-3">
+                                  {importValidation.isValid ? (
+                                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                                      <CheckCircle2 className="w-5 h-5" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-red-100 text-red-700 flex items-center justify-center">
+                                      <AlertCircle className="w-5 h-5" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <h4 className="font-bold text-sm text-slate-900">
+                                      {importValidation.isValid ? '✓ File Validation Successful — Ready to Preview' : '⚠️ File Validation Warnings'}
+                                    </h4>
+                                    <p className="text-xs text-slate-500">
+                                      Detected Format: <strong className="uppercase font-mono text-slate-800">{importValidation.fileType}</strong> • Inferred Dataset: <strong className="uppercase font-mono text-emerald-700">{importValidation.inferredType}</strong>
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Errors or Warnings */}
+                              {importValidation.errors && importValidation.errors.length > 0 && (
+                                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-xs text-red-800 space-y-1">
+                                  <p className="font-bold flex items-center gap-1.5"><AlertCircle className="w-4 h-4 text-red-600" /> Validation Errors:</p>
+                                  <ul className="list-disc list-inside space-y-0.5">
+                                    {importValidation.errors.map((err: string, idx: number) => (
+                                      <li key={idx}>{err}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {importValidation.warnings && importValidation.warnings.length > 0 && (
+                                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
+                                  <p className="font-bold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-600" /> Validation Advisories:</p>
+                                  <ul className="list-disc list-inside space-y-0.5">
+                                    {importValidation.warnings.map((w: string, idx: number) => (
+                                      <li key={idx}>{w}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Simulation Statistics Grid */}
+                              {importValidation.stats && (
+                                <div>
+                                  <h5 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2">Record Simulation & Preview:</h5>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {/* Products stats */}
+                                    {importValidation.stats.products && (
+                                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+                                        <p className="font-bold text-slate-700">📦 Products</p>
+                                        <p className="text-slate-500 mt-1">Incoming: <strong className="text-slate-900">{importValidation.stats.products.incomingCount}</strong></p>
+                                        <p className="text-emerald-700">To Add: <strong>+{importValidation.stats.products.toAddCount}</strong></p>
+                                        <p className="text-blue-700">To Update: <strong>{importValidation.stats.products.toUpdateCount}</strong></p>
+                                      </div>
+                                    )}
+
+                                    {/* Categories stats */}
+                                    {importValidation.stats.categories && (
+                                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+                                        <p className="font-bold text-slate-700">🏷️ Categories</p>
+                                        <p className="text-slate-500 mt-1">Incoming: <strong className="text-slate-900">{importValidation.stats.categories.incomingCount}</strong></p>
+                                        <p className="text-emerald-700">To Add: <strong>+{importValidation.stats.categories.toAddCount}</strong></p>
+                                        <p className="text-blue-700">To Update: <strong>{importValidation.stats.categories.toUpdateCount}</strong></p>
+                                      </div>
+                                    )}
+
+                                    {/* Slides stats */}
+                                    {importValidation.stats.carouselSlides && (
+                                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+                                        <p className="font-bold text-slate-700">🎠 Hero Slides</p>
+                                        <p className="text-slate-500 mt-1">Incoming: <strong className="text-slate-900">{importValidation.stats.carouselSlides.incomingCount}</strong></p>
+                                      </div>
+                                    )}
+
+                                    {/* Orders stats */}
+                                    {importValidation.stats.orders && (
+                                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+                                        <p className="font-bold text-slate-700">🛍️ Orders</p>
+                                        <p className="text-slate-500 mt-1">Incoming: <strong className="text-slate-900">{importValidation.stats.orders.incomingCount}</strong></p>
+                                        <p className="text-emerald-700">To Add: <strong>+{importValidation.stats.orders.toAddCount}</strong></p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Category Integrity Check Card */}
+                              {importValidation.categoryIntegrity && (
+                                <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 text-xs space-y-1">
+                                  <p className="font-bold text-blue-900 flex items-center gap-1.5">
+                                    <ShieldCheck className="w-4 h-4 text-blue-700" />
+                                    Category & Subcategory Hierarchy Integrity:
+                                  </p>
+                                  <p className="text-blue-800">
+                                    Referenced Category Links: <strong>{importValidation.categoryIntegrity.totalReferenced}</strong> products checked • Valid: <strong>{importValidation.categoryIntegrity.validReferences}</strong>
+                                  </p>
+                                  {importValidation.categoryIntegrity.missingParentIds && importValidation.categoryIntegrity.missingParentIds.length > 0 && (
+                                    <p className="text-amber-800 font-medium">
+                                      Missing Parent Category IDs: {importValidation.categoryIntegrity.missingParentIds.join(', ')} (will be safely mapped).
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Mode Selection */}
+                              <div className="pt-2">
+                                <label className="font-bold text-xs uppercase tracking-wider text-slate-700 block mb-2">
+                                  Select Import & Merge Mode:
+                                </label>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  {/* Mode 1: Update Existing */}
+                                  <div
+                                    onClick={() => setImportMode('update_existing')}
+                                    className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                                      importMode === 'update_existing'
+                                        ? 'border-emerald-600 bg-emerald-50/40 text-emerald-950'
+                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="font-bold text-xs">Update Existing (Recommended)</span>
+                                        <span className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full">Safe</span>
+                                      </div>
+                                      <p className="text-[11px] text-slate-500 mt-1">
+                                        Matches records by ID/SKU/slug, updates matching items, appends new items, and preserves all other existing store data.
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Mode 2: Add New Only */}
+                                  <div
+                                    onClick={() => setImportMode('add_new')}
+                                    className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                                      importMode === 'add_new'
+                                        ? 'border-emerald-600 bg-emerald-50/40 text-emerald-950'
+                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="font-bold text-xs">Add New Only</span>
+                                        <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">Additive</span>
+                                      </div>
+                                      <p className="text-[11px] text-slate-500 mt-1">
+                                        Adds brand-new items only. Never overwrites or modifies existing items matching an existing ID or SKU.
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Mode 3: Full Restore */}
+                                  <div
+                                    onClick={() => setImportMode('full_restore')}
+                                    className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                                      importMode === 'full_restore'
+                                        ? 'border-red-600 bg-red-50/40 text-red-950'
+                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="font-bold text-xs">Full Restore (Replace)</span>
+                                        <span className="text-[10px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full">Warning</span>
+                                      </div>
+                                      <p className="text-[11px] text-slate-500 mt-1">
+                                        Restores the database state from backup. An automated safety snapshot is automatically created before execution.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Execute Button */}
+                              <div className="pt-2 flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  disabled={isExecutingImport || !importValidation.isValid}
+                                  onClick={handleExecuteValidatedImport}
+                                  className={`font-bold px-8 py-3 rounded-2xl text-xs transition shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
+                                    importMode === 'full_restore'
+                                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                  }`}
+                                >
+                                  {isExecutingImport ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 animate-spin" />
+                                      <span>Executing Safe Import & Backup Snapshot...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-4 h-4" />
+                                      <span>Execute Import ({importMode.replace('_', ' ').toUpperCase()})</span>
+                                    </>
+                                  )}
+                                </button>
 
                                 <button
                                   type="button"
-                                  disabled={isImportingData}
-                                  onClick={handleImportData}
-                                  className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow transition text-xs disabled:opacity-50 cursor-pointer"
+                                  onClick={() => {
+                                    setImportValidation(null);
+                                    setImportSelectedFile(null);
+                                    setImportFileRawText('');
+                                  }}
+                                  className="text-xs text-slate-500 hover:text-slate-700 font-bold"
                                 >
-                                  {isImportingData ? 'Restoring Data...' : 'Confirm & Restore Data'}
+                                  Cancel / Reset File
                                 </button>
                               </div>
-                            );
-                          })()}
+                            </div>
+                          )}
+
+                          {/* Post-Import Execution Report */}
+                          {importReport && (
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 shadow-sm space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                  <h4 className="font-black text-sm text-emerald-950">Import Operation Completed Successfully</h4>
+                                </div>
+                                {importReport.autoBackupId && (
+                                  <span className="font-mono text-[11px] bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-300">
+                                    Pre-Import Auto-Backup ID: {importReport.autoBackupId}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-emerald-800">{importReport.message}</p>
+                              {importReport.counts && (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+                                  <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                                    Products: <strong>{importReport.counts.products}</strong>
+                                  </div>
+                                  <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                                    Categories: <strong>{importReport.counts.categories}</strong>
+                                  </div>
+                                  <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                                    Carousel Slides: <strong>{importReport.counts.carouselSlides}</strong>
+                                  </div>
+                                  <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                                    Orders: <strong>{importReport.counts.orders}</strong>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="pt-2">
+                                <button
+                                  type="button"
+                                  onClick={downloadImportReport}
+                                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Download Import Activity Report (.json)</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )}
+
+                      {/* SUB-TAB 3: SNAPSHOT BACKUPS & HISTORY */}
+                      {dataMgmtTab === 'backups' && (
+                        <div className="space-y-6">
+                          {/* Create Snapshot Card */}
+                          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                              <div>
+                                <h4 className="font-black text-base text-slate-900">Create Point-in-Time Database Snapshot</h4>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Save a complete persistent copy of all products, categories, orders, and settings directly to the server backups storage.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <input
+                                  type="text"
+                                  placeholder="Snapshot label/note (e.g. Before Catalog Update)..."
+                                  value={manualSnapshotNote}
+                                  onChange={(e) => setManualSnapshotNote(e.target.value)}
+                                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs flex-1 sm:w-64 font-medium"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={isCreatingSnapshot}
+                                  onClick={handleCreateManualSnapshot}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                                >
+                                  {isCreatingSnapshot ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <HardDrive className="w-3.5 h-3.5" />}
+                                  <span>{isCreatingSnapshot ? 'Creating...' : 'Create Snapshot'}</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Notice */}
+                          <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+                            <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="text-xs text-blue-950">
+                              <p className="font-bold">Automated Safety Snapshot Protection</p>
+                              <p className="text-blue-800 mt-0.5">
+                                An automated pre-restore snapshot is systematically created before any full restore or destructive import executes. Even if you mistakenly overwrite data, you can restore any previous snapshot from the history list below with 1 click.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Snapshots Table / List */}
+                          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                              <h4 className="font-bold text-sm text-slate-900">
+                                Available Server Snapshots ({backupSnapshots.length})
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={fetchBackupSnapshots}
+                                className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+                              >
+                                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingBackups ? 'animate-spin' : ''}`} />
+                                <span>Refresh List</span>
+                              </button>
+                            </div>
+
+                            {isLoadingBackups && backupSnapshots.length === 0 ? (
+                              <div className="text-center py-10 text-xs text-slate-400">Loading backup snapshots...</div>
+                            ) : backupSnapshots.length === 0 ? (
+                              <div className="text-center py-10 text-xs text-slate-400">
+                                No backup snapshots created yet. Click "Create Snapshot" above to generate your first backup.
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {backupSnapshots.map((snap: any) => (
+                                  <div
+                                    key={snap.id}
+                                    className="border border-slate-200 rounded-2xl p-4 hover:border-slate-300 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-50/30"
+                                  >
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-mono font-bold text-xs text-slate-900">{snap.filename}</p>
+                                        <span className="text-[10px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+                                          {snap.sizeFormatted}
+                                        </span>
+                                        {snap.note && (
+                                          <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
+                                            {snap.note}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-[11px] text-slate-400">
+                                        Created: {new Date(snap.date).toLocaleString()}
+                                      </p>
+                                      {snap.counts && (
+                                        <p className="text-[11px] text-emerald-700 font-medium">
+                                          Includes: {snap.counts.products || 0} Products • {snap.counts.categories || 0} Categories • {snap.counts.slides || 0} Slides • {snap.counts.orders || 0} Orders
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => triggerSnapshotDownload(snap.id, snap.filename)}
+                                        className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1 cursor-pointer"
+                                        title="Download snapshot JSON"
+                                      >
+                                        <Download className="w-3.5 h-3.5" />
+                                        <span>Download</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        disabled={isRestoringSnapshot}
+                                        onClick={() => handleRestoreSnapshot(snap.id, snap.filename)}
+                                        className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                        title="Restore entire database to this point in time"
+                                      >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                        <span>Restore</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteSnapshot(snap.id, snap.filename)}
+                                        className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition cursor-pointer"
+                                        title="Delete snapshot"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
