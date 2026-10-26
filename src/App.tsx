@@ -836,6 +836,7 @@ export default function App() {
         province: 'Punjab',
         area: ''
       });
+      setCurrentView('account');
     } else {
       showToast(result.error || 'Failed to create account.');
     }
@@ -853,6 +854,7 @@ export default function App() {
       localStorage.setItem('atal_customer', JSON.stringify(result.data));
       showToast(result.message || `👋 Welcome back, ${result.data.name}!`);
       setLoginForm({ identifier: '', password: '' });
+      setCurrentView('account');
     } else {
       showToast(result.error || 'Invalid login credentials.');
     }
@@ -2689,44 +2691,53 @@ export default function App() {
 
                 {/* SPOTLIGHT SECTION (Mobile) */}
                 {homepageSections.spotlight?.enabled !== false && Array.isArray(homepageSections.spotlight.items) && homepageSections.spotlight.items.length > 0 && (
-                  <div className="mt-5 mx-3 p-4 bg-gradient-to-br from-amber-950 via-slate-900 to-purple-950 text-white rounded-2xl border border-amber-500/30 shadow-md space-y-3">
-                    <div className="text-center">
-                      <span className="bg-amber-500/20 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        SPOTLIGHT PROMOTION
-                      </span>
-                      <h3 className="font-black text-sm text-white mt-1">
+                  <div className="mt-6 mx-3 p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white rounded-3xl border border-amber-500/40 shadow-xl space-y-4 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                    <div className="text-center relative z-10">
+                      <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-400/40 text-amber-300 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-xs">
+                        <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                        <span>FEATURED SPOTLIGHT</span>
+                      </div>
+                      <h3 className="font-black text-base text-white mt-1.5 tracking-tight">
                         {homepageSections.spotlight.title || '🌟 ATAL Spotlight'}
                       </h3>
+                      {homepageSections.spotlight.subtitle && (
+                        <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">{homepageSections.spotlight.subtitle}</p>
+                      )}
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-4 relative z-10">
                       {homepageSections.spotlight.items.map((item: any) => (
-                        <div key={item.id} className="relative rounded-xl overflow-hidden bg-slate-950 border border-white/15 p-3 flex flex-col justify-between">
-                          <div className="relative h-40 w-full overflow-hidden rounded-lg mb-2">
-                            <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title} className="w-full h-full object-cover" />
-                            {item.badge && (
-                              <span className="absolute top-2 left-2 bg-amber-400 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded uppercase">
-                                {item.badge}
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <h4 className="font-black text-xs text-white">{item.title}</h4>
-                            <p className="text-[11px] text-slate-300 line-clamp-2 mt-0.5">{item.description}</p>
-                          </div>
-                          <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between">
-                            <button
-                              onClick={() => {
-                                const link = item.buttonLink || '/shop';
-                                if (link.startsWith('http')) window.open(link, '_blank');
-                                else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
-                                else navigate(link);
-                              }}
-                              className="w-full bg-amber-400 text-slate-950 font-black py-2 rounded-lg text-xs flex items-center justify-center gap-1"
-                            >
-                              <span>{item.buttonText || 'EXPLORE NOW'}</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
+                        <div key={item.id} className="relative rounded-2xl overflow-hidden bg-slate-950/90 border border-amber-500/25 shadow-lg group flex flex-col justify-between">
+                          <div className="relative h-52 w-full overflow-hidden">
+                            <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-4">
+                              {item.badge && (
+                                <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase w-max mb-1.5 shadow-md border border-amber-200">
+                                  {item.badge}
+                                </span>
+                              )}
+                              {item.subtitle && (
+                                <p className="text-[10px] text-amber-300 font-extrabold tracking-wider uppercase">{item.subtitle}</p>
+                              )}
+                              <h4 className="font-black text-sm text-white leading-tight mt-0.5">{item.title}</h4>
+                              <p className="text-[11px] text-slate-300 line-clamp-2 mt-1 leading-snug">{item.description}</p>
+                              
+                              <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+                                <button
+                                  onClick={() => {
+                                    const link = item.buttonLink || '/shop';
+                                    if (link.startsWith('http')) window.open(link, '_blank');
+                                    else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
+                                    else navigate(link);
+                                  }}
+                                  className="w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition"
+                                >
+                                  <span>{item.buttonText || 'EXPLORE NOW'}</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -3064,37 +3075,39 @@ export default function App() {
 
                 {/* SPOTLIGHT SECTION (Desktop) */}
                 {homepageSections.spotlight?.enabled !== false && Array.isArray(homepageSections.spotlight.items) && homepageSections.spotlight.items.length > 0 && (
-                  <div className="max-w-7xl mx-auto px-4 mt-10 p-6 bg-gradient-to-br from-amber-950 via-slate-900 to-purple-950 text-white rounded-3xl border border-amber-500/30 shadow-xl">
-                    <div className="text-center max-w-2xl mx-auto mb-8">
-                      <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black px-3.5 py-1 rounded-full uppercase tracking-widest inline-block mb-2">
-                        FEATURED SPOTLIGHT
-                      </span>
-                      <h3 className="font-black text-2xl text-white tracking-tight">
+                  <div className="max-w-7xl mx-auto px-4 mt-10 p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white rounded-3xl border border-amber-500/40 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                    <div className="text-center max-w-2xl mx-auto mb-10 relative z-10">
+                      <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-3 shadow-sm">
+                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                        <span>FEATURED SPOTLIGHT</span>
+                      </div>
+                      <h3 className="font-black text-3xl text-white tracking-tight drop-shadow-md">
                         {homepageSections.spotlight.title || '🌟 ATAL Spotlight & Featured Promotions'}
                       </h3>
                       {homepageSections.spotlight.subtitle && (
-                        <p className="text-sm text-slate-300 mt-1">{homepageSections.spotlight.subtitle}</p>
+                        <p className="text-sm text-slate-300 mt-2 leading-relaxed">{homepageSections.spotlight.subtitle}</p>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
                       {homepageSections.spotlight.items.map((item: any) => (
-                        <div key={item.id} className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/15 shadow-lg group flex flex-col justify-between">
-                          <div className="relative h-64 w-full overflow-hidden">
-                            <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end p-6">
+                        <div key={item.id} className="relative rounded-3xl overflow-hidden bg-slate-950/90 border border-amber-500/30 shadow-2xl group flex flex-col justify-between hover:border-amber-400/60 transition duration-500">
+                          <div className="relative h-80 w-full overflow-hidden">
+                            <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-700 ease-out" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-8">
                               {item.badge && (
-                                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-3 py-1 rounded-full uppercase w-max mb-2 shadow-xs">
+                                <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[11px] font-black px-3.5 py-1 rounded-full uppercase w-max mb-3 shadow-lg border border-amber-200">
                                   {item.badge}
                                 </span>
                               )}
                               {item.subtitle && (
-                                <p className="text-xs text-amber-300 font-bold tracking-wide uppercase">{item.subtitle}</p>
+                                <p className="text-xs text-amber-300 font-extrabold tracking-wider uppercase">{item.subtitle}</p>
                               )}
-                              <h4 className="font-black text-xl text-white leading-tight mt-1">{item.title}</h4>
-                              <p className="text-slate-300 text-xs line-clamp-2 mt-1.5">{item.description}</p>
+                              <h4 className="font-black text-2xl text-white leading-tight mt-1 drop-shadow-sm">{item.title}</h4>
+                              <p className="text-slate-300 text-sm line-clamp-2 mt-2 leading-relaxed">{item.description}</p>
                               
-                              <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
+                              <div className="mt-5 pt-4 border-t border-white/20 flex items-center justify-between">
                                 <button
                                   onClick={() => {
                                     const link = item.buttonLink || '/shop';
@@ -3102,7 +3115,7 @@ export default function App() {
                                     else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
                                     else navigate(link);
                                   }}
-                                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs transition shadow-md flex items-center gap-2 cursor-pointer"
+                                  className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-xl flex items-center gap-2 cursor-pointer transform group-hover:translate-x-1"
                                 >
                                   <span>{item.buttonText || 'EXPLORE NOW'}</span>
                                   <ChevronRight className="w-4 h-4" />
@@ -6613,17 +6626,51 @@ export default function App() {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                                   <div>
-                                    <label className="font-bold text-slate-700 block mb-1">Image URL</label>
-                                    <input
-                                      type="text"
-                                      value={item.image || ''}
-                                      onChange={(e) => {
-                                        const items = [...homepageSections.spotlight.items];
-                                        items[sIdx] = { ...items[sIdx], image: e.target.value };
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-mono text-xs"
-                                    />
+                                    <label className="font-bold text-slate-700 block mb-1">Spotlight Picture / Banner</label>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2">
+                                        <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition">
+                                          <Upload className="w-3.5 h-3.5" />
+                                          <span>Upload Picture</span>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) {
+                                                const reader = new FileReader();
+                                                reader.onload = (ev) => {
+                                                  const base64 = ev.target?.result as string;
+                                                  const items = [...homepageSections.spotlight.items];
+                                                  items[sIdx] = { ...items[sIdx], image: base64 };
+                                                  setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
+                                                  showToast('✓ Spotlight picture uploaded!');
+                                                };
+                                                reader.readAsDataURL(file);
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                        <span className="text-[11px] text-slate-400">or enter URL below:</span>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        placeholder="https://... or data:image/..."
+                                        value={item.image || ''}
+                                        onChange={(e) => {
+                                          const items = [...homepageSections.spotlight.items];
+                                          items[sIdx] = { ...items[sIdx], image: e.target.value };
+                                          setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
+                                        }}
+                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-mono text-xs"
+                                      />
+                                      {item.image && (
+                                        <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-200 mt-1 shadow-xs">
+                                          <img src={item.image} alt="Preview" className="w-full h-full object-cover" />
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="font-bold text-slate-700 block mb-1">Description</label>

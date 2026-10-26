@@ -1566,17 +1566,30 @@ export async function createServer() {
       const trimmed = identifier.trim();
       const cleanEmail = trimmed.toLowerCase();
       const normalizedPhone = normalizePakistaniPhone(trimmed);
+      const inputDigits = trimmed.replace(/\D/g, '');
 
-      // Match by email OR by normalized WhatsApp number
-      const customer = customers.find(c => 
-        c.email.toLowerCase() === cleanEmail || 
-        normalizePakistaniPhone(c.whatsapp) === normalizedPhone ||
-        c.whatsapp.replace(/\D/g, '') === trimmed.replace(/\D/g, '')
-      );
+      // Match by email OR by normalized WhatsApp number OR digit suffix
+      const customer = customers.find(c => {
+        if (!c) return false;
+        const cEmail = (c.email || '').trim().toLowerCase();
+        const cPhone = normalizePakistaniPhone(c.whatsapp || '');
+        const cDigits = (c.whatsapp || '').replace(/\D/g, '');
 
-      if (!customer || customer.password.trim() !== password.trim()) {
+        const matchesEmail = cEmail.length > 0 && cEmail === cleanEmail;
+        const matchesPhone = (cPhone.length > 0 && cPhone === normalizedPhone) ||
+                             (inputDigits.length >= 7 && cDigits.endsWith(inputDigits.slice(-10)));
+        return matchesEmail || matchesPhone;
+      });
+
+      if (!customer) {
         return res.status(401).json({ 
-          error: 'Invalid credentials. Please check your email/WhatsApp number and password.' 
+          error: 'No account found matching that Email or WhatsApp number. Please check your details or create a new account.' 
+        });
+      }
+
+      if (!customer.password || customer.password.trim() !== password.trim()) {
+        return res.status(401).json({ 
+          error: 'Incorrect password. Please verify your password and try again.' 
         });
       }
 
