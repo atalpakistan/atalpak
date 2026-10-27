@@ -15,6 +15,7 @@ const CATEGORIES_FILE = path.join(__dirname, 'categories_data.json');
 const CAROUSEL_FILE = path.join(__dirname, 'carousel_data.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings_data.json');
 const HOMEPAGE_SECTIONS_FILE = path.join(__dirname, 'homepage_sections_data.json');
+const LAUNCH_NOTIFICATIONS_FILE = path.join(__dirname, 'launch_notifications_data.json');
 const BACKUPS_DIR = path.join(__dirname, 'backups');
 if (!fs.existsSync(BACKUPS_DIR)) {
   try {
@@ -751,62 +752,210 @@ export interface SpotlightItem {
   image: string;
   buttonText: string;
   buttonLink: string;
-  layoutType: 'banner' | 'card' | 'grid';
+  layoutType?: 'banner' | 'card' | 'grid';
   badge?: string;
+  price?: number;
+  originalPrice?: number;
+}
+
+export interface LaunchSoonItem {
+  id: string;
+  productId?: string;
+  name: string;
+  description: string;
+  image: string;
+  badge?: string;
+  expectedLaunchDate?: string;
+  showCountdown?: boolean;
+  previewSlug?: string;
+  displayOrder?: number;
 }
 
 export interface HomepageSectionsConfig {
   newLaunch: {
-    enabled: boolean;
-    title: string;
-    subtitle: string;
-    productIds: string[];
+    enabled?: boolean;
+    title?: string;
+    subtitle?: string;
+    productIds?: string[];
+    availableNow: {
+      enabled: boolean;
+      title: string;
+      subtitle: string;
+      productIds: string[];
+    };
+    launchSoon: {
+      enabled: boolean;
+      title: string;
+      subtitle: string;
+      items: LaunchSoonItem[];
+    };
   };
   spotlight: {
     enabled: boolean;
     title: string;
     subtitle: string;
+    layoutStyle: 'banner' | 'carousel' | 'grid';
     items: SpotlightItem[];
   };
 }
 
+const DEFAULT_LAUNCH_SOON_ITEMS: LaunchSoonItem[] = [
+  {
+    id: 'launch-soon-1',
+    productId: 'prod-festive-1',
+    name: 'ATAL 24K Royal Velvet Couture Suite',
+    description: 'Ultra-exclusive winter bridal & festive pret ensemble hand-woven with pure metallic tilla and velvet dupatta.',
+    image: '/assets/atal_festive_pret_1792525761752.jpg',
+    badge: 'COMING SOON',
+    expectedLaunchDate: '2026-11-20T18:00:00',
+    showCountdown: true,
+    previewSlug: 'atal-luxury-festive-pret-couture',
+    displayOrder: 1
+  },
+  {
+    id: 'launch-soon-2',
+    name: 'ATAL Audio AeroBeats Pro Wireless Headphones',
+    description: 'Flagship hybrid active noise cancelling over-ear headphones with 60-hour playback and spatial audio.',
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+    badge: 'EXCLUSIVE TEASER',
+    expectedLaunchDate: '2026-11-28T12:00:00',
+    showCountdown: true,
+    displayOrder: 2
+  },
+  {
+    id: 'launch-soon-3',
+    name: 'ATAL Botanicals Pure Organic Saffron Night Elixir',
+    description: 'Hand-picked Kashmiri saffron blended with Moroccan argan oil for intense nocturnal skin renewal.',
+    image: 'https://images.unsplash.com/photo-1608248597359-2e094770220c?auto=format&fit=crop&w=800&q=80',
+    badge: 'LIMITED PRE-DROP',
+    expectedLaunchDate: '2026-12-05T00:00:00',
+    showCountdown: true,
+    displayOrder: 3
+  }
+];
+
+const DEFAULT_SPOTLIGHT_ITEMS: SpotlightItem[] = [
+  {
+    id: 'spot-1',
+    title: 'ATAL 3D Signature Luxury Bag',
+    subtitle: 'Emerald Green & 24K Gold Hardware',
+    description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters across Pakistan.',
+    image: '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg',
+    buttonText: 'SHOP LUXURY BAG',
+    buttonLink: '/product/atal-signature-3d-luxury-collection',
+    layoutType: 'banner',
+    badge: 'LIMITED EDITION',
+    price: 3950,
+    originalPrice: 5490
+  },
+  {
+    id: 'spot-2',
+    title: 'ATAL Luxury Festive Pret Couture',
+    subtitle: 'Heritage Embroidered Velvet & Raw Silk',
+    description: 'Hand-embroidered zardozi details, pure organza dupatta, and deep emerald silhouette designed for weddings.',
+    image: '/assets/atal_festive_pret_1792525761752.jpg',
+    buttonText: 'EXPLORE PRET',
+    buttonLink: '/product/atal-luxury-festive-pret-couture',
+    layoutType: 'banner',
+    badge: 'FESTIVE COUTURE',
+    price: 4890,
+    originalPrice: 6800
+  },
+  {
+    id: 'spot-3',
+    title: 'ATAL Royal Oud Oriental Fragrance',
+    subtitle: '24-Hour Long Lasting Cambodian Oud',
+    description: 'Warm amber, smoky cedarwood, and pure Cambodian oud blended into exquisite crystal glass bottles.',
+    image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80',
+    buttonText: 'DISCOVER SCENTS',
+    buttonLink: '/category/cosmetics-perfume',
+    layoutType: 'card',
+    badge: 'BEST SELLER',
+    price: 2499,
+    originalPrice: 4500
+  }
+];
+
 const DEFAULT_HOMEPAGE_SECTIONS: HomepageSectionsConfig = {
   newLaunch: {
     enabled: true,
-    title: '⚡ New Launch Collection',
-    subtitle: 'Freshly arrived designer wear, advanced gadgets, and signature cosmetics',
-    productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
+    title: 'New Launch',
+    subtitle: "Discover What's New",
+    productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4'],
+    availableNow: {
+      enabled: true,
+      title: 'New Launch',
+      subtitle: "Discover What's New",
+      productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
+    },
+    launchSoon: {
+      enabled: true,
+      title: 'Launch Soon',
+      subtitle: 'Something Exciting Is Coming',
+      items: DEFAULT_LAUNCH_SOON_ITEMS
+    }
   },
   spotlight: {
     enabled: true,
-    title: '🌟 ATAL Spotlight & Featured Promotions',
+    title: '🌟 ATAL Spotlight & Featured Collections',
     subtitle: 'Handpicked seasonal highlights, exclusive offers, and signature collections',
-    items: [
-      {
-        id: 'spot-1',
-        title: 'ATAL 3D Signature Luxury Bag',
-        subtitle: 'Emerald Green & 24K Gold Hardware',
-        description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters.',
-        image: '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg',
-        buttonText: 'SHOP LUXURY BAG',
-        buttonLink: '/product/atal-signature-3d-luxury-collection',
-        layoutType: 'banner',
-        badge: 'LIMITED EDITION'
-      },
-      {
-        id: 'spot-2',
-        title: 'ATAL Royal Oud Perfumes',
-        subtitle: '24-Hour Long Lasting Fragrance',
-        description: 'Immersive oriental oud and French notes blended into exquisite glass perfume bottles.',
-        image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80',
-        buttonText: 'DISCOVER SCENTS',
-        buttonLink: '/category/cosmetics-perfume',
-        layoutType: 'card',
-        badge: 'BEST SELLER'
-      }
-    ]
+    layoutStyle: 'carousel',
+    items: DEFAULT_SPOTLIGHT_ITEMS
   }
 };
+
+function normalizeHomepageSections(parsed: any): HomepageSectionsConfig {
+  const legacyProductIds = Array.isArray(parsed?.newLaunch?.productIds) && parsed.newLaunch.productIds.length > 0
+    ? parsed.newLaunch.productIds
+    : DEFAULT_HOMEPAGE_SECTIONS.newLaunch.availableNow.productIds;
+  const legacyEnabled = parsed?.newLaunch?.enabled !== undefined ? Boolean(parsed.newLaunch.enabled) : true;
+  const legacyTitle = parsed?.newLaunch?.title || 'New Launch';
+  const legacySubtitle = parsed?.newLaunch?.subtitle || "Discover What's New";
+
+  const availableNow = {
+    enabled: parsed?.newLaunch?.availableNow?.enabled !== undefined 
+      ? Boolean(parsed.newLaunch.availableNow.enabled) 
+      : legacyEnabled,
+    title: parsed?.newLaunch?.availableNow?.title || legacyTitle,
+    subtitle: parsed?.newLaunch?.availableNow?.subtitle || legacySubtitle,
+    productIds: Array.isArray(parsed?.newLaunch?.availableNow?.productIds) 
+      ? parsed.newLaunch.availableNow.productIds 
+      : legacyProductIds
+  };
+
+  const launchSoon = {
+    enabled: parsed?.newLaunch?.launchSoon?.enabled !== undefined 
+      ? Boolean(parsed.newLaunch.launchSoon.enabled) 
+      : true,
+    title: parsed?.newLaunch?.launchSoon?.title || 'Launch Soon',
+    subtitle: parsed?.newLaunch?.launchSoon?.subtitle || 'Something Exciting Is Coming',
+    items: Array.isArray(parsed?.newLaunch?.launchSoon?.items) && parsed.newLaunch.launchSoon.items.length > 0
+      ? parsed.newLaunch.launchSoon.items 
+      : DEFAULT_LAUNCH_SOON_ITEMS
+  };
+
+  const spotlight = {
+    enabled: parsed?.spotlight?.enabled !== undefined ? Boolean(parsed.spotlight.enabled) : true,
+    title: parsed?.spotlight?.title || '🌟 ATAL Spotlight & Featured Collections',
+    subtitle: parsed?.spotlight?.subtitle || 'Handpicked seasonal highlights, exclusive offers, and signature collections',
+    layoutStyle: (parsed?.spotlight?.layoutStyle as any) || 'carousel',
+    items: Array.isArray(parsed?.spotlight?.items) && parsed.spotlight.items.length > 0
+      ? parsed.spotlight.items 
+      : DEFAULT_SPOTLIGHT_ITEMS
+  };
+
+  return {
+    newLaunch: {
+      enabled: availableNow.enabled || launchSoon.enabled,
+      title: availableNow.title,
+      subtitle: availableNow.subtitle,
+      productIds: availableNow.productIds,
+      availableNow,
+      launchSoon
+    },
+    spotlight
+  };
+}
 
 function loadHomepageSectionsFromDisk(): HomepageSectionsConfig {
   try {
@@ -814,10 +963,12 @@ function loadHomepageSectionsFromDisk(): HomepageSectionsConfig {
       const data = fs.readFileSync(HOMEPAGE_SECTIONS_FILE, 'utf-8');
       const parsed = JSON.parse(data);
       if (parsed && typeof parsed === 'object') {
-        return {
-          newLaunch: { ...DEFAULT_HOMEPAGE_SECTIONS.newLaunch, ...(parsed.newLaunch || {}) },
-          spotlight: { ...DEFAULT_HOMEPAGE_SECTIONS.spotlight, ...(parsed.spotlight || {}) }
-        };
+        const normalized = normalizeHomepageSections(parsed);
+        // Save normalized structure if missing sub-keys
+        if (!parsed?.newLaunch?.availableNow || !parsed?.newLaunch?.launchSoon) {
+          fs.writeFileSync(HOMEPAGE_SECTIONS_FILE, JSON.stringify(normalized, null, 2), 'utf-8');
+        }
+        return normalized;
       }
     }
   } catch (err) {
@@ -1883,7 +2034,7 @@ export async function createServer() {
     res.json(storeSettings);
   });
 
-  // Homepage Sections (New Launch & Spotlight)
+  // Homepage Sections (New Launch: Available Now & Launch Soon, and Spotlight)
   app.get('/api/homepage-sections', (req, res) => {
     res.json(homepageSections);
   });
@@ -1892,11 +2043,28 @@ export async function createServer() {
     try {
       const { newLaunch, spotlight } = req.body || {};
       if (newLaunch && typeof newLaunch === 'object') {
-        homepageSections.newLaunch = { ...homepageSections.newLaunch, ...newLaunch };
+        const currentNL = homepageSections.newLaunch;
+        const updatedAvailable = newLaunch.availableNow ? { ...currentNL.availableNow, ...newLaunch.availableNow } : currentNL.availableNow;
+        const updatedSoon = newLaunch.launchSoon ? { ...currentNL.launchSoon, ...newLaunch.launchSoon } : currentNL.launchSoon;
+
+        homepageSections.newLaunch = {
+          ...currentNL,
+          ...newLaunch,
+          availableNow: updatedAvailable,
+          launchSoon: updatedSoon,
+          enabled: updatedAvailable.enabled || updatedSoon.enabled,
+          productIds: updatedAvailable.productIds
+        };
       }
+
       if (spotlight && typeof spotlight === 'object') {
-        homepageSections.spotlight = { ...homepageSections.spotlight, ...spotlight };
+        homepageSections.spotlight = {
+          ...homepageSections.spotlight,
+          ...spotlight,
+          items: Array.isArray(spotlight.items) ? spotlight.items : homepageSections.spotlight.items
+        };
       }
+
       saveHomepageSectionsToDisk();
       res.json({
         success: true,
@@ -1906,6 +2074,73 @@ export async function createServer() {
     } catch (e: any) {
       console.error('Error updating homepage sections:', e);
       res.status(500).json({ error: `Failed to update homepage sections: ${e.message}` });
+    }
+  });
+
+  // Move product from Launch Soon to New Launch (Available Now)
+  app.post('/api/homepage-sections/move-to-available', (req, res) => {
+    try {
+      const { itemId, targetProductId } = req.body || {};
+      const launchItem = homepageSections.newLaunch.launchSoon.items.find(i => i.id === itemId);
+      if (!launchItem) {
+        return res.status(404).json({ error: 'Launch Soon item not found' });
+      }
+
+      const prodIdToAdd = targetProductId || launchItem.productId || launchItem.id;
+      // Add to availableNow if not already present
+      if (!homepageSections.newLaunch.availableNow.productIds.includes(prodIdToAdd)) {
+        homepageSections.newLaunch.availableNow.productIds.unshift(prodIdToAdd);
+      }
+      // Remove from launchSoon
+      homepageSections.newLaunch.launchSoon.items = homepageSections.newLaunch.launchSoon.items.filter(i => i.id !== itemId);
+      homepageSections.newLaunch.productIds = homepageSections.newLaunch.availableNow.productIds;
+      saveHomepageSectionsToDisk();
+
+      res.json({
+        success: true,
+        message: `"${launchItem.name}" has been successfully moved to New Launch (Available Now)!`,
+        homepageSections
+      });
+    } catch (e: any) {
+      console.error('Error moving item to available now:', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Customer notification registration for Launch Soon
+  app.post('/api/launch-soon/notify', (req, res) => {
+    try {
+      const { itemId, itemName, email, whatsapp, customerName } = req.body || {};
+      if (!itemId || (!email && !whatsapp)) {
+        return res.status(400).json({ error: 'Please provide an email or WhatsApp number to receive notification.' });
+      }
+      let notifications: any[] = [];
+      try {
+        if (fs.existsSync(LAUNCH_NOTIFICATIONS_FILE)) {
+          notifications = JSON.parse(fs.readFileSync(LAUNCH_NOTIFICATIONS_FILE, 'utf-8'));
+        }
+      } catch (err) {
+        notifications = [];
+      }
+      const newNotification = {
+        id: `notif-${Date.now()}`,
+        itemId,
+        itemName: itemName || 'Coming Soon Item',
+        email: email ? email.trim().toLowerCase() : '',
+        whatsapp: whatsapp ? normalizePakistaniPhone(whatsapp) : '',
+        customerName: customerName || 'Valued Customer',
+        createdAt: new Date().toISOString()
+      };
+      notifications.unshift(newNotification);
+      fs.writeFileSync(LAUNCH_NOTIFICATIONS_FILE, JSON.stringify(notifications, null, 2), 'utf-8');
+      console.log(`[Launch Soon Notification Registered] ${newNotification.customerName} for ${newNotification.itemName}`);
+      res.json({
+        success: true,
+        message: `You're on the VIP waitlist! We will notify you via ${whatsapp ? 'WhatsApp' : 'Email'} the moment "${newNotification.itemName}" is officially launched.`
+      });
+    } catch (err: any) {
+      console.error('Error registering launch notification:', err);
+      res.status(500).json({ error: 'Failed to register launch alert.' });
     }
   });
 

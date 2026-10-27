@@ -13,7 +13,8 @@ import {
   Copy, MessageCircle, Home, LayoutGrid, Baby, Sparkles, Zap, Wifi, BatteryMedium, Mail,
   LogOut, KeyRound, MapPin, Send, CheckCheck, RefreshCw, FileText, ExternalLink,
   Instagram, Facebook, Landmark, Download, Upload, Database, History, FileSpreadsheet,
-  HardDrive, AlertCircle, Layers, ArrowDownUp, FileDown
+  HardDrive, AlertCircle, Layers, ArrowDownUp, FileDown, Bell, Calendar, Clock,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { authService } from './services/auth';
@@ -64,6 +65,8 @@ interface Product {
   images: string[];
   variants: ProductVariant[];
   stock: number;
+  stockQuantity?: number;
+  sku?: string;
   isFeatured?: boolean;
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
@@ -232,6 +235,76 @@ const HERO_SLIDES: CarouselSlide[] = [
     categoryId: 'cat-women',
   }
 ];
+
+// Live ticking Countdown Timer component for Coming Soon drops
+function CountdownTimer({ targetDate }: { targetDate?: string }) {
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number; isExpired: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!targetDate) {
+      setTimeLeft(null);
+      return;
+    }
+    const target = new Date(targetDate).getTime();
+    if (isNaN(target)) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const calculate = () => {
+      const now = Date.now();
+      const diff = target - now;
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds, isExpired: false });
+    };
+
+    calculate();
+    const interval = setInterval(calculate, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  if (!timeLeft) return null;
+
+  if (timeLeft.isExpired) {
+    return (
+      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-wider animate-pulse">
+        <Sparkles className="w-3 h-3 text-emerald-400" />
+        <span>Official Launch Day!</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 font-mono text-[11px] text-white select-none">
+      <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg border border-white/20 text-center min-w-[28px]">
+        <span className="font-black text-amber-300 block text-xs">{String(timeLeft.days).padStart(2, '0')}</span>
+        <span className="text-[7.5px] text-slate-300 uppercase block font-sans">d</span>
+      </div>
+      <span className="text-amber-400 font-bold">:</span>
+      <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg border border-white/20 text-center min-w-[28px]">
+        <span className="font-black text-amber-300 block text-xs">{String(timeLeft.hours).padStart(2, '0')}</span>
+        <span className="text-[7.5px] text-slate-300 uppercase block font-sans">h</span>
+      </div>
+      <span className="text-amber-400 font-bold">:</span>
+      <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg border border-white/20 text-center min-w-[28px]">
+        <span className="font-black text-amber-300 block text-xs">{String(timeLeft.minutes).padStart(2, '0')}</span>
+        <span className="text-[7.5px] text-slate-300 uppercase block font-sans">m</span>
+      </div>
+      <span className="text-amber-400 font-bold">:</span>
+      <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg border border-white/20 text-center min-w-[28px]">
+        <span className="font-black text-amber-300 block text-xs">{String(timeLeft.seconds).padStart(2, '0')}</span>
+        <span className="text-[7.5px] text-slate-300 uppercase block font-sans">s</span>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const navigate = useNavigate();
@@ -631,42 +704,125 @@ export default function App() {
   const DEFAULT_HOMEPAGE_SECTIONS = {
     newLaunch: {
       enabled: true,
-      title: '⚡ New Launch Collection',
-      subtitle: 'Freshly arrived designer wear, advanced gadgets, and signature cosmetics',
-      productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
+      title: 'New Launch',
+      subtitle: "Discover What's New",
+      productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4'],
+      availableNow: {
+        enabled: true,
+        title: 'New Launch',
+        subtitle: "Discover What's New",
+        productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
+      },
+      launchSoon: {
+        enabled: true,
+        title: 'Launch Soon',
+        subtitle: 'Something Exciting Is Coming',
+        items: [
+          {
+            id: 'launch-soon-1',
+            productId: 'prod-festive-1',
+            name: 'ATAL 24K Royal Velvet Couture Suite',
+            description: 'Ultra-exclusive winter bridal & festive pret ensemble hand-woven with pure metallic tilla and velvet dupatta.',
+            image: '/assets/atal_festive_pret_1792525761752.jpg',
+            badge: 'COMING SOON',
+            expectedLaunchDate: '2026-11-20T18:00:00',
+            showCountdown: true,
+            previewSlug: 'atal-luxury-festive-pret-couture',
+            displayOrder: 1
+          },
+          {
+            id: 'launch-soon-2',
+            name: 'ATAL Audio AeroBeats Pro Wireless Headphones',
+            description: 'Flagship hybrid active noise cancelling over-ear headphones with 60-hour playback and spatial audio.',
+            image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+            badge: 'EXCLUSIVE TEASER',
+            expectedLaunchDate: '2026-11-28T12:00:00',
+            showCountdown: true,
+            displayOrder: 2
+          },
+          {
+            id: 'launch-soon-3',
+            name: 'ATAL Botanicals Pure Organic Saffron Night Elixir',
+            description: 'Hand-picked Kashmiri saffron blended with Moroccan argan oil for intense nocturnal skin renewal.',
+            image: 'https://images.unsplash.com/photo-1608248597359-2e094770220c?auto=format&fit=crop&w=800&q=80',
+            badge: 'LIMITED PRE-DROP',
+            expectedLaunchDate: '2026-12-05T00:00:00',
+            showCountdown: true,
+            displayOrder: 3
+          }
+        ]
+      }
     },
     spotlight: {
       enabled: true,
-      title: '🌟 ATAL Spotlight & Featured Promotions',
+      title: '🌟 ATAL Spotlight & Featured Collections',
       subtitle: 'Handpicked seasonal highlights, exclusive offers, and signature collections',
+      layoutStyle: 'carousel',
       items: [
         {
           id: 'spot-1',
           title: 'ATAL 3D Signature Luxury Bag',
           subtitle: 'Emerald Green & 24K Gold Hardware',
-          description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters.',
+          description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters across Pakistan.',
           image: '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg',
           buttonText: 'SHOP LUXURY BAG',
-          buttonLink: '/product/prod-festive-1',
+          buttonLink: '/product/atal-signature-3d-luxury-collection',
           layoutType: 'banner',
-          badge: 'LIMITED EDITION'
+          badge: 'LIMITED EDITION',
+          price: 3950,
+          originalPrice: 5490
         },
         {
           id: 'spot-2',
-          title: 'ATAL Royal Oud & Couture Fragrances',
-          subtitle: 'Pure Concentrated Perfume Oil',
-          description: 'Enchanting oriental notes of cambodian oud, dark rose, and warm amber crystals.',
-          image: '/assets/aistudio/WhatsApp_Image_2026-10-22_at_9.45.39_AM_5e21af89.jpeg',
-          buttonText: 'DISCOVER FRAGRANCES',
-          buttonLink: '/shop',
+          title: 'ATAL Luxury Festive Pret Couture',
+          subtitle: 'Heritage Embroidered Velvet & Raw Silk',
+          description: 'Hand-embroidered zardozi details, pure organza dupatta, and deep emerald silhouette designed for weddings.',
+          image: '/assets/atal_festive_pret_1792525761752.jpg',
+          buttonText: 'EXPLORE PRET',
+          buttonLink: '/product/atal-luxury-festive-pret-couture',
           layoutType: 'banner',
-          badge: 'BESTSELLER'
+          badge: 'FESTIVE COUTURE',
+          price: 4890,
+          originalPrice: 6800
+        },
+        {
+          id: 'spot-3',
+          title: 'ATAL Royal Oud Oriental Fragrance',
+          subtitle: '24-Hour Long Lasting Cambodian Oud',
+          description: 'Warm amber, smoky cedarwood, and pure Cambodian oud blended into exquisite crystal glass bottles.',
+          image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80',
+          buttonText: 'DISCOVER SCENTS',
+          buttonLink: '/category/cat-cosmetics',
+          layoutType: 'card',
+          badge: 'BEST SELLER',
+          price: 2499,
+          originalPrice: 4500
         }
       ]
     }
   };
 
   const [homepageSections, setHomepageSections] = useState<any>(DEFAULT_HOMEPAGE_SECTIONS);
+  const [spotlightSlide, setSpotlightSlide] = useState(0);
+  const [spotlightTouchStart, setSpotlightTouchStart] = useState<number | null>(null);
+  const [spotlightTouchEnd, setSpotlightTouchEnd] = useState<number | null>(null);
+
+  // VIP Launch Soon Notification Modal states
+  const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
+  const [notifyTargetItem, setNotifyTargetItem] = useState<any | null>(null);
+  const [notifyCustomerName, setNotifyCustomerName] = useState('');
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [notifyWhatsapp, setNotifyWhatsapp] = useState('');
+  const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
+
+  // Admin Homepage Sections management sub-tab & preview states
+  const [adminSectionSubTab, setAdminSectionSubTab] = useState<'availableNow' | 'launchSoon' | 'spotlight' | 'preview'>('availableNow');
+  const [adminPreviewDevice, setAdminPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
+  const [editingLaunchSoonItem, setEditingLaunchSoonItem] = useState<any | null>(null);
+  const [isLaunchSoonModalOpen, setIsLaunchSoonModalOpen] = useState(false);
+  const [editingSpotlightItem, setEditingSpotlightItem] = useState<any | null>(null);
+  const [isSpotlightModalOpen, setIsSpotlightModalOpen] = useState(false);
+  const [availableNowSearchQuery, setAvailableNowSearchQuery] = useState('');
 
   const fetchHomepageSections = async () => {
     try {
@@ -674,17 +830,48 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') {
-          const loadedNewLaunch = { ...DEFAULT_HOMEPAGE_SECTIONS.newLaunch, ...(data.newLaunch || {}) };
-          const loadedSpotlight = { ...DEFAULT_HOMEPAGE_SECTIONS.spotlight, ...(data.spotlight || {}) };
-          if (!Array.isArray(loadedSpotlight.items) || loadedSpotlight.items.length === 0) {
-            loadedSpotlight.items = DEFAULT_HOMEPAGE_SECTIONS.spotlight.items;
-          }
-          if (!Array.isArray(loadedNewLaunch.productIds) || loadedNewLaunch.productIds.length === 0) {
-            loadedNewLaunch.productIds = DEFAULT_HOMEPAGE_SECTIONS.newLaunch.productIds;
-          }
+          const rawNL = data.newLaunch || {};
+          const rawSpot = data.spotlight || {};
+
+          // Backward compatible normalization
+          const availableNow = {
+            enabled: rawNL.availableNow?.enabled !== undefined ? Boolean(rawNL.availableNow.enabled) : (rawNL.enabled !== false),
+            title: rawNL.availableNow?.title || rawNL.title || DEFAULT_HOMEPAGE_SECTIONS.newLaunch.availableNow.title,
+            subtitle: rawNL.availableNow?.subtitle || rawNL.subtitle || DEFAULT_HOMEPAGE_SECTIONS.newLaunch.availableNow.subtitle,
+            productIds: Array.isArray(rawNL.availableNow?.productIds) && rawNL.availableNow.productIds.length > 0
+              ? rawNL.availableNow.productIds
+              : (Array.isArray(rawNL.productIds) && rawNL.productIds.length > 0 ? rawNL.productIds : DEFAULT_HOMEPAGE_SECTIONS.newLaunch.availableNow.productIds)
+          };
+
+          const launchSoon = {
+            enabled: rawNL.launchSoon?.enabled !== undefined ? Boolean(rawNL.launchSoon.enabled) : true,
+            title: rawNL.launchSoon?.title || DEFAULT_HOMEPAGE_SECTIONS.newLaunch.launchSoon.title,
+            subtitle: rawNL.launchSoon?.subtitle || DEFAULT_HOMEPAGE_SECTIONS.newLaunch.launchSoon.subtitle,
+            items: Array.isArray(rawNL.launchSoon?.items) && rawNL.launchSoon.items.length > 0
+              ? rawNL.launchSoon.items
+              : DEFAULT_HOMEPAGE_SECTIONS.newLaunch.launchSoon.items
+          };
+
+          const spotlight = {
+            enabled: rawSpot.enabled !== undefined ? Boolean(rawSpot.enabled) : true,
+            title: rawSpot.title || DEFAULT_HOMEPAGE_SECTIONS.spotlight.title,
+            subtitle: rawSpot.subtitle || DEFAULT_HOMEPAGE_SECTIONS.spotlight.subtitle,
+            layoutStyle: rawSpot.layoutStyle || DEFAULT_HOMEPAGE_SECTIONS.spotlight.layoutStyle,
+            items: Array.isArray(rawSpot.items) && rawSpot.items.length > 0
+              ? rawSpot.items
+              : DEFAULT_HOMEPAGE_SECTIONS.spotlight.items
+          };
+
           setHomepageSections({
-            newLaunch: loadedNewLaunch,
-            spotlight: loadedSpotlight
+            newLaunch: {
+              enabled: availableNow.enabled || launchSoon.enabled,
+              title: availableNow.title,
+              subtitle: availableNow.subtitle,
+              productIds: availableNow.productIds,
+              availableNow,
+              launchSoon
+            },
+            spotlight
           });
         }
       }
@@ -712,6 +899,67 @@ export default function App() {
       }
     } catch (err) {
       showToast('Network error saving homepage sections');
+    }
+  };
+
+  const handleMoveLaunchSoonToAvailable = async (itemId: string, itemName: string) => {
+    try {
+      const res = await fetch(getApiUrl('/api/homepage-sections/move-to-available'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`✓ "${itemName}" moved to Available Now!`);
+        if (data.homepageSections) {
+          setHomepageSections(data.homepageSections);
+        } else {
+          fetchHomepageSections();
+        }
+      } else {
+        showToast(data.error || 'Failed to move product');
+      }
+    } catch {
+      showToast('Network error while moving product');
+    }
+  };
+
+  const handleRegisterLaunchNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifyTargetItem) return;
+    if (!notifyEmail && !notifyWhatsapp) {
+      showToast('Please provide an email or WhatsApp number to get notified.');
+      return;
+    }
+    setIsSubmittingNotify(true);
+    try {
+      const res = await fetch(getApiUrl('/api/launch-soon/notify'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: notifyTargetItem.id,
+          itemName: notifyTargetItem.name,
+          email: notifyEmail,
+          whatsapp: notifyWhatsapp,
+          customerName: notifyCustomerName || (currentCustomer ? currentCustomer.name : 'Valued Customer')
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message || '✓ You have been added to the VIP launch list!');
+        setIsNotifyModalOpen(false);
+        setNotifyTargetItem(null);
+        setNotifyEmail('');
+        setNotifyWhatsapp('');
+        setNotifyCustomerName('');
+      } else {
+        showToast(data.error || 'Failed to register notification');
+      }
+    } catch (err) {
+      showToast('Network error while registering');
+    } finally {
+      setIsSubmittingNotify(false);
     }
   };
 
@@ -1269,6 +1517,11 @@ export default function App() {
 
   // Step-by-step Back navigation helper with safe fallback
   const handleBackNavigation = (fallbackPath: string = '/') => {
+    if (window.location.hash) {
+      try {
+        window.history.replaceState(null, '', window.location.pathname || '/');
+      } catch (_) {}
+    }
     if (window.history.length > 1 && window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
       navigate(-1);
     } else {
@@ -1383,7 +1636,7 @@ export default function App() {
     }
   };
 
-  // Synchronize React Router URL pathname & query parameters with UI view state
+  // Synchronize React Router URL pathname, hash & query parameters with UI view state
   useEffect(() => {
     const rawPath = location.pathname;
     const path = rawPath.toLowerCase();
@@ -1391,12 +1644,16 @@ export default function App() {
     const catParam = searchParams.get('category');
     const subcatParam = searchParams.get('subcategory');
     const qParam = searchParams.get('search');
+    const rawHash = (location.hash || window.location.hash || '').toLowerCase();
+    const isHashAdmin = rawHash === '#admin' || rawHash === '#/admin' || rawHash === '#portal' || rawHash === '#/portal';
 
     if (qParam !== null) {
       setSearchQuery(qParam);
     }
 
-    if (path === '/' || path === '/home' || path === '') {
+    if (isHashAdmin || path.startsWith('/admin') || path === '/portal') {
+      setCurrentView('admin');
+    } else if (path === '/' || path === '/home' || path === '') {
       setCurrentView('home');
       setSelectedProduct(null);
     } else if (path.startsWith('/product/')) {
@@ -1449,7 +1706,21 @@ export default function App() {
     } else if (path.startsWith('/admin') || path === '/portal') {
       setCurrentView('admin');
     }
-  }, [location.pathname, location.search, categories, products]);
+  }, [location.pathname, location.search, location.hash, categories, products]);
+
+  // Window hashchange event listener for #admin / #portal
+  useEffect(() => {
+    const handleHash = () => {
+      const h = (window.location.hash || '').toLowerCase();
+      if (h === '#admin' || h === '#/admin' || h === '#portal' || h === '#/portal') {
+        setCurrentView('admin');
+      } else if (h === '' && location.pathname === '/') {
+        setCurrentView('home');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, [location.pathname]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -2698,60 +2969,163 @@ export default function App() {
                 </div>
 
                 {/* SPOTLIGHT SECTION (Mobile) */}
-                {homepageSections.spotlight?.enabled !== false && Array.isArray(homepageSections.spotlight.items) && homepageSections.spotlight.items.length > 0 && (
-                  <div className="mt-6 mx-3 p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white rounded-3xl border border-amber-500/40 shadow-xl space-y-4 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-                    <div className="text-center relative z-10">
-                      <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-400/40 text-amber-300 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-xs">
-                        <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
-                        <span>FEATURED SPOTLIGHT</span>
-                      </div>
-                      <h3 className="font-black text-base text-white mt-1.5 tracking-tight">
-                        {homepageSections.spotlight.title || '🌟 ATAL Spotlight'}
-                      </h3>
-                      {homepageSections.spotlight.subtitle && (
-                        <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">{homepageSections.spotlight.subtitle}</p>
-                      )}
-                    </div>
+                {homepageSections?.spotlight?.enabled !== false && Array.isArray(homepageSections?.spotlight?.items) && homepageSections.spotlight.items.filter(Boolean).length > 0 && (() => {
+                  const sItems = homepageSections.spotlight.items.filter(Boolean);
+                  const layoutStyle = homepageSections.spotlight.layoutStyle || 'carousel';
+                  const activeIdx = Math.min(spotlightSlide, sItems.length - 1);
+                  const currentItem = sItems[activeIdx] || sItems[0];
 
-                    <div className="space-y-4 relative z-10">
-                      {homepageSections.spotlight.items.map((item: any) => (
-                        <div key={item.id} className="relative rounded-2xl overflow-hidden bg-slate-950/90 border border-amber-500/25 shadow-lg group flex flex-col justify-between">
-                          <div className="relative h-52 w-full overflow-hidden">
-                            <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-4">
-                              {item.badge && (
+                  return (
+                    <div className="mt-6 mx-3 p-4 bg-gradient-to-br from-slate-950 via-[#062419] to-amber-950 text-white rounded-3xl border border-amber-500/40 shadow-xl space-y-4 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                      <div className="text-center relative z-10">
+                        <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-400/40 text-amber-300 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-xs">
+                          <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                          <span>FEATURED SPOTLIGHT</span>
+                        </div>
+                        <h3 className="font-black text-base text-white mt-1.5 tracking-tight">
+                          {homepageSections.spotlight.title || '🌟 ATAL Spotlight'}
+                        </h3>
+                        {homepageSections.spotlight.subtitle && (
+                          <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">{homepageSections.spotlight.subtitle}</p>
+                        )}
+                      </div>
+
+                      {/* Layout Type: Carousel */}
+                      {layoutStyle === 'carousel' && (
+                        <div 
+                          className="relative rounded-2xl overflow-hidden bg-slate-950/90 border border-amber-500/25 shadow-lg group select-none"
+                          onTouchStart={(e) => setSpotlightTouchStart(e.targetTouches[0].clientX)}
+                          onTouchMove={(e) => setSpotlightTouchEnd(e.targetTouches[0].clientX)}
+                          onTouchEnd={() => {
+                            if (spotlightTouchStart === null || spotlightTouchEnd === null) return;
+                            const diff = spotlightTouchStart - spotlightTouchEnd;
+                            if (diff > 45) {
+                              setSpotlightSlide(prev => (prev + 1) % sItems.length);
+                            } else if (diff < -45) {
+                              setSpotlightSlide(prev => (prev - 1 + sItems.length) % sItems.length);
+                            }
+                            setSpotlightTouchStart(null);
+                            setSpotlightTouchEnd(null);
+                          }}
+                        >
+                          <div className="relative aspect-[16/10] w-full overflow-hidden">
+                            <img 
+                              src={currentItem.image || DEFAULT_PRODUCT_IMAGE} 
+                              alt={currentItem.title || 'Spotlight'} 
+                              className="w-full h-full object-cover transition-transform duration-700 ease-out" 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-4">
+                              {currentItem.badge && (
                                 <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase w-max mb-1.5 shadow-md border border-amber-200">
-                                  {item.badge}
+                                  {currentItem.badge}
                                 </span>
                               )}
-                              {item.subtitle && (
-                                <p className="text-[10px] text-amber-300 font-extrabold tracking-wider uppercase">{item.subtitle}</p>
+                              {currentItem.subtitle && (
+                                <p className="text-[10px] text-amber-300 font-extrabold tracking-wider uppercase">{currentItem.subtitle}</p>
                               )}
-                              <h4 className="font-black text-sm text-white leading-tight mt-0.5">{item.title}</h4>
-                              <p className="text-[11px] text-slate-300 line-clamp-2 mt-1 leading-snug">{item.description}</p>
+                              <h4 className="font-black text-sm text-white leading-tight mt-0.5">{currentItem.title || 'Special Feature'}</h4>
+                              {currentItem.description && (
+                                <p className="text-[11px] text-slate-300 line-clamp-2 mt-1 leading-snug">{currentItem.description}</p>
+                              )}
                               
-                              <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+                              <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between gap-2">
                                 <button
+                                  type="button"
                                   onClick={() => {
-                                    const link = item.buttonLink || '/shop';
+                                    const link = currentItem.buttonLink || '/shop';
                                     if (link.startsWith('http')) window.open(link, '_blank');
                                     else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
                                     else navigate(link);
                                   }}
-                                  className="w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition"
+                                  className="flex-1 min-h-[44px] bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer"
                                 >
-                                  <span>{item.buttonText || 'EXPLORE NOW'}</span>
-                                  <ChevronRight className="w-3.5 h-3.5" />
+                                  <span>{currentItem.buttonText || 'EXPLORE NOW'}</span>
+                                  <ChevronRight className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
                           </div>
+
+                          {/* Navigation Arrows & Indicators if > 1 items */}
+                          {sItems.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setSpotlightSlide(prev => (prev - 1 + sItems.length) % sItems.length)}
+                                className="absolute left-2 top-1/3 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center z-20 border border-white/20 active:scale-95"
+                                aria-label="Previous Spotlight"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSpotlightSlide(prev => (prev + 1) % sItems.length)}
+                                className="absolute right-2 top-1/3 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center z-20 border border-white/20 active:scale-95"
+                                aria-label="Next Spotlight"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                              <div className="absolute bottom-2 right-4 flex items-center gap-1.5 z-20">
+                                {sItems.map((_item: any, dotIdx: number) => (
+                                  <button
+                                    key={dotIdx}
+                                    type="button"
+                                    onClick={() => setSpotlightSlide(dotIdx)}
+                                    className={`h-1.5 rounded-full transition-all ${dotIdx === activeIdx ? 'w-5 bg-amber-400' : 'w-1.5 bg-white/40'}`}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
-                      ))}
+                      )}
+
+                      {/* Layout Type: Grid or Banner */}
+                      {layoutStyle !== 'carousel' && (
+                        <div className="space-y-4 relative z-10">
+                          {sItems.map((item: any) => (
+                            <div key={item.id} className="relative rounded-2xl overflow-hidden bg-slate-950/90 border border-amber-500/25 shadow-lg group flex flex-col justify-between">
+                              <div className="relative aspect-[16/10] w-full overflow-hidden">
+                                <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title || 'Spotlight'} className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-4">
+                                  {item.badge && (
+                                    <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase w-max mb-1.5 shadow-md border border-amber-200">
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                  {item.subtitle && (
+                                    <p className="text-[10px] text-amber-300 font-extrabold tracking-wider uppercase">{item.subtitle}</p>
+                                  )}
+                                  <h4 className="font-black text-sm text-white leading-tight mt-0.5">{item.title || 'Featured Spotlight'}</h4>
+                                  {item.description && (
+                                    <p className="text-[11px] text-slate-300 line-clamp-2 mt-1 leading-snug">{item.description}</p>
+                                  )}
+                                  
+                                  <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const link = item.buttonLink || '/shop';
+                                        if (link.startsWith('http')) window.open(link, '_blank');
+                                        else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
+                                        else navigate(link);
+                                      }}
+                                      className="w-full min-h-[44px] bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer"
+                                    >
+                                      <span>{item.buttonText || 'EXPLORE NOW'}</span>
+                                      <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* All Products Catalog (Mobile View: 2 products in a row, 8 columns grid) */}
                 <div className="mt-6 px-3">
@@ -2820,65 +3194,194 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* NEW LAUNCH SECTION (Mobile) */}
-                {homepageSections.newLaunch?.enabled !== false && (
-                  <div className="mt-6 mx-3 p-3.5 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-2xl border border-emerald-500/30 shadow-md">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-black text-sm text-white flex items-center gap-1.5">
-                          <span>{homepageSections.newLaunch.title || '⚡ New Launch Collection'}</span>
-                        </h3>
-                        {homepageSections.newLaunch.subtitle && (
-                          <p className="text-[10.5px] text-slate-300 line-clamp-1">{homepageSections.newLaunch.subtitle}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleOpenShop()}
-                        className="bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                      >
-                        View All
-                      </button>
-                    </div>
+                {/* ======================================================== */}
+                {/* 1. NEW LAUNCH — AVAILABLE NOW (Mobile)                   */}
+                {/* ======================================================== */}
+                {homepageSections?.newLaunch?.availableNow?.enabled !== false && (() => {
+                  const configuredIds = homepageSections?.newLaunch?.availableNow?.productIds || homepageSections?.newLaunch?.productIds || [];
+                  let displayProds = activeProducts.filter(p => p && (p.stock ?? p.stockQuantity ?? 1) > 0);
+                  if (Array.isArray(configuredIds) && configuredIds.length > 0) {
+                    const mapped = configuredIds.map((id: string) => displayProds.find(p => p.id === id)).filter(Boolean) as Product[];
+                    if (mapped.length > 0) displayProds = mapped;
+                  } else {
+                    displayProds = displayProds.filter(p => p.isNewArrival || p.id.startsWith('prod-festive')).slice(0, 8);
+                  }
 
-                    <div className="flex flex-nowrap overflow-x-auto no-scrollbar gap-2.5 pb-1">
-                      {activeProducts
-                        .filter(p => {
-                          const ids = homepageSections.newLaunch.productIds;
-                          if (Array.isArray(ids) && ids.length > 0) return ids.includes(p.id);
-                          return p.isNewArrival || p.id.startsWith('prod-festive');
-                        })
-                        .slice(0, 6)
-                        .map(prod => (
+                  if (displayProds.length === 0) return null;
+
+                  return (
+                    <div className="mt-7 mx-3 p-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-3xl border border-emerald-500/30 shadow-lg">
+                      <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-white/10">
+                        <div>
+                          <div className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded-full mb-1">
+                            <Zap className="w-2.5 h-2.5" />
+                            <span>READY TO SHIP</span>
+                          </div>
+                          <h3 className="font-black text-sm text-white flex items-center gap-1.5 leading-tight">
+                            <span>{homepageSections?.newLaunch?.availableNow?.title || homepageSections?.newLaunch?.title || 'New Launch'}</span>
+                          </h3>
+                          <p className="text-[10.5px] text-slate-300 line-clamp-1 mt-0.5">
+                            {homepageSections?.newLaunch?.availableNow?.subtitle || homepageSections?.newLaunch?.subtitle || "Discover What's New"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenShop()}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10.5px] font-bold px-3 py-1.5 rounded-xl shadow-xs transition shrink-0 cursor-pointer"
+                        >
+                          View All →
+                        </button>
+                      </div>
+
+                      {/* Horizontal Scrolling Product Carousel */}
+                      <div className="flex flex-nowrap overflow-x-auto no-scrollbar gap-3 pb-2 pt-1 scroll-smooth">
+                        {displayProds.map((prod) => (
                           <div
                             key={prod.id}
                             onClick={() => handleOpenProduct(prod)}
-                            className="bg-white/10 border border-white/15 rounded-xl p-2.5 cursor-pointer shrink-0 w-[150px] flex flex-col justify-between"
+                            className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-2xl p-2.5 cursor-pointer shrink-0 w-[160px] flex flex-col justify-between group transition backdrop-blur-sm"
                           >
                             <div>
-                              <div className="relative aspect-square rounded-lg overflow-hidden mb-2 bg-black/40">
-                                <img src={getPrimaryProductImage(prod)} alt={prod.name} className="w-full h-full object-cover" />
-                                {prod.discountPercentage && (
-                                  <span className="absolute top-1 left-1 bg-red-600 text-white text-[8px] font-black px-1 py-0.5 rounded">
-                                    {prod.discountPercentage}% OFF
+                              <div className="relative aspect-square rounded-xl overflow-hidden mb-2 bg-black/40 flex items-center justify-center">
+                                <img 
+                                  src={getPrimaryProductImage(prod)} 
+                                  alt={prod.name} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                                />
+                                <div className="absolute top-1.5 left-1.5 flex flex-col gap-1 z-10">
+                                  <span className="bg-emerald-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shadow-xs">
+                                    NEW
                                   </span>
+                                  {prod.discountPercentage && (
+                                    <span className="bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-xs">
+                                      {prod.discountPercentage}% OFF
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleWishlist(prod.id); }}
+                                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/50 backdrop-blur text-white flex items-center justify-center z-10"
+                                >
+                                  <Heart className={`w-3 h-3 ${wishlist.includes(prod.id) ? 'fill-red-500 text-red-500' : 'text-white/80'}`} />
+                                </button>
+                              </div>
+                              <p className="text-[9px] text-[#f5d77f] font-bold uppercase tracking-wider truncate">{prod.brand}</p>
+                              <h4 className="font-bold text-[11px] text-white line-clamp-1 leading-snug">{prod.name}</h4>
+                              <p className="text-[9px] text-emerald-300/80 mt-0.5">
+                                {(prod.stock ?? prod.stockQuantity ?? 10) > 5 ? '● In Stock' : `● Only ${prod.stock ?? prod.stockQuantity ?? 1} left`}
+                              </p>
+                            </div>
+                            <div className="mt-2 flex items-center justify-between pt-1.5 border-t border-white/10">
+                              <div>
+                                <span className="font-black text-xs text-white">Rs {prod.price.toLocaleString()}</span>
+                                {prod.originalPrice && (
+                                  <span className="text-[9px] text-slate-400 line-through block -mt-0.5">Rs {prod.originalPrice.toLocaleString()}</span>
                                 )}
                               </div>
-                              <h4 className="font-bold text-[11px] text-white line-clamp-1">{prod.name}</h4>
-                            </div>
-                            <div className="mt-2 flex items-center justify-between pt-1 border-t border-white/10">
-                              <span className="font-black text-[11px] text-emerald-400">Rs {prod.price.toLocaleString()}</span>
                               <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); addToCart(prod, prod.variants?.[0]); }}
-                                className="bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded text-[9px]"
+                                className="min-h-[32px] bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-2.5 py-1 rounded-lg text-[9.5px] transition shadow-xs cursor-pointer"
                               >
                                 + Cart
                               </button>
                             </div>
                           </div>
                         ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
+
+                {/* ======================================================== */}
+                {/* 2. LAUNCH SOON — COMING SOON (Mobile)                    */}
+                {/* ======================================================== */}
+                {homepageSections?.newLaunch?.launchSoon?.enabled !== false && Array.isArray(homepageSections?.newLaunch?.launchSoon?.items) && homepageSections.newLaunch.launchSoon.items.filter(Boolean).length > 0 && (() => {
+                  const lsItems = homepageSections.newLaunch.launchSoon.items.filter(Boolean);
+                  if (lsItems.length === 0) return null;
+
+                  return (
+                    <div className="mt-6 mx-3 p-4 bg-gradient-to-br from-slate-950 via-[#1c1304] to-slate-900 text-white rounded-3xl border border-amber-500/35 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                        <div>
+                          <div className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-400 bg-amber-950/70 border border-amber-500/30 px-2 py-0.5 rounded-full mb-1">
+                            <Clock className="w-2.5 h-2.5 text-amber-400 animate-spin" />
+                            <span>UPCOMING EXCLUSIVES</span>
+                          </div>
+                          <h3 className="font-black text-sm text-white flex items-center gap-1.5 leading-tight">
+                            <span>{homepageSections?.newLaunch?.launchSoon?.title || 'Launch Soon'}</span>
+                          </h3>
+                          <p className="text-[10.5px] text-amber-200/80 line-clamp-1 mt-0.5">
+                            {homepageSections?.newLaunch?.launchSoon?.subtitle || 'Something Exciting Is Coming'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        {lsItems.map((item: any) => (
+                          <div 
+                            key={item.id}
+                            className="bg-white/5 border border-amber-500/20 rounded-2xl p-3.5 backdrop-blur-sm flex flex-col justify-between gap-3 shadow-md"
+                          >
+                            <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-black/60">
+                              <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.name || 'Upcoming product'} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-between p-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                                    {item.badge || 'COMING SOON'}
+                                  </span>
+                                  {item.showCountdown !== false && item.expectedLaunchDate && (
+                                    <CountdownTimer targetDate={item.expectedLaunchDate} />
+                                  )}
+                                </div>
+                                <div>
+                                  {item.expectedLaunchDate && (
+                                    <p className="text-[10px] text-amber-300 font-bold flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      <span>Launch: {new Date(item.expectedLaunchDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 className="font-black text-xs text-white leading-snug">{item.name || 'Exciting Product Drop'}</h4>
+                              {item.description && (
+                                <p className="text-[11px] text-slate-300 line-clamp-2 mt-1 leading-relaxed">{item.description}</p>
+                              )}
+                            </div>
+
+                            {/* STRICTLY NO ADD TO CART OR BUY NOW */}
+                            <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNotifyTargetItem(item);
+                                  setIsNotifyModalOpen(true);
+                                }}
+                                className="flex-1 min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer"
+                              >
+                                <Bell className="w-3.5 h-3.5 text-slate-950" />
+                                <span>Notify Me When Launched</span>
+                              </button>
+                              {item.previewSlug && (
+                                <button
+                                  type="button"
+                                  onClick={() => loadProductBySlug(item.previewSlug)}
+                                  className="min-h-[44px] px-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center gap-1"
+                                >
+                                  Preview
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* ======================================================== */}
@@ -3082,60 +3585,157 @@ export default function App() {
                 </div>
 
                 {/* SPOTLIGHT SECTION (Desktop) */}
-                {homepageSections.spotlight?.enabled !== false && Array.isArray(homepageSections.spotlight.items) && homepageSections.spotlight.items.length > 0 && (
-                  <div className="max-w-7xl mx-auto px-4 mt-10 p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white rounded-3xl border border-amber-500/40 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-                    <div className="text-center max-w-2xl mx-auto mb-10 relative z-10">
-                      <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-3 shadow-sm">
-                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-                        <span>FEATURED SPOTLIGHT</span>
-                      </div>
-                      <h3 className="font-black text-3xl text-white tracking-tight drop-shadow-md">
-                        {homepageSections.spotlight.title || '🌟 ATAL Spotlight & Featured Promotions'}
-                      </h3>
-                      {homepageSections.spotlight.subtitle && (
-                        <p className="text-sm text-slate-300 mt-2 leading-relaxed">{homepageSections.spotlight.subtitle}</p>
-                      )}
-                    </div>
+                {homepageSections?.spotlight?.enabled !== false && Array.isArray(homepageSections?.spotlight?.items) && homepageSections.spotlight.items.filter(Boolean).length > 0 && (() => {
+                  const sItems = homepageSections.spotlight.items.filter(Boolean);
+                  const layoutStyle = homepageSections.spotlight.layoutStyle || 'carousel';
+                  const activeIdx = Math.min(spotlightSlide, sItems.length - 1);
+                  const currentItem = sItems[activeIdx] || sItems[0];
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                      {homepageSections.spotlight.items.map((item: any) => (
-                        <div key={item.id} className="relative rounded-3xl overflow-hidden bg-slate-950/90 border border-amber-500/30 shadow-2xl group flex flex-col justify-between hover:border-amber-400/60 transition duration-500">
-                          <div className="relative h-80 w-full overflow-hidden">
-                            <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-700 ease-out" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-8">
-                              {item.badge && (
-                                <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[11px] font-black px-3.5 py-1 rounded-full uppercase w-max mb-3 shadow-lg border border-amber-200">
-                                  {item.badge}
-                                </span>
-                              )}
-                              {item.subtitle && (
-                                <p className="text-xs text-amber-300 font-extrabold tracking-wider uppercase">{item.subtitle}</p>
-                              )}
-                              <h4 className="font-black text-2xl text-white leading-tight mt-1 drop-shadow-sm">{item.title}</h4>
-                              <p className="text-slate-300 text-sm line-clamp-2 mt-2 leading-relaxed">{item.description}</p>
-                              
-                              <div className="mt-5 pt-4 border-t border-white/20 flex items-center justify-between">
-                                <button
-                                  onClick={() => {
-                                    const link = item.buttonLink || '/shop';
-                                    if (link.startsWith('http')) window.open(link, '_blank');
-                                    else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
-                                    else navigate(link);
-                                  }}
-                                  className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-xl flex items-center gap-2 cursor-pointer transform group-hover:translate-x-1"
-                                >
-                                  <span>{item.buttonText || 'EXPLORE NOW'}</span>
-                                  <ChevronRight className="w-4 h-4" />
-                                </button>
+                  return (
+                    <div className="max-w-7xl mx-auto px-4 mt-10 p-8 bg-gradient-to-br from-slate-950 via-[#062419] to-amber-950 text-white rounded-3xl border border-amber-500/40 shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                      
+                      <div className="text-center max-w-2xl mx-auto mb-8 relative z-10">
+                        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-3 shadow-sm">
+                          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                          <span>FEATURED SPOTLIGHT</span>
+                        </div>
+                        <h3 className="font-black text-3xl text-white tracking-tight drop-shadow-md">
+                          {homepageSections.spotlight.title || '🌟 ATAL Spotlight & Featured Collections'}
+                        </h3>
+                        {homepageSections.spotlight.subtitle && (
+                          <p className="text-sm text-slate-300 mt-2 leading-relaxed">{homepageSections.spotlight.subtitle}</p>
+                        )}
+                      </div>
+
+                      {/* Carousel Layout (Desktop) */}
+                      {layoutStyle === 'carousel' && (
+                        <div className="relative rounded-3xl overflow-hidden bg-slate-950/90 border border-amber-500/30 shadow-2xl group">
+                          <div className="relative h-96 w-full overflow-hidden">
+                            <img 
+                              src={currentItem.image || DEFAULT_PRODUCT_IMAGE} 
+                              alt={currentItem.title || 'Spotlight'} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition duration-700 ease-out" 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/60 to-transparent flex items-center p-8 lg:p-14">
+                              <div className="max-w-xl text-white">
+                                {currentItem.badge && (
+                                  <span className="inline-block bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-xs font-black px-3.5 py-1 rounded-full uppercase mb-3 shadow-lg border border-amber-200">
+                                    {currentItem.badge}
+                                  </span>
+                                )}
+                                {currentItem.subtitle && (
+                                  <p className="text-xs text-amber-300 font-extrabold tracking-widest uppercase mb-1">{currentItem.subtitle}</p>
+                                )}
+                                <h4 className="font-black text-3xl lg:text-4xl text-white leading-tight drop-shadow-md mb-3">
+                                  {currentItem.title || 'Special Feature'}
+                                </h4>
+                                {currentItem.description && (
+                                  <p className="text-slate-200 text-sm leading-relaxed mb-6 line-clamp-3">{currentItem.description}</p>
+                                )}
+
+                                <div className="flex items-center gap-4">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const link = currentItem.buttonLink || '/shop';
+                                      if (link.startsWith('http')) window.open(link, '_blank');
+                                      else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
+                                      else navigate(link);
+                                    }}
+                                    className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black px-7 py-3.5 rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-xl flex items-center gap-2 cursor-pointer transform hover:scale-105"
+                                  >
+                                    <span>{currentItem.buttonText || 'EXPLORE NOW'}</span>
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                  {currentItem.price && (
+                                    <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-xl text-left">
+                                      <span className="text-[10px] text-slate-300 uppercase block font-bold">Featured Price</span>
+                                      <span className="font-black text-amber-300 text-base">Rs {currentItem.price.toLocaleString()}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
+
+                          {/* Desktop Slide Controls */}
+                          {sItems.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setSpotlightSlide(prev => (prev - 1 + sItems.length) % sItems.length)}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 backdrop-blur-md text-white flex items-center justify-center z-20 border border-white/20 transition cursor-pointer"
+                                aria-label="Previous Slide"
+                              >
+                                <ChevronLeft className="w-5 h-5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSpotlightSlide(prev => (prev + 1) % sItems.length)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 backdrop-blur-md text-white flex items-center justify-center z-20 border border-white/20 transition cursor-pointer"
+                                aria-label="Next Slide"
+                              >
+                                <ChevronRight className="w-5 h-5" />
+                              </button>
+                              <div className="absolute bottom-5 right-8 flex items-center gap-2 z-20">
+                                {sItems.map((_item: any, dotIdx: number) => (
+                                  <button
+                                    key={dotIdx}
+                                    type="button"
+                                    onClick={() => setSpotlightSlide(dotIdx)}
+                                    className={`h-2 rounded-full transition-all ${dotIdx === activeIdx ? 'w-8 bg-amber-400' : 'w-2 bg-white/40 hover:bg-white/70'}`}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
-                      ))}
+                      )}
+
+                      {/* Grid or Banner Layout (Desktop) */}
+                      {layoutStyle !== 'carousel' && (
+                        <div className={`grid ${layoutStyle === 'banner' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} gap-8 relative z-10`}>
+                          {sItems.map((item: any) => (
+                            <div key={item.id} className="relative rounded-3xl overflow-hidden bg-slate-950/90 border border-amber-500/30 shadow-2xl group flex flex-col justify-between hover:border-amber-400/60 transition duration-500">
+                              <div className="relative h-80 w-full overflow-hidden">
+                                <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title || 'Spotlight'} className="w-full h-full object-cover group-hover:scale-105 transition duration-700 ease-out" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-8">
+                                  {item.badge && (
+                                    <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[11px] font-black px-3.5 py-1 rounded-full uppercase w-max mb-3 shadow-lg border border-amber-200">
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                  {item.subtitle && (
+                                    <p className="text-xs text-amber-300 font-extrabold tracking-wider uppercase">{item.subtitle}</p>
+                                  )}
+                                  <h4 className="font-black text-2xl text-white leading-tight mt-1 drop-shadow-sm">{item.title || 'Featured Spotlight'}</h4>
+                                  <p className="text-slate-300 text-sm line-clamp-2 mt-2 leading-relaxed">{item.description}</p>
+                                  
+                                  <div className="mt-5 pt-4 border-t border-white/20 flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const link = item.buttonLink || '/shop';
+                                        if (link.startsWith('http')) window.open(link, '_blank');
+                                        else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
+                                        else navigate(link);
+                                      }}
+                                      className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-xl flex items-center gap-2 cursor-pointer transform group-hover:translate-x-1"
+                                    >
+                                      <span>{item.buttonText || 'EXPLORE NOW'}</span>
+                                      <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* All Products Section (Responsive Grid: 2-col mobile, 3-col tablet, 4-col PC) */}
                 <div className="max-w-7xl mx-auto px-4 mt-12">
@@ -3211,67 +3811,194 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* NEW LAUNCH SECTION (Desktop) */}
-                {homepageSections.newLaunch?.enabled !== false && (
-                  <div className="max-w-7xl mx-auto px-4 mt-12 p-6 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-3xl border border-emerald-500/30 shadow-xl">
-                    <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
-                      <div>
-                        <h3 className="font-black text-xl text-white flex items-center gap-2">
-                          <span>{homepageSections.newLaunch.title || '⚡ New Launch Collection'}</span>
-                        </h3>
-                        {homepageSections.newLaunch.subtitle && (
-                          <p className="text-xs text-slate-300 mt-1">{homepageSections.newLaunch.subtitle}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleOpenShop()}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5"
-                      >
-                        <span>View All Products</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
+                {/* ======================================================== */}
+                {/* 1. NEW LAUNCH — AVAILABLE NOW (Desktop)                  */}
+                {/* ======================================================== */}
+                {homepageSections?.newLaunch?.availableNow?.enabled !== false && (() => {
+                  const configuredIds = homepageSections?.newLaunch?.availableNow?.productIds || homepageSections?.newLaunch?.productIds || [];
+                  let displayProds = activeProducts.filter(p => p && (p.stock ?? p.stockQuantity ?? 1) > 0);
+                  if (Array.isArray(configuredIds) && configuredIds.length > 0) {
+                    const mapped = configuredIds.map((id: string) => displayProds.find(p => p.id === id)).filter(Boolean) as Product[];
+                    if (mapped.length > 0) displayProds = mapped;
+                  } else {
+                    displayProds = displayProds.filter(p => p.isNewArrival || p.id.startsWith('prod-festive')).slice(0, 8);
+                  }
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {activeProducts
-                        .filter(p => {
-                          const ids = homepageSections.newLaunch.productIds;
-                          if (Array.isArray(ids) && ids.length > 0) return ids.includes(p.id);
-                          return p.isNewArrival || p.id.startsWith('prod-festive');
-                        })
-                        .slice(0, 6)
-                        .map(prod => (
+                  if (displayProds.length === 0) return null;
+
+                  return (
+                    <div className="max-w-7xl mx-auto px-4 mt-12 p-8 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-3xl border border-emerald-500/30 shadow-xl">
+                      <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
+                        <div>
+                          <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-900/60 px-3 py-1 rounded-full mb-1.5">
+                            <Zap className="w-3 h-3" />
+                            <span>READY TO SHIP IN 24 HOURS</span>
+                          </div>
+                          <h3 className="font-black text-2xl text-white flex items-center gap-2">
+                            <span>{homepageSections?.newLaunch?.availableNow?.title || homepageSections?.newLaunch?.title || 'New Launch'}</span>
+                          </h3>
+                          <p className="text-xs text-slate-300 mt-1">
+                            {homepageSections?.newLaunch?.availableNow?.subtitle || homepageSections?.newLaunch?.subtitle || "Discover What's New"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenShop()}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                        >
+                          <span>Explore All New Arrivals</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {displayProds.map((prod) => (
                           <div
                             key={prod.id}
                             onClick={() => handleOpenProduct(prod)}
-                            className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-2xl p-3.5 backdrop-blur-sm cursor-pointer transition flex flex-col justify-between group"
+                            className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-2xl p-3.5 backdrop-blur-sm cursor-pointer transition flex flex-col justify-between group hover:border-emerald-400/50 shadow-sm"
                           >
                             <div>
-                              <div className="relative aspect-square rounded-xl overflow-hidden mb-3 bg-black/40">
-                                <img src={getPrimaryProductImage(prod)} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                                {prod.discountPercentage && (
-                                  <span className="absolute top-2 left-2 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded">
-                                    {prod.discountPercentage}% OFF
+                              <div className="relative aspect-square rounded-xl overflow-hidden mb-3 bg-black/40 flex items-center justify-center">
+                                <img 
+                                  src={getPrimaryProductImage(prod)} 
+                                  alt={prod.name} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                                />
+                                <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                                  <span className="bg-emerald-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-xs">
+                                    NEW
                                   </span>
+                                  {prod.discountPercentage && (
+                                    <span className="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
+                                      {prod.discountPercentage}% OFF
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleWishlist(prod.id); }}
+                                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur text-white flex items-center justify-center z-10 transition"
+                                >
+                                  <Heart className={`w-3.5 h-3.5 ${wishlist.includes(prod.id) ? 'fill-red-500 text-red-500' : 'text-white/80'}`} />
+                                </button>
+                              </div>
+                              <p className="text-[10px] text-[#f5d77f] font-bold uppercase tracking-wider truncate">{prod.brand}</p>
+                              <h4 className="font-bold text-xs text-white line-clamp-1 mt-0.5">{prod.name}</h4>
+                              <p className="text-[10px] text-emerald-300/80 mt-1">
+                                {(prod.stock ?? prod.stockQuantity ?? 10) > 5 ? '● In Stock' : `● Only ${prod.stock ?? prod.stockQuantity ?? 1} items left`}
+                              </p>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-white/10">
+                              <div>
+                                <span className="font-black text-sm text-white">Rs {prod.price.toLocaleString()}</span>
+                                {prod.originalPrice && (
+                                  <span className="text-[10px] text-slate-400 line-through block -mt-0.5">Rs {prod.originalPrice.toLocaleString()}</span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-amber-300 font-bold uppercase truncate">{prod.brand}</p>
-                              <h4 className="font-bold text-xs text-white line-clamp-1 mt-0.5">{prod.name}</h4>
-                            </div>
-                            <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10">
-                              <span className="font-black text-xs text-emerald-400">Rs {prod.price.toLocaleString()}</span>
                               <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); addToCart(prod, prod.variants?.[0]); }}
-                                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[10px] transition"
+                                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
                               >
                                 + Cart
                               </button>
                             </div>
                           </div>
                         ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
+
+                {/* ======================================================== */}
+                {/* 2. LAUNCH SOON — COMING SOON (Desktop)                   */}
+                {/* ======================================================== */}
+                {homepageSections?.newLaunch?.launchSoon?.enabled !== false && Array.isArray(homepageSections?.newLaunch?.launchSoon?.items) && homepageSections.newLaunch.launchSoon.items.filter(Boolean).length > 0 && (() => {
+                  const lsItems = homepageSections.newLaunch.launchSoon.items.filter(Boolean);
+                  if (lsItems.length === 0) return null;
+
+                  return (
+                    <div className="max-w-7xl mx-auto px-4 mt-12 p-8 bg-gradient-to-br from-slate-950 via-[#1c1304] to-slate-900 text-white rounded-3xl border border-amber-500/35 shadow-2xl">
+                      <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
+                        <div>
+                          <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-400 bg-amber-950/70 border border-amber-500/30 px-3.5 py-1 rounded-full mb-2">
+                            <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                            <span>UPCOMING EXCLUSIVE DROPS</span>
+                          </div>
+                          <h3 className="font-black text-2xl text-white flex items-center gap-2">
+                            <span>{homepageSections?.newLaunch?.launchSoon?.title || 'Launch Soon'}</span>
+                          </h3>
+                          <p className="text-xs text-amber-200/80 mt-1">
+                            {homepageSections?.newLaunch?.launchSoon?.subtitle || 'Something Exciting Is Coming'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {lsItems.map((item: any) => (
+                          <div 
+                            key={item.id}
+                            className="bg-white/5 border border-amber-500/20 hover:border-amber-400/50 rounded-3xl p-5 backdrop-blur-sm flex flex-col justify-between gap-4 transition shadow-lg group"
+                          >
+                            <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-black/60">
+                              <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.name || 'Upcoming product'} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent flex flex-col justify-between p-4">
+                                <div className="flex items-center justify-between">
+                                  <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                                    {item.badge || 'COMING SOON'}
+                                  </span>
+                                  {item.showCountdown !== false && item.expectedLaunchDate && (
+                                    <CountdownTimer targetDate={item.expectedLaunchDate} />
+                                  )}
+                                </div>
+                                <div>
+                                  {item.expectedLaunchDate && (
+                                    <p className="text-xs text-amber-300 font-bold flex items-center gap-1.5">
+                                      <Calendar className="w-3.5 h-3.5" />
+                                      <span>Expected Launch: {new Date(item.expectedLaunchDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 className="font-black text-base text-white leading-snug">{item.name || 'Upcoming Exclusive Drop'}</h4>
+                              {item.description && (
+                                <p className="text-xs text-slate-300 line-clamp-2 mt-1.5 leading-relaxed">{item.description}</p>
+                              )}
+                            </div>
+
+                            {/* STRICTLY NO ADD TO CART OR BUY NOW */}
+                            <div className="flex items-center gap-3 pt-3 border-t border-white/10">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNotifyTargetItem(item);
+                                  setIsNotifyModalOpen(true);
+                                }}
+                                className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                              >
+                                <Bell className="w-4 h-4 text-slate-950" />
+                                <span>Notify Me When Launched</span>
+                              </button>
+                              {item.previewSlug && (
+                                <button
+                                  type="button"
+                                  onClick={() => loadProductBySlug(item.previewSlug)}
+                                  className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <span>Preview</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
 
                 {/* Trust Badges */}
@@ -6354,351 +7081,819 @@ export default function App() {
                   )}
 
                   {/* TAB: HOMEPAGE SECTIONS MANAGEMENT (New Launch & Spotlight) */}
+                  {/* TAB: HOMEPAGE SECTIONS MANAGEMENT (New Launch: Available Now, Launch Soon, Spotlight & Live Preview) */}
                   {adminActiveTab === 'homepage-sections' && (
-                    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm mb-8 space-y-8">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
-                        <div>
-                          <h3 className="font-black text-base text-slate-900">Homepage Sections Management (New Launch & Spotlight)</h3>
-                          <p className="text-xs text-slate-500">Enable/disable sections independently, update titles, select products, and manage spotlight promotions permanently.</p>
+                    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm mb-8 space-y-6">
+                      {/* Top Header & Global Actions */}
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 border-b border-slate-100">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/20">
+                            <Layers className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-black text-lg text-slate-900">Homepage Sections Management</h3>
+                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                                Redesigned
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Manage New Launch (Available Now & Launch Soon), Spotlight promotional banners, layout styles, and preview before publishing.
+                            </p>
+                          </div>
                         </div>
+
+                        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                          <button
+                            type="button"
+                            onClick={() => fetchHomepageSections()}
+                            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Reset Changes</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveHomepageSections}
+                            className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Check className="w-4 h-4" />
+                            <span>Save Changes Permanently</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Sub-Navigation Tabs */}
+                      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
                         <button
-                          onClick={handleSaveHomepageSections}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                          type="button"
+                          onClick={() => setAdminSectionSubTab('availableNow')}
+                          className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                            adminSectionSubTab === 'availableNow' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                          }`}
                         >
-                          <Check className="w-4 h-4" />
-                          <span>Save Changes Permanently</span>
+                          <Zap className="w-4 h-4 text-emerald-600" />
+                          <span>1. Available Now</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${homepageSections?.newLaunch?.availableNow?.enabled !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
+                            {homepageSections?.newLaunch?.availableNow?.enabled !== false ? 'ON' : 'OFF'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setAdminSectionSubTab('launchSoon')}
+                          className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                            adminSectionSubTab === 'launchSoon' ? 'bg-white text-amber-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          <Clock className="w-4 h-4 text-amber-600" />
+                          <span>2. Launch Soon</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${homepageSections?.newLaunch?.launchSoon?.enabled !== false ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-500'}`}>
+                            {homepageSections?.newLaunch?.launchSoon?.enabled !== false ? 'ON' : 'OFF'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setAdminSectionSubTab('spotlight')}
+                          className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                            adminSectionSubTab === 'spotlight' ? 'bg-white text-purple-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          <Sparkles className="w-4 h-4 text-amber-500" />
+                          <span>3. Spotlight Section</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${homepageSections?.spotlight?.enabled !== false ? 'bg-purple-100 text-purple-800' : 'bg-slate-200 text-slate-500'}`}>
+                            {homepageSections?.spotlight?.enabled !== false ? 'ON' : 'OFF'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setAdminSectionSubTab('preview')}
+                          className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                            adminSectionSubTab === 'preview' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>Live Preview</span>
                         </button>
                       </div>
 
-                      {/* 1. New Launch Section Settings */}
-                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white ${homepageSections.newLaunch?.enabled !== false ? 'bg-emerald-600' : 'bg-slate-400'}`}>
-                              ⚡
-                            </div>
-                            <div>
-                              <h4 className="font-black text-sm text-slate-900">New Launch Section</h4>
-                              <p className="text-[11px] text-slate-500">Showcase newly arrived products in a responsive banner/row on the homepage.</p>
-                            </div>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={homepageSections.newLaunch?.enabled !== false}
-                              onChange={(e) => setHomepageSections({
-                                ...homepageSections,
-                                newLaunch: { ...homepageSections.newLaunch, enabled: e.target.checked }
-                              })}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                            <span className="ml-2 text-xs font-bold text-slate-700">{homepageSections.newLaunch?.enabled !== false ? 'ACTIVE (ON)' : 'INACTIVE (OFF)'}</span>
-                          </label>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                          <div>
-                            <label className="font-bold text-slate-700 block mb-1">Section Title</label>
-                            <input
-                              type="text"
-                              value={homepageSections.newLaunch?.title || ''}
-                              onChange={(e) => setHomepageSections({
-                                ...homepageSections,
-                                newLaunch: { ...homepageSections.newLaunch, title: e.target.value }
-                              })}
-                              className="w-full bg-white border border-slate-300 rounded-xl p-2.5"
-                            />
-                          </div>
-                          <div>
-                            <label className="font-bold text-slate-700 block mb-1">Section Subtitle / Description</label>
-                            <input
-                              type="text"
-                              value={homepageSections.newLaunch?.subtitle || ''}
-                              onChange={(e) => setHomepageSections({
-                                ...homepageSections,
-                                newLaunch: { ...homepageSections.newLaunch, subtitle: e.target.value }
-                              })}
-                              className="w-full bg-white border border-slate-300 rounded-xl p-2.5"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="font-bold text-xs text-slate-700 block mb-2">Select Products for New Launch (Click to check/uncheck):</label>
-                          <div className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {products.map(p => {
-                              const selectedIds = homepageSections.newLaunch?.productIds || [];
-                              const isSelected = selectedIds.includes(p.id);
-                              return (
-                                <div
-                                  key={p.id}
-                                  onClick={() => {
-                                    const nextIds = isSelected
-                                      ? selectedIds.filter((id: string) => id !== p.id)
-                                      : [...selectedIds, p.id];
+                      {/* ======================================================== */}
+                      {/* SUB-PANEL 1: AVAILABLE NOW (Immediate Purchase)          */}
+                      {/* ======================================================== */}
+                      {adminSectionSubTab === 'availableNow' && (
+                        <div className="space-y-6">
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                              <div>
+                                <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                                  <span>Part A: New Launch — Available Now</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${homepageSections?.newLaunch?.availableNow?.enabled !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                                    {homepageSections?.newLaunch?.availableNow?.enabled !== false ? 'ACTIVE (VISIBLE)' : 'INACTIVE (HIDDEN)'}
+                                  </span>
+                                </h4>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Newly launched products eligible for instant purchase with Add to Cart and direct product detail links.
+                                </p>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={homepageSections?.newLaunch?.availableNow?.enabled !== false}
+                                  onChange={(e) => {
+                                    const nextAN = { ...homepageSections.newLaunch.availableNow, enabled: e.target.checked };
                                     setHomepageSections({
                                       ...homepageSections,
-                                      newLaunch: { ...homepageSections.newLaunch, productIds: nextIds }
+                                      newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, enabled: nextAN.enabled || homepageSections.newLaunch.launchSoon?.enabled }
                                     });
                                   }}
-                                  className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center gap-2.5 ${isSelected ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
-                                >
-                                  <input type="checkbox" checked={isSelected} readOnly className="rounded text-emerald-600" />
-                                  <img src={p.images[0]} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs truncate">{p.name}</p>
-                                    <p className="text-[10px] text-slate-400">Rs {p.price.toLocaleString()}</p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 2. Spotlight Section Settings */}
-                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white ${homepageSections.spotlight?.enabled !== false ? 'bg-amber-600' : 'bg-slate-400'}`}>
-                              🌟
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                <span className="ml-2 text-xs font-bold text-slate-700">Section ON/OFF</span>
+                              </label>
                             </div>
-                            <div>
-                              <h4 className="font-black text-sm text-slate-900">Spotlight Section</h4>
-                              <p className="text-[11px] text-slate-500">Highlight selected products, promotional banners, or featured collections.</p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <label className="font-bold text-slate-700 block mb-1">Section Heading Title</label>
+                                <input
+                                  type="text"
+                                  value={homepageSections?.newLaunch?.availableNow?.title || ''}
+                                  onChange={(e) => {
+                                    const nextAN = { ...homepageSections.newLaunch.availableNow, title: e.target.value };
+                                    setHomepageSections({
+                                      ...homepageSections,
+                                      newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, title: e.target.value }
+                                    });
+                                  }}
+                                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  placeholder="e.g. New Launch"
+                                />
+                              </div>
+                              <div>
+                                <label className="font-bold text-slate-700 block mb-1">Section Subtitle / Description</label>
+                                <input
+                                  type="text"
+                                  value={homepageSections?.newLaunch?.availableNow?.subtitle || ''}
+                                  onChange={(e) => {
+                                    const nextAN = { ...homepageSections.newLaunch.availableNow, subtitle: e.target.value };
+                                    setHomepageSections({
+                                      ...homepageSections,
+                                      newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, subtitle: e.target.value }
+                                    });
+                                  }}
+                                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  placeholder="e.g. Discover What's New"
+                                />
+                              </div>
                             </div>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={homepageSections.spotlight?.enabled !== false}
-                              onChange={(e) => setHomepageSections({
-                                ...homepageSections,
-                                spotlight: { ...homepageSections.spotlight, enabled: e.target.checked }
-                              })}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
-                            <span className="ml-2 text-xs font-bold text-slate-700">{homepageSections.spotlight?.enabled !== false ? 'ACTIVE (ON)' : 'INACTIVE (OFF)'}</span>
-                          </label>
-                        </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                          <div>
-                            <label className="font-bold text-slate-700 block mb-1">Section Title</label>
-                            <input
-                              type="text"
-                              value={homepageSections.spotlight?.title || ''}
-                              onChange={(e) => setHomepageSections({
-                                ...homepageSections,
-                                spotlight: { ...homepageSections.spotlight, title: e.target.value }
-                              })}
-                              className="w-full bg-white border border-slate-300 rounded-xl p-2.5"
-                            />
-                          </div>
-                          <div>
-                            <label className="font-bold text-slate-700 block mb-1">Section Subtitle / Description</label>
-                            <input
-                              type="text"
-                              value={homepageSections.spotlight?.subtitle || ''}
-                              onChange={(e) => setHomepageSections({
-                                ...homepageSections,
-                                spotlight: { ...homepageSections.spotlight, subtitle: e.target.value }
-                              })}
-                              className="w-full bg-white border border-slate-300 rounded-xl p-2.5"
-                            />
-                          </div>
-                        </div>
+                          {/* Selected Products Ordered List */}
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-black text-sm text-slate-900">Configured Products Order ({homepageSections?.newLaunch?.availableNow?.productIds?.length || 0})</h4>
+                                <p className="text-xs text-slate-500">Reorder using Up/Down buttons or remove items from the New Launch section.</p>
+                              </div>
+                            </div>
 
-                        {/* Spotlight Items Management */}
-                        <div className="pt-2">
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-bold text-xs text-slate-800 uppercase tracking-wider">Spotlight Promotional Banners/Items</h5>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newItem = {
-                                  id: `spot-${Date.now()}`,
-                                  title: 'New Spotlight Promotion',
-                                  subtitle: 'Special Highlight',
-                                  description: 'Enter description of this spotlight promotion...',
-                                  image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
-                                  buttonText: 'EXPLORE NOW',
-                                  buttonLink: '/shop',
-                                  layoutType: 'banner',
-                                  badge: 'FEATURED'
-                                };
-                                const items = [...(homepageSections.spotlight?.items || []), newItem];
-                                setHomepageSections({
-                                  ...homepageSections,
-                                  spotlight: { ...homepageSections.spotlight, items }
-                                });
-                              }}
-                              className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-xs"
-                            >
-                              <Plus className="w-3.5 h-3.5" /> Add Spotlight Item
-                            </button>
-                          </div>
-
-                          <div className="space-y-4">
-                            {((homepageSections.spotlight?.items) || []).map((item: any, sIdx: number) => (
-                              <div key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
-                                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                                  <span className="font-bold text-xs text-slate-800">Spotlight Item #{sIdx + 1} ({item.title})</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const items = (homepageSections.spotlight?.items || []).filter((_: any, idx: number) => idx !== sIdx);
-                                      setHomepageSections({
-                                        ...homepageSections,
-                                        spotlight: { ...homepageSections.spotlight, items }
-                                      });
-                                    }}
-                                    className="text-red-600 hover:text-red-700 text-xs font-bold flex items-center gap-1 bg-red-50 px-2.5 py-1 rounded-lg"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" /> Remove
-                                  </button>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                  <div>
-                                    <label className="font-bold text-slate-700 block mb-1">Title</label>
-                                    <input
-                                      type="text"
-                                      value={item.title || ''}
-                                      onChange={(e) => {
-                                        const items = [...homepageSections.spotlight.items];
-                                        items[sIdx] = { ...items[sIdx], title: e.target.value };
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="font-bold text-slate-700 block mb-1">Subtitle</label>
-                                    <input
-                                      type="text"
-                                      value={item.subtitle || ''}
-                                      onChange={(e) => {
-                                        const items = [...homepageSections.spotlight.items];
-                                        items[sIdx] = { ...items[sIdx], subtitle: e.target.value };
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="font-bold text-slate-700 block mb-1">Badge</label>
-                                    <input
-                                      type="text"
-                                      value={item.badge || ''}
-                                      onChange={(e) => {
-                                        const items = [...homepageSections.spotlight.items];
-                                        items[sIdx] = { ...items[sIdx], badge: e.target.value };
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                  <div>
-                                    <label className="font-bold text-slate-700 block mb-1">Button Text</label>
-                                    <input
-                                      type="text"
-                                      value={item.buttonText || ''}
-                                      onChange={(e) => {
-                                        const items = [...homepageSections.spotlight.items];
-                                        items[sIdx] = { ...items[sIdx], buttonText: e.target.value };
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2"
-                                    />
-                                  </div>
-                                  <div className="sm:col-span-2">
-                                    <label className="font-bold text-slate-700 block mb-1">Destination URL / Link (e.g. /shop, /product/slug, /category/slug)</label>
-                                    <input
-                                      type="text"
-                                      value={item.buttonLink || ''}
-                                      onChange={(e) => {
-                                        const items = [...homepageSections.spotlight.items];
-                                        items[sIdx] = { ...items[sIdx], buttonLink: e.target.value };
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-mono text-xs"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                                  <div>
-                                    <label className="font-bold text-slate-700 block mb-1">Spotlight Picture / Banner</label>
-                                    <div className="space-y-2">
-                                      <div className="flex items-center gap-2">
-                                        <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition">
-                                          <Upload className="w-3.5 h-3.5" />
-                                          <span>Upload Picture</span>
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                              const file = e.target.files?.[0];
-                                              if (file) {
-                                                const reader = new FileReader();
-                                                reader.onload = (ev) => {
-                                                  const base64 = ev.target?.result as string;
-                                                  const items = [...homepageSections.spotlight.items];
-                                                  items[sIdx] = { ...items[sIdx], image: base64 };
-                                                  setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                                  showToast('✓ Spotlight picture uploaded!');
-                                                };
-                                                reader.readAsDataURL(file);
-                                              }
-                                            }}
-                                          />
-                                        </label>
-                                        <span className="text-[11px] text-slate-400">or enter URL below:</span>
+                            <div className="space-y-2">
+                              {((homepageSections?.newLaunch?.availableNow?.productIds || []).map((prodId: string, idx: number) => {
+                                const prod = products.find(p => p.id === prodId);
+                                if (!prod) return null;
+                                return (
+                                  <div key={prodId} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 shadow-xs">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">
+                                        #{idx + 1}
+                                      </span>
+                                      <img src={prod.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-900 truncate">{prod.name}</p>
+                                        <p className="text-[11px] text-slate-500">Rs {prod.price.toLocaleString()} • Stock: {prod.stock ?? prod.stockQuantity ?? 10}</p>
                                       </div>
-                                      <input
-                                        type="text"
-                                        placeholder="https://... or data:image/..."
-                                        value={item.image || ''}
-                                        onChange={(e) => {
-                                          const items = [...homepageSections.spotlight.items];
-                                          items[sIdx] = { ...items[sIdx], image: e.target.value };
-                                          setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        disabled={idx === 0}
+                                        onClick={() => {
+                                          const next = [...(homepageSections.newLaunch.availableNow.productIds || [])];
+                                          const tmp = next[idx - 1];
+                                          next[idx - 1] = next[idx];
+                                          next[idx] = tmp;
+                                          const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: next };
+                                          setHomepageSections({ ...homepageSections, newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: next } });
                                         }}
-                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-mono text-xs"
-                                      />
-                                      {item.image && (
-                                        <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-200 mt-1 shadow-xs">
-                                          <img src={item.image} alt="Preview" className="w-full h-full object-cover" />
-                                        </div>
-                                      )}
+                                        className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
+                                        title="Move Up"
+                                      >
+                                        <ArrowUp className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={idx === (homepageSections.newLaunch.availableNow.productIds?.length || 0) - 1}
+                                        onClick={() => {
+                                          const next = [...(homepageSections.newLaunch.availableNow.productIds || [])];
+                                          const tmp = next[idx + 1];
+                                          next[idx + 1] = next[idx];
+                                          next[idx] = tmp;
+                                          const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: next };
+                                          setHomepageSections({ ...homepageSections, newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: next } });
+                                        }}
+                                        className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
+                                        title="Move Down"
+                                      >
+                                        <ArrowDown className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const next = (homepageSections.newLaunch.availableNow.productIds || []).filter((id: string) => id !== prodId);
+                                          const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: next };
+                                          setHomepageSections({ ...homepageSections, newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: next } });
+                                        }}
+                                        className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 ml-1"
+                                        title="Remove"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
                                     </div>
                                   </div>
-                                  <div>
-                                    <label className="font-bold text-slate-700 block mb-1">Description</label>
-                                    <input
-                                      type="text"
-                                      value={item.description || ''}
-                                      onChange={(e) => {
-                                        const items = [...homepageSections.spotlight.items];
-                                        items[sIdx] = { ...items[sIdx], description: e.target.value };
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items } });
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2"
-                                    />
-                                  </div>
-                                </div>
+                                );
+                              }))}
+                            </div>
+                          </div>
+
+                          {/* Product Selector with Search */}
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                              <div>
+                                <h4 className="font-black text-sm text-slate-900">Add Products from Store Database</h4>
+                                <p className="text-xs text-slate-500">Search and click to add or remove products from Available Now.</p>
                               </div>
-                            ))}
+                              <input
+                                type="text"
+                                placeholder="Search by product name or SKU..."
+                                value={availableNowSearchQuery}
+                                onChange={(e) => setAvailableNowSearchQuery(e.target.value)}
+                                className="w-full sm:w-64 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
+                            </div>
+
+                            <div className="max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                              {products
+                                .filter(p => !availableNowSearchQuery || p.name.toLowerCase().includes(availableNowSearchQuery.toLowerCase()) || p.sku?.toLowerCase().includes(availableNowSearchQuery.toLowerCase()))
+                                .map(p => {
+                                  const selectedIds = homepageSections?.newLaunch?.availableNow?.productIds || [];
+                                  const isSelected = selectedIds.includes(p.id);
+                                  return (
+                                    <div
+                                      key={p.id}
+                                      onClick={() => {
+                                        const nextIds = isSelected
+                                          ? selectedIds.filter((id: string) => id !== p.id)
+                                          : [...selectedIds, p.id];
+                                        const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: nextIds };
+                                        setHomepageSections({
+                                          ...homepageSections,
+                                          newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: nextIds }
+                                        });
+                                      }}
+                                      className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center gap-2.5 ${isSelected ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold' : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'}`}
+                                    >
+                                      <input type="checkbox" checked={isSelected} readOnly className="rounded text-emerald-600" />
+                                      <img src={p.images[0]} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-xs truncate">{p.name}</p>
+                                        <p className="text-[10px] text-slate-400">Rs {p.price.toLocaleString()} • {(p.stock ?? p.stockQuantity ?? 10) > 0 ? `${p.stock ?? p.stockQuantity ?? 10} in stock` : 'Out of stock'}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
+
+                      {/* ======================================================== */}
+                      {/* SUB-PANEL 2: LAUNCH SOON (Upcoming Teaser Drops)        */}
+                      {/* ======================================================== */}
+                      {adminSectionSubTab === 'launchSoon' && (
+                        <div className="space-y-6">
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                              <div>
+                                <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                                  <span>Part B: Launch Soon — Coming Soon Exclusives</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${homepageSections?.newLaunch?.launchSoon?.enabled !== false ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}`}>
+                                    {homepageSections?.newLaunch?.launchSoon?.enabled !== false ? 'ACTIVE (VISIBLE)' : 'INACTIVE (HIDDEN)'}
+                                  </span>
+                                </h4>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Tease future product drops with live countdown timers, COMING SOON badges, and VIP waitlist notifications.
+                                </p>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={homepageSections?.newLaunch?.launchSoon?.enabled !== false}
+                                  onChange={(e) => {
+                                    const nextLS = { ...homepageSections.newLaunch.launchSoon, enabled: e.target.checked };
+                                    setHomepageSections({
+                                      ...homepageSections,
+                                      newLaunch: { ...homepageSections.newLaunch, launchSoon: nextLS, enabled: homepageSections.newLaunch.availableNow?.enabled || nextLS.enabled }
+                                    });
+                                  }}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                                <span className="ml-2 text-xs font-bold text-slate-700">Section ON/OFF</span>
+                              </label>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <label className="font-bold text-slate-700 block mb-1">Section Heading Title</label>
+                                <input
+                                  type="text"
+                                  value={homepageSections?.newLaunch?.launchSoon?.title || ''}
+                                  onChange={(e) => {
+                                    const nextLS = { ...homepageSections.newLaunch.launchSoon, title: e.target.value };
+                                    setHomepageSections({
+                                      ...homepageSections,
+                                      newLaunch: { ...homepageSections.newLaunch, launchSoon: nextLS }
+                                    });
+                                  }}
+                                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500 outline-none"
+                                  placeholder="e.g. Launch Soon"
+                                />
+                              </div>
+                              <div>
+                                <label className="font-bold text-slate-700 block mb-1">Section Subtitle / Description</label>
+                                <input
+                                  type="text"
+                                  value={homepageSections?.newLaunch?.launchSoon?.subtitle || ''}
+                                  onChange={(e) => {
+                                    const nextLS = { ...homepageSections.newLaunch.launchSoon, subtitle: e.target.value };
+                                    setHomepageSections({
+                                      ...homepageSections,
+                                      newLaunch: { ...homepageSections.newLaunch, launchSoon: nextLS }
+                                    });
+                                  }}
+                                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500 outline-none"
+                                  placeholder="e.g. Something Exciting Is Coming"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Launch Soon Items List */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-black text-sm text-slate-900">Upcoming Items ({homepageSections?.newLaunch?.launchSoon?.items?.length || 0})</h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingLaunchSoonItem({
+                                    id: `launch-soon-${Date.now()}`,
+                                    name: '',
+                                    description: '',
+                                    image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80',
+                                    badge: 'COMING SOON',
+                                    expectedLaunchDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
+                                    showCountdown: true,
+                                    previewSlug: ''
+                                  });
+                                  setIsLaunchSoonModalOpen(true);
+                                }}
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add Coming Soon Drop</span>
+                              </button>
+                            </div>
+
+                            <div className="space-y-3">
+                              {((homepageSections?.newLaunch?.launchSoon?.items || []).map((item: any, idx: number) => (
+                                <div key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                  <div className="flex items-start gap-3.5 min-w-0">
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-black/60 shrink-0 border border-slate-200">
+                                      <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="bg-amber-100 text-amber-900 text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase">
+                                          {item.badge || 'COMING SOON'}
+                                        </span>
+                                        {item.expectedLaunchDate && (
+                                          <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            {new Date(item.expectedLaunchDate).toLocaleDateString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <h5 className="font-bold text-sm text-slate-900 leading-snug">{item.name}</h5>
+                                      <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{item.description}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                                    {/* 1-Click Move to Available Now */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveLaunchSoonToAvailable(item.id, item.name)}
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
+                                      title="Launch now: move this item into Available Now"
+                                    >
+                                      <Zap className="w-3.5 h-3.5" />
+                                      <span>Move to Available Now</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingLaunchSoonItem({ ...item });
+                                        setIsLaunchSoonModalOpen(true);
+                                      }}
+                                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Edit className="w-3.5 h-3.5" />
+                                      <span>Edit</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={() => {
+                                        const next = [...(homepageSections.newLaunch.launchSoon.items || [])];
+                                        const tmp = next[idx - 1];
+                                        next[idx - 1] = next[idx];
+                                        next[idx] = tmp;
+                                        setHomepageSections({
+                                          ...homepageSections,
+                                          newLaunch: { ...homepageSections.newLaunch, launchSoon: { ...homepageSections.newLaunch.launchSoon, items: next } }
+                                        });
+                                      }}
+                                      className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
+                                      title="Move Up"
+                                    >
+                                      <ArrowUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={idx === (homepageSections.newLaunch.launchSoon.items?.length || 0) - 1}
+                                      onClick={() => {
+                                        const next = [...(homepageSections.newLaunch.launchSoon.items || [])];
+                                        const tmp = next[idx + 1];
+                                        next[idx + 1] = next[idx];
+                                        next[idx] = tmp;
+                                        setHomepageSections({
+                                          ...homepageSections,
+                                          newLaunch: { ...homepageSections.newLaunch, launchSoon: { ...homepageSections.newLaunch.launchSoon, items: next } }
+                                        });
+                                      }}
+                                      className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
+                                      title="Move Down"
+                                    >
+                                      <ArrowDown className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const next = (homepageSections.newLaunch.launchSoon.items || []).filter((_: any, i: number) => i !== idx);
+                                        setHomepageSections({
+                                          ...homepageSections,
+                                          newLaunch: { ...homepageSections.newLaunch, launchSoon: { ...homepageSections.newLaunch.launchSoon, items: next } }
+                                        });
+                                      }}
+                                      className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ======================================================== */}
+                      {/* SUB-PANEL 3: SPOTLIGHT SECTION                           */}
+                      {/* ======================================================== */}
+                      {adminSectionSubTab === 'spotlight' && (
+                        <div className="space-y-6">
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                              <div>
+                                <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                                  <span>Spotlight & Featured Collections</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${homepageSections?.spotlight?.enabled !== false ? 'bg-purple-100 text-purple-800' : 'bg-slate-200 text-slate-600'}`}>
+                                    {homepageSections?.spotlight?.enabled !== false ? 'ACTIVE (VISIBLE)' : 'INACTIVE (HIDDEN)'}
+                                  </span>
+                                </h4>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Highlight exclusive hero banners, curated collections, and flagship promotions across mobile and desktop.
+                                </p>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={homepageSections?.spotlight?.enabled !== false}
+                                  onChange={(e) => setHomepageSections({
+                                    ...homepageSections,
+                                    spotlight: { ...homepageSections.spotlight, enabled: e.target.checked }
+                                  })}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                <span className="ml-2 text-xs font-bold text-slate-700">Section ON/OFF</span>
+                              </label>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                              <div>
+                                <label className="font-bold text-slate-700 block mb-1">Section Heading Title</label>
+                                <input
+                                  type="text"
+                                  value={homepageSections?.spotlight?.title || ''}
+                                  onChange={(e) => setHomepageSections({
+                                    ...homepageSections,
+                                    spotlight: { ...homepageSections.spotlight, title: e.target.value }
+                                  })}
+                                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500 outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="font-bold text-slate-700 block mb-1">Section Subtitle / Description</label>
+                                <input
+                                  type="text"
+                                  value={homepageSections?.spotlight?.subtitle || ''}
+                                  onChange={(e) => setHomepageSections({
+                                    ...homepageSections,
+                                    spotlight: { ...homepageSections.spotlight, subtitle: e.target.value }
+                                  })}
+                                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500 outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="font-bold text-slate-700 block mb-1">Layout Style Display</label>
+                                <select
+                                  value={homepageSections?.spotlight?.layoutStyle || 'carousel'}
+                                  onChange={(e) => setHomepageSections({
+                                    ...homepageSections,
+                                    spotlight: { ...homepageSections.spotlight, layoutStyle: e.target.value }
+                                  })}
+                                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-bold text-slate-800"
+                                >
+                                  <option value="carousel">Interactive Carousel (Swipeable with Dots)</option>
+                                  <option value="banner">Full-Width Showcase Banner</option>
+                                  <option value="grid">Responsive Multi-Card Grid</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Spotlight Items List */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-black text-sm text-slate-900">Configured Spotlight Items ({homepageSections?.spotlight?.items?.length || 0})</h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingSpotlightItem({
+                                    id: `spot-${Date.now()}`,
+                                    title: '',
+                                    subtitle: '',
+                                    description: '',
+                                    image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
+                                    buttonText: 'SHOP NOW',
+                                    buttonLink: '/shop',
+                                    layoutType: 'banner',
+                                    badge: 'FEATURED',
+                                    price: 2999,
+                                    originalPrice: 4500
+                                  });
+                                  setIsSpotlightModalOpen(true);
+                                }}
+                                className="bg-purple-700 hover:bg-purple-800 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add Spotlight Item</span>
+                              </button>
+                            </div>
+
+                            <div className="space-y-3">
+                              {((homepageSections?.spotlight?.items || []).map((item: any, sIdx: number) => (
+                                <div key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                  <div className="flex items-start gap-3.5 min-w-0">
+                                    <div className="w-20 h-16 rounded-xl overflow-hidden bg-slate-950 shrink-0 border border-slate-200">
+                                      <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="bg-amber-100 text-amber-900 text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase">
+                                          {item.badge || 'SPOTLIGHT'}
+                                        </span>
+                                        {item.price && (
+                                          <span className="text-[11px] font-bold text-emerald-700">
+                                            Rs {item.price.toLocaleString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <h5 className="font-bold text-sm text-slate-900 leading-snug">{item.title || 'Untitled Spotlight'}</h5>
+                                      <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{item.description}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingSpotlightItem({ ...item });
+                                        setIsSpotlightModalOpen(true);
+                                      }}
+                                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Edit className="w-3.5 h-3.5" />
+                                      <span>Edit</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={sIdx === 0}
+                                      onClick={() => {
+                                        const next = [...(homepageSections.spotlight.items || [])];
+                                        const tmp = next[sIdx - 1];
+                                        next[sIdx - 1] = next[sIdx];
+                                        next[sIdx] = tmp;
+                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items: next } });
+                                      }}
+                                      className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
+                                      title="Move Up"
+                                    >
+                                      <ArrowUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={sIdx === (homepageSections.spotlight.items?.length || 0) - 1}
+                                      onClick={() => {
+                                        const next = [...(homepageSections.spotlight.items || [])];
+                                        const tmp = next[sIdx + 1];
+                                        next[sIdx + 1] = next[sIdx];
+                                        next[sIdx] = tmp;
+                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items: next } });
+                                      }}
+                                      className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
+                                      title="Move Down"
+                                    >
+                                      <ArrowDown className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const next = (homepageSections.spotlight.items || []).filter((_: any, i: number) => i !== sIdx);
+                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items: next } });
+                                      }}
+                                      className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ======================================================== */}
+                      {/* SUB-PANEL 4: LIVE PREVIEW (Android Mobile vs Desktop)    */}
+                      {/* ======================================================== */}
+                      {adminSectionSubTab === 'preview' && (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                            <div>
+                              <h4 className="font-black text-sm text-slate-900">Interactive Storefront Preview</h4>
+                              <p className="text-xs text-slate-500">Preview exactly how customers will see your sections before saving changes.</p>
+                            </div>
+                            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                              <button
+                                type="button"
+                                onClick={() => setAdminPreviewDevice('mobile')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                  adminPreviewDevice === 'mobile' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                                }`}
+                              >
+                                <span>📱 Mobile (Android)</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAdminPreviewDevice('desktop')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                  adminPreviewDevice === 'desktop' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                                }`}
+                              >
+                                <span>💻 Desktop View</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className={`mx-auto bg-slate-100 p-4 rounded-3xl border border-slate-300 overflow-hidden ${
+                            adminPreviewDevice === 'mobile' ? 'max-w-[400px] shadow-2xl' : 'w-full shadow-md'
+                          }`}>
+                            <div className="bg-slate-950 text-white text-[11px] font-mono px-4 py-1.5 rounded-t-2xl flex items-center justify-between border-b border-white/10">
+                              <span>ATAL Store Live Preview</span>
+                              <span>{adminPreviewDevice === 'mobile' ? '375 × 812 (Android)' : '1280 × 800 (Desktop)'}</span>
+                            </div>
+
+                            <div className="bg-white p-4 space-y-6 max-h-[600px] overflow-y-auto rounded-b-2xl">
+                              {/* Preview: Spotlight */}
+                              {homepageSections?.spotlight?.enabled !== false && (
+                                <div className="p-4 bg-gradient-to-br from-slate-950 via-[#062419] to-amber-950 text-white rounded-2xl border border-amber-500/30">
+                                  <div className="text-center mb-3">
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-amber-300">FEATURED SPOTLIGHT</span>
+                                    <h5 className="font-black text-sm text-white mt-0.5">{homepageSections?.spotlight?.title || 'ATAL Spotlight'}</h5>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {(homepageSections?.spotlight?.items || []).slice(0, 1).map((item: any) => (
+                                      <div key={item.id} className="relative rounded-xl overflow-hidden aspect-[16/9] bg-black/60">
+                                        <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt="" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent p-3 flex flex-col justify-end">
+                                          <span className="bg-amber-400 text-slate-950 text-[8px] font-black px-2 py-0.5 rounded w-max">{item.badge}</span>
+                                          <p className="text-xs font-bold text-white mt-1">{item.title}</p>
+                                          <button type="button" className="mt-2 bg-amber-400 text-slate-950 font-bold px-3 py-1 rounded-lg text-[10px] w-max">
+                                            {item.buttonText || 'Shop Now'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Preview: Available Now */}
+                              {homepageSections?.newLaunch?.availableNow?.enabled !== false && (
+                                <div className="p-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-2xl border border-emerald-500/30">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                      <span className="text-[9px] font-black uppercase text-emerald-400">READY TO SHIP</span>
+                                      <h5 className="font-black text-sm text-white">{homepageSections?.newLaunch?.availableNow?.title || 'New Launch'}</h5>
+                                    </div>
+                                    <span className="text-[10px] text-emerald-400 font-bold">View All →</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {((homepageSections?.newLaunch?.availableNow?.productIds || []).slice(0, 2)).map((pId: string) => {
+                                      const p = products.find(x => x.id === pId);
+                                      if (!p) return null;
+                                      return (
+                                        <div key={pId} className="bg-white/10 rounded-xl p-2">
+                                          <img src={p.images[0]} alt="" className="w-full aspect-square object-cover rounded-lg mb-1" />
+                                          <p className="text-[10px] font-bold text-white truncate">{p.name}</p>
+                                          <p className="text-[10px] text-emerald-400 font-black">Rs {p.price.toLocaleString()}</p>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Preview: Launch Soon */}
+                              {homepageSections?.newLaunch?.launchSoon?.enabled !== false && (
+                                <div className="p-4 bg-gradient-to-br from-slate-950 via-[#1c1304] to-slate-900 text-white rounded-2xl border border-amber-500/35">
+                                  <div className="mb-3">
+                                    <span className="text-[9px] font-black uppercase text-amber-400">UPCOMING EXCLUSIVES</span>
+                                    <h5 className="font-black text-sm text-white">{homepageSections?.newLaunch?.launchSoon?.title || 'Launch Soon'}</h5>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {(homepageSections?.newLaunch?.launchSoon?.items || []).slice(0, 1).map((item: any) => (
+                                      <div key={item.id} className="bg-white/5 border border-amber-500/20 rounded-xl p-2.5">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded">{item.badge}</span>
+                                          {item.expectedLaunchDate && <CountdownTimer targetDate={item.expectedLaunchDate} />}
+                                        </div>
+                                        <p className="text-xs font-bold text-white mt-1">{item.name}</p>
+                                        <button type="button" className="mt-2 w-full bg-amber-500 text-slate-950 font-bold py-1.5 rounded-lg text-[10px]">
+                                          🔔 Notify Me When Launched
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -9443,6 +10638,485 @@ export default function App() {
           </div>
         )}
 
+        {/* VIP NOTIFY ME MODAL (LAUNCH SOON DROPS) */}
+        {isNotifyModalOpen && notifyTargetItem && (
+          <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                    <Bell className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-slate-900">VIP Launch Waitlist</h3>
+                    <p className="text-[11px] text-slate-500">Get early drop alert when this item arrives</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNotifyModalOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Item Card Teaser */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3 mb-4">
+                <img 
+                  src={notifyTargetItem.image || DEFAULT_PRODUCT_IMAGE} 
+                  alt="" 
+                  className="w-12 h-12 rounded-xl object-cover bg-black/40 shrink-0" 
+                />
+                <div className="min-w-0">
+                  <span className="bg-amber-100 text-amber-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                    {notifyTargetItem.badge || 'COMING SOON'}
+                  </span>
+                  <p className="text-xs font-bold text-slate-900 truncate mt-0.5">{notifyTargetItem.name}</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleRegisterLaunchNotification} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Your Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="Enter your name"
+                    value={notifyCustomerName}
+                    onChange={(e) => setNotifyCustomerName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Email Address (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="name@example.com"
+                    value={notifyEmail}
+                    onChange={(e) => setNotifyEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">WhatsApp Number (Optional)</label>
+                  <input
+                    type="tel"
+                    placeholder="03001234567"
+                    value={notifyWhatsapp}
+                    onChange={(e) => setNotifyWhatsapp(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-start gap-2 pt-1 text-[11px] text-slate-500">
+                  <input type="checkbox" defaultChecked required className="rounded text-emerald-600 mt-0.5" />
+                  <span>I agree to receive a direct WhatsApp / Email notification as soon as this product drops.</span>
+                </div>
+
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsNotifyModalOpen(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingNotify}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-slate-950 font-black py-2.5 rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>{isSubmittingNotify ? 'Joining...' : 'Join VIP Waitlist'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ADMIN MODAL: ADD / EDIT LAUNCH SOON ITEM */}
+        {isLaunchSoonModalOpen && editingLaunchSoonItem && (
+          <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                    <Clock className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-slate-900">
+                      {editingLaunchSoonItem.id && (homepageSections?.newLaunch?.launchSoon?.items || []).some((it: any) => it.id === editingLaunchSoonItem.id) ? 'Edit Coming Soon Drop' : 'Add New Coming Soon Drop'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Configure upcoming drop details, image, launch countdown timer</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsLaunchSoonModalOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const currentItems = [...(homepageSections?.newLaunch?.launchSoon?.items || [])];
+                  const existingIdx = currentItems.findIndex((it: any) => it.id === editingLaunchSoonItem.id);
+                  if (existingIdx >= 0) {
+                    currentItems[existingIdx] = editingLaunchSoonItem;
+                  } else {
+                    currentItems.push(editingLaunchSoonItem);
+                  }
+                  setHomepageSections({
+                    ...homepageSections,
+                    newLaunch: {
+                      ...homepageSections.newLaunch,
+                      launchSoon: {
+                        ...homepageSections.newLaunch.launchSoon,
+                        items: currentItems
+                      }
+                    }
+                  });
+                  setIsLaunchSoonModalOpen(false);
+                  showToast('✓ Launch Soon drop saved to configuration!');
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Product Drop Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. ATAL 24K Royal Velvet Couture Suite"
+                    value={editingLaunchSoonItem.name || ''}
+                    onChange={(e) => setEditingLaunchSoonItem({ ...editingLaunchSoonItem, name: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Kicker Badge</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. COMING SOON, EXCLUSIVE TEASER"
+                      value={editingLaunchSoonItem.badge || ''}
+                      onChange={(e) => setEditingLaunchSoonItem({ ...editingLaunchSoonItem, badge: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Expected Launch Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={editingLaunchSoonItem.expectedLaunchDate ? editingLaunchSoonItem.expectedLaunchDate.slice(0, 16) : ''}
+                      onChange={(e) => setEditingLaunchSoonItem({ ...editingLaunchSoonItem, expectedLaunchDate: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Picture / Banner</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Picture File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const base64 = ev.target?.result as string;
+                                setEditingLaunchSoonItem({ ...editingLaunchSoonItem, image: base64 });
+                                showToast('✓ Picture uploaded!');
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      <span className="text-slate-400 text-[11px]">or enter URL:</span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="https://... or /assets/..."
+                      value={editingLaunchSoonItem.image || ''}
+                      onChange={(e) => setEditingLaunchSoonItem({ ...editingLaunchSoonItem, image: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    {editingLaunchSoonItem.image && (
+                      <div className="relative w-28 h-16 rounded-xl overflow-hidden border border-slate-200 mt-1">
+                        <img src={editingLaunchSoonItem.image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Short Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Enter short description highlighting fabric, craftsmanship, or features..."
+                    value={editingLaunchSoonItem.description || ''}
+                    onChange={(e) => setEditingLaunchSoonItem({ ...editingLaunchSoonItem, description: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 items-center">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={editingLaunchSoonItem.showCountdown !== false}
+                      onChange={(e) => setEditingLaunchSoonItem({ ...editingLaunchSoonItem, showCountdown: e.target.checked })}
+                      className="rounded text-amber-600"
+                    />
+                    <span>Show Live Countdown Timer</span>
+                  </label>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-0.5">Preview Slug (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. atal-luxury-pret"
+                      value={editingLaunchSoonItem.previewSlug || ''}
+                      onChange={(e) => setEditingLaunchSoonItem({ ...editingLaunchSoonItem, previewSlug: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 outline-none font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsLaunchSoonModalOpen(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition cursor-pointer"
+                  >
+                    Save Coming Soon Drop
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ADMIN MODAL: ADD / EDIT SPOTLIGHT ITEM */}
+        {isSpotlightModalOpen && editingSpotlightItem && (
+          <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-slate-900">
+                      {editingSpotlightItem.id && (homepageSections?.spotlight?.items || []).some((it: any) => it.id === editingSpotlightItem.id) ? 'Edit Spotlight Item' : 'Add Spotlight Item'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Configure promotional highlight banner, image, CTA button and destination</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSpotlightModalOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const currentItems = [...(homepageSections?.spotlight?.items || [])];
+                  const existingIdx = currentItems.findIndex((it: any) => it.id === editingSpotlightItem.id);
+                  if (existingIdx >= 0) {
+                    currentItems[existingIdx] = editingSpotlightItem;
+                  } else {
+                    currentItems.push(editingSpotlightItem);
+                  }
+                  setHomepageSections({
+                    ...homepageSections,
+                    spotlight: {
+                      ...homepageSections.spotlight,
+                      items: currentItems
+                    }
+                  });
+                  setIsSpotlightModalOpen(false);
+                  showToast('✓ Spotlight item saved to configuration!');
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Headline Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. ATAL 3D Signature Luxury Bag"
+                    value={editingSpotlightItem.title || ''}
+                    onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, title: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Subtitle</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Emerald Green & 24K Gold"
+                      value={editingSpotlightItem.subtitle || ''}
+                      onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, subtitle: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Kicker Badge</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. LIMITED EDITION, BEST SELLER"
+                      value={editingSpotlightItem.badge || ''}
+                      onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, badge: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Picture / Promotional Banner *</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Picture File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const base64 = ev.target?.result as string;
+                                setEditingSpotlightItem({ ...editingSpotlightItem, image: base64 });
+                                showToast('✓ Picture uploaded!');
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      <span className="text-slate-400 text-[11px]">or enter URL:</span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="https://... or /assets/..."
+                      value={editingSpotlightItem.image || ''}
+                      onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, image: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    {editingSpotlightItem.image && (
+                      <div className="relative w-28 h-16 rounded-xl overflow-hidden border border-slate-200 mt-1">
+                        <img src={editingSpotlightItem.image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Enter short promotional description..."
+                    value={editingSpotlightItem.description || ''}
+                    onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, description: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">CTA Button Text</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. EXPLORE NOW, SHOP BAG"
+                      value={editingSpotlightItem.buttonText || ''}
+                      onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, buttonText: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Destination URL / Link</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. /shop, /product/slug, /category/slug"
+                      value={editingSpotlightItem.buttonLink || ''}
+                      onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, buttonLink: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Featured Price (PKR)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 3950"
+                      value={editingSpotlightItem.price || ''}
+                      onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, price: Number(e.target.value) })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Original Price (PKR)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 5490"
+                      value={editingSpotlightItem.originalPrice || ''}
+                      onChange={(e) => setEditingSpotlightItem({ ...editingSpotlightItem, originalPrice: Number(e.target.value) })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsSpotlightModalOpen(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-purple-700 hover:bg-purple-800 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition cursor-pointer"
+                  >
+                    Save Spotlight Item
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* SAFE IN-APP CONFIRMATION MODAL */}
         {confirmDialog.isOpen && (
           <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -9452,7 +11126,7 @@ export default function App() {
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-slate-900">{confirmDialog.title}</h3>
+                  <h3 className="font-black text-sm text-slate-900">{confirmDialog?.title || 'Confirmation'}</h3>
                   <p className="text-[11px] text-slate-500">Please confirm this action</p>
                 </div>
               </div>

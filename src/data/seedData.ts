@@ -36,6 +36,8 @@ export interface Product {
   images: string[];
   variants: ProductVariant[];
   stock: number;
+  stockQuantity?: number;
+  sku?: string;
   isFeatured?: boolean;
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
