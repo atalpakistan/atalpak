@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
+import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -2112,7 +2113,76 @@ export async function createServer() {
     return results;
   }
 
-  // Universal parser for JSON, CSV, wrappers, BOM, and code fences
+  // ZIP archive extractor using Node zlib to read stored and deflated files without external dependencies
+  function extractZipFiles(buffer: Buffer): { filename: string; content: string }[] {
+    const files: { filename: string; content: string }[] = [];
+    let offset = 0;
+    while (offset < buffer.length - 30) {
+      if (buffer[offset] === 0x50 && buffer[offset + 1] === 0x4b && buffer[offset + 2] === 0x03 && buffer[offset + 3] === 0x04) {
+        const compressionMethod = buffer.readUInt16LE(offset + 8);
+        const compressedSize = buffer.readUInt32LE(offset + 18);
+        const fileNameLen = buffer.readUInt16LE(offset + 26);
+        const extraLen = buffer.readUInt16LE(offset + 28);
+        
+        const fileName = buffer.toString('utf-8', offset + 30, offset + 30 + fileNameLen);
+        const dataStart = offset + 30 + fileNameLen + extraLen;
+        const compressedData = buffer.subarray(dataStart, dataStart + compressedSize);
+        
+        let decompressed: Buffer | null = null;
+        if (compressionMethod === 0) {
+          decompressed = compressedData;
+        } else if (compressionMethod === 8) {
+          try {
+            decompressed = zlib.inflateRawSync(compressedData);
+          } catch (e) {
+            console.error(`Failed to inflate zip entry ${fileName}:`, e);
+          }
+        }
+        
+        if (decompressed) {
+          files.push({
+            filename: fileName,
+            content: decompressed.toString('utf-8')
+          });
+        }
+        
+        offset = dataStart + compressedSize;
+      } else {
+        offset++;
+      }
+    }
+    return files;
+  }
+
+  function isCategoryObject(obj: any): boolean {
+    if (!obj || typeof obj !== 'object') return false;
+    if (obj.price !== undefined || obj.variants !== undefined || obj.subcategoryId !== undefined) {
+      return false;
+    }
+    if (obj.subcategories !== undefined || obj.parentId !== undefined || obj.parentCategoryId !== undefined) {
+      return true;
+    }
+    if (typeof obj.id === 'string' && (obj.id.startsWith('cat-') || obj.id.startsWith('category-'))) {
+      return true;
+    }
+    if (obj.name && obj.slug && obj.categoryId === undefined) {
+      return true;
+    }
+    return false;
+  }
+
+  function isProductObject(obj: any): boolean {
+    if (!obj || typeof obj !== 'object') return false;
+    if (obj.price !== undefined || obj.variants !== undefined || obj.subcategoryId !== undefined || obj.sku !== undefined) {
+      return true;
+    }
+    if (obj.categoryId !== undefined && (obj.price !== undefined || obj.name !== undefined)) {
+      return true;
+    }
+    return false;
+  }
+
+  // Universal parser for JSON, CSV, ZIP archives, wrappers, BOM, and code fences
   function parseUniversalImportPayload(
     rawContent: any,
     formatHint?: string,
@@ -2127,16 +2197,49 @@ export async function createServer() {
       orders?: any[];
       customers?: any[];
     };
-    inferredFormat: 'json' | 'csv';
+    inferredFormat: 'json' | 'csv' | 'zip';
     error?: string;
   } {
     let target = directData;
+    let inferredFormatResult: 'json' | 'csv' | 'zip' = 'json';
 
-    // 1. If string is passed (either rawContent or csv)
+    // 0. Handle ZIP payload (Base64 data URL or Buffer)
     if ((!target || (typeof target === 'object' && Object.keys(target).length === 0)) && typeof rawContent === 'string' && rawContent.trim()) {
       let str = rawContent.trim();
 
-      // Check for base64 data URL
+      // Check for ZIP signature or Base64 ZIP
+      if (str.startsWith('data:application/zip') || str.startsWith('data:application/x-zip-compressed') || str.startsWith('data:application/octet-stream') || formatHint === 'zip') {
+        inferredFormatResult = 'zip';
+        const commaIdx = str.indexOf(',');
+        const body = commaIdx !== -1 ? str.substring(commaIdx + 1) : str;
+        try {
+          const zipBuffer = Buffer.from(body, 'base64');
+          const extractedFiles = extractZipFiles(zipBuffer);
+          if (extractedFiles.length > 0) {
+            const mergedData: any = { products: [], categories: [], carouselSlides: [], orders: [], customers: [] };
+            for (const fileItem of extractedFiles) {
+              const res = parseUniversalImportPayload(fileItem.content, fileItem.filename.endsWith('.csv') ? 'csv' : 'json');
+              if (res.success && res.data) {
+                if (res.data.products) mergedData.products.push(...res.data.products);
+                if (res.data.categories) mergedData.categories.push(...res.data.categories);
+                if (res.data.carouselSlides) mergedData.carouselSlides.push(...res.data.carouselSlides);
+                if (res.data.orders) mergedData.orders.push(...res.data.orders);
+                if (res.data.customers) mergedData.customers.push(...res.data.customers);
+                if (res.data.storeSettings) mergedData.storeSettings = { ...mergedData.storeSettings, ...res.data.storeSettings };
+              }
+            }
+            return {
+              success: true,
+              data: mergedData,
+              inferredFormat: 'zip'
+            };
+          }
+        } catch (e: any) {
+          console.error('Failed to parse zip archive:', e);
+        }
+      }
+
+      // Check standard base64 data URL
       if (str.startsWith('data:')) {
         const commaIdx = str.indexOf(',');
         if (commaIdx !== -1) {
@@ -2184,6 +2287,7 @@ export async function createServer() {
 
         if (parsedJson !== null) {
           target = parsedJson;
+          inferredFormatResult = 'json';
         } else if (looksLikeJson) {
           return {
             success: false,
@@ -2198,6 +2302,7 @@ export async function createServer() {
       if (!target) {
         const rows = parseCsvUniversal(str);
         if (rows.length > 0) {
+          inferredFormatResult = 'csv';
           const firstRow = rows[0];
           const normMap: Record<string, string> = {};
           Object.keys(firstRow).forEach(k => {
@@ -2215,12 +2320,47 @@ export async function createServer() {
             return '';
           };
 
+          const rawHeaders = Object.keys(firstRow).map(h => normalizeKey(h));
+          const isCategoryCsv = (rawHeaders.includes('parentid') || rawHeaders.includes('subcategories') || rawHeaders.includes('categoryname')) &&
+            !rawHeaders.includes('pricepkr') && !rawHeaders.includes('price') && !rawHeaders.includes('sku');
+
           const hasProductName = Boolean(getVal(firstRow, 'Product Name', 'name', 'product_name', 'Title', 'Product Title', 'Product', 'Item'));
           const hasPrice = Boolean(getVal(firstRow, 'Price (PKR)', 'price', 'Unit Price', 'Price'));
           const hasCategoryName = Boolean(getVal(firstRow, 'Category Name', 'category_name', 'Category Title'));
           const hasSubcategories = Boolean(getVal(firstRow, 'Subcategories', 'subcategories', 'Sub Categories'));
 
-          if (hasProductName || hasPrice) {
+          if (isCategoryCsv || (hasCategoryName && !hasPrice && !hasProductName)) {
+            const parsedCats = rows.map((r, idx) => {
+              const cName = getVal(r, 'Category Name', 'name', 'category_name', 'Category Title', 'Title') || 'New Category';
+              const cId = getVal(r, 'Category ID', 'id', 'categoryId') || `cat-csv-${Date.now()}-${idx}`;
+              const cSlug = getVal(r, 'Slug', 'slug') || cName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+              const parentId = getVal(r, 'Parent ID', 'parentId', 'parent_id', 'Parent Category ID');
+              const subcatsStr = getVal(r, 'Subcategories', 'subcategories') || '';
+              const subcats = subcatsStr ? subcatsStr.split(/[;,|]/).map((s: string) => s.trim()).filter(Boolean) : [];
+              const cDesc = getVal(r, 'Description', 'description') || '';
+              const cImg = getVal(r, 'Image URL', 'image', 'Image', 'Category Image') || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80';
+              const statusVal = getVal(r, 'Status (On/Off)', 'Status', 'status', 'isActive', 'Active', 'On/Off');
+              const isActive = parseActiveBoolean(statusVal);
+
+              return {
+                id: cId,
+                name: cName,
+                slug: cSlug,
+                parentId: parentId || undefined,
+                subcategories: subcats,
+                description: cDesc,
+                image: cImg,
+                isActive,
+                status: isActive ? 'active' : 'inactive'
+              };
+            });
+
+            return {
+              success: true,
+              data: { categories: parsedCats },
+              inferredFormat: 'csv'
+            };
+          } else if (hasProductName || hasPrice) {
             const parsedProds = rows.map((r, idx) => {
               const pName = getVal(r, 'Product Name', 'name', 'Title', 'Product Title', 'Product') || 'Unnamed Product';
               const pId = getVal(r, 'Product ID', 'id', 'ProductID') || `prod-csv-${Date.now()}-${idx}`;
@@ -2263,35 +2403,6 @@ export async function createServer() {
               data: { products: parsedProds },
               inferredFormat: 'csv'
             };
-          } else if (hasCategoryName || hasSubcategories) {
-            const parsedCats = rows.map((r, idx) => {
-              const cName = getVal(r, 'Category Name', 'name', 'category_name') || 'New Category';
-              const cId = getVal(r, 'Category ID', 'id', 'categoryId') || `cat-csv-${Date.now()}-${idx}`;
-              const cSlug = getVal(r, 'Slug', 'slug') || cName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-              const subcatsStr = getVal(r, 'Subcategories', 'subcategories') || '';
-              const subcats = subcatsStr ? subcatsStr.split(/[;,]/).map((s: string) => s.trim()).filter(Boolean) : [];
-              const cDesc = getVal(r, 'Description', 'description') || '';
-              const cImg = getVal(r, 'Image URL', 'image', 'Image') || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80';
-              const statusVal = getVal(r, 'Status (On/Off)', 'Status', 'status', 'isActive', 'Active', 'On/Off');
-              const isActive = parseActiveBoolean(statusVal);
-
-              return {
-                id: cId,
-                name: cName,
-                slug: cSlug,
-                subcategories: subcats,
-                description: cDesc,
-                image: cImg,
-                isActive,
-                status: isActive ? 'active' : 'inactive'
-              };
-            });
-
-            return {
-              success: true,
-              data: { categories: parsedCats },
-              inferredFormat: 'csv'
-            };
           }
         }
       }
@@ -2301,8 +2412,8 @@ export async function createServer() {
       return {
         success: false,
         data: {},
-        inferredFormat: 'json',
-        error: 'Empty or unreadable import file. Please check file format.'
+        inferredFormat: inferredFormatResult,
+        error: 'Empty or unreadable import file format.'
       };
     }
 
@@ -2338,10 +2449,10 @@ export async function createServer() {
     if (Array.isArray(target)) {
       if (target.length > 0) {
         const first = target[0];
-        if (first && (first.price !== undefined || first.categoryId !== undefined || first.variants !== undefined)) {
-          normalizedData.products = target;
-        } else if (first && (first.subcategories !== undefined || (typeof first.id === 'string' && first.id.startsWith('cat-')) || (first.name && first.image && !first.price))) {
+        if (isCategoryObject(first)) {
           normalizedData.categories = target;
+        } else if (isProductObject(first)) {
+          normalizedData.products = target;
         } else if (first && (first.badge !== undefined || first.buttonText !== undefined)) {
           normalizedData.carouselSlides = target;
         } else if (first && (first.orderNumber !== undefined || first.trackingNumber !== undefined)) {
@@ -2349,16 +2460,24 @@ export async function createServer() {
         } else if (first && (first.whatsapp !== undefined && first.email !== undefined && !first.price)) {
           normalizedData.customers = target;
         } else {
-          normalizedData.products = target;
+          // Fallback check
+          const hasAnyPrice = target.some((i: any) => i && i.price !== undefined);
+          if (!hasAnyPrice && target.some((i: any) => i && i.name)) {
+            normalizedData.categories = target;
+          } else {
+            normalizedData.products = target;
+          }
         }
       }
     } else if (typeof target === 'object') {
+      if (Array.isArray(target.categories)) normalizedData.categories = target.categories;
+      else if (Array.isArray(target.cats)) normalizedData.categories = target.cats;
+      else if (target.type === 'categories' && Array.isArray(target.data)) normalizedData.categories = target.data;
+
       if (Array.isArray(target.products)) normalizedData.products = target.products;
       else if (Array.isArray(target.items)) normalizedData.products = target.items;
       else if (Array.isArray(target.catalog)) normalizedData.products = target.catalog;
-
-      if (Array.isArray(target.categories)) normalizedData.categories = target.categories;
-      else if (Array.isArray(target.cats)) normalizedData.categories = target.cats;
+      else if (target.type === 'products' && Array.isArray(target.data)) normalizedData.products = target.data;
 
       if (Array.isArray(target.carouselSlides)) normalizedData.carouselSlides = target.carouselSlides;
       else if (Array.isArray(target.carousel)) normalizedData.carouselSlides = target.carousel;
@@ -2384,7 +2503,7 @@ export async function createServer() {
       return {
         success: false,
         data: {},
-        inferredFormat: 'json',
+        inferredFormat: inferredFormatResult,
         error: 'No recognizable products, categories, or store data found in the import file.'
       };
     }
@@ -2392,7 +2511,7 @@ export async function createServer() {
     return {
       success: true,
       data: normalizedData,
-      inferredFormat: 'json'
+      inferredFormat: inferredFormatResult
     };
   }
 
@@ -2821,11 +2940,19 @@ export async function createServer() {
         customers: { added: 0, updated: 0, skipped: 0, total: 0 }
       };
 
-      // 1. Process Categories
+      // 1. Process Categories (Preserve parent-child hierarchy & order)
       if (Array.isArray(inCats)) {
-        stats.categories.total = inCats.length;
+        const sortedCats = [...inCats].sort((a, b) => {
+          const aHasParent = Boolean(a.parentId || a.parentCategoryId);
+          const bHasParent = Boolean(b.parentId || b.parentCategoryId);
+          if (!aHasParent && bHasParent) return -1;
+          if (aHasParent && !bHasParent) return 1;
+          return 0;
+        });
+
+        stats.categories.total = sortedCats.length;
         if (mode === 'full_restore') {
-          categories = inCats.map((cat: any) => {
+          categories = sortedCats.map((cat: any) => {
             const isAct = cat.isActive !== undefined ? parseActiveBoolean(cat.isActive) : true;
             return {
               ...cat,
@@ -2833,9 +2960,9 @@ export async function createServer() {
               status: isAct ? 'active' : 'inactive'
             };
           });
-          stats.categories.updated = inCats.length;
+          stats.categories.updated = sortedCats.length;
         } else {
-          inCats.forEach((cat: any) => {
+          sortedCats.forEach((cat: any) => {
             const isAct = cat.isActive !== undefined ? parseActiveBoolean(cat.isActive) : true;
             const normalizedCat = {
               ...cat,

@@ -535,7 +535,7 @@ export default function App() {
 
   const [importSelectedFile, setImportSelectedFile] = useState<File | null>(null);
   const [importFileRawText, setImportFileRawText] = useState<string>('');
-  const [importFileFormat, setImportFileFormat] = useState<'json' | 'csv'>('json');
+  const [importFileFormat, setImportFileFormat] = useState<'json' | 'csv' | 'zip'>('json');
   const [importValidation, setImportValidation] = useState<any | null>(null);
   const [isValidatingImport, setIsValidatingImport] = useState(false);
   const [importMode, setImportMode] = useState<'update_existing' | 'add_new' | 'full_restore'>('update_existing');
@@ -1748,15 +1748,18 @@ export default function App() {
     setImportReport(null);
     setImportValidation(null);
 
+    const isZip = file.name.toLowerCase().endsWith('.zip');
     const isCsv = file.name.toLowerCase().endsWith('.csv');
-    const format = isCsv ? 'csv' : 'json';
+    const format = isZip ? 'zip' : (isCsv ? 'csv' : 'json');
     setImportFileFormat(format);
 
     const reader = new FileReader();
     reader.onload = async (ev) => {
       let text = (ev.target?.result as string) || '';
-      // Strip UTF-8 BOM from files saved in Windows Notepad or Excel
-      text = text.replace(/^\uFEFF/, '').trim();
+      if (!isZip) {
+        // Strip UTF-8 BOM from files saved in Windows Notepad or Excel
+        text = text.replace(/^\uFEFF/, '').trim();
+      }
       setImportFileRawText(text);
 
       // Validate instantly with server
@@ -1781,7 +1784,12 @@ export default function App() {
         setIsValidatingImport(false);
       }
     };
-    reader.readAsText(file);
+
+    if (isZip) {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file);
+    }
   };
 
   const executeImportPayload = async () => {
@@ -7092,9 +7100,9 @@ export default function App() {
                                 <Upload className="w-5 h-5" />
                               </div>
                               <div>
-                                <h4 className="font-bold text-base text-slate-900">Upload Backup File (.json or .csv)</h4>
+                                <h4 className="font-bold text-base text-slate-900">Upload Backup File (.json, .csv, or .zip)</h4>
                                 <p className="text-xs text-slate-500">
-                                  Select an ATAL JSON backup or CSV spreadsheet. The system will pre-validate integrity and preview changes before modifying data.
+                                  Select an ATAL JSON backup, CSV spreadsheet, or ZIP backup archive. The system will pre-validate integrity and preview changes before modifying data.
                                 </p>
                               </div>
                             </div>
@@ -7105,12 +7113,12 @@ export default function App() {
                                   <FileSpreadsheet className="w-6 h-6" />
                                 </div>
                                 <div>
-                                  <p className="font-bold text-sm text-slate-800">Choose a JSON or CSV file to import</p>
-                                  <p className="text-xs text-slate-400 mt-0.5">Supports ATAL full database JSON, products CSV, categories CSV, orders CSV, etc.</p>
+                                  <p className="font-bold text-sm text-slate-800">Choose a JSON, CSV, or ZIP backup file to import</p>
+                                  <p className="text-xs text-slate-400 mt-0.5">Supports ATAL full database JSON, products CSV, categories CSV, ZIP archives, orders CSV, etc.</p>
                                 </div>
                                 <input
                                   type="file"
-                                  accept=".json,.csv"
+                                  accept=".json,.csv,.zip"
                                   onChange={handleFileSelectedForImport}
                                   className="w-full text-xs file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
                                 />
