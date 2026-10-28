@@ -2967,9 +2967,9 @@ export default function App() {
                         {/* Image Box */}
                         <div className="relative aspect-square w-full bg-[#062419] overflow-hidden flex items-center justify-center">
                           <img 
-                            src={prod.images[0]} 
+                            src={getPrimaryProductImage(prod)} 
                             alt={prod.name}
-                            className={`w-full h-full ${prod.images[0].includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
+                            className={`w-full h-full ${getPrimaryProductImage(prod).includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
                           />
                           {/* Badges */}
                           <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
@@ -3216,9 +3216,9 @@ export default function App() {
                       >
                         <div className="relative aspect-square w-full bg-[#062419] overflow-hidden flex items-center justify-center">
                           <img 
-                            src={prod.images[0]} 
+                            src={getPrimaryProductImage(prod)} 
                             alt={prod.name}
-                            className={`w-full h-full ${prod.images[0].includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
+                            className={`w-full h-full ${getPrimaryProductImage(prod).includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
                           />
                           <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
                             {prod.discountPercentage && (
@@ -3615,9 +3615,9 @@ export default function App() {
 
                         <div className="w-full h-48 rounded-xl overflow-hidden mb-3 bg-[#062419] flex items-center justify-center">
                           <img 
-                            src={prod.images[0]} 
+                            src={getPrimaryProductImage(prod)} 
                             alt={prod.name} 
-                            className={`w-full h-full ${prod.images[0].includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
+                            className={`w-full h-full ${getPrimaryProductImage(prod).includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
                           />
                         </div>
 
@@ -3842,9 +3842,9 @@ export default function App() {
 
                         <div className="w-full h-44 rounded-xl overflow-hidden mb-3 bg-[#062419] flex items-center justify-center">
                           <img 
-                            src={prod.images[0]} 
+                            src={getPrimaryProductImage(prod)} 
                             alt={prod.name} 
-                            className={`w-full h-full ${prod.images[0].includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
+                            className={`w-full h-full ${getPrimaryProductImage(prod).includes('WhatsApp') ? 'object-contain p-2' : 'object-cover'} group-hover:scale-105 transition duration-300`} 
                           />
                         </div>
 
@@ -4227,7 +4227,7 @@ export default function App() {
                           </span>
                         )}
                         <div className="w-full h-36 sm:h-52 rounded-xl overflow-hidden mb-2 sm:mb-3 bg-slate-100 flex items-center justify-center">
-                          <img src={prod.images[0]} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                          <img src={getPrimaryProductImage(prod)} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                         </div>
                         <div>
                           <p className="text-[9.5px] sm:text-[11px] text-emerald-600 font-semibold mb-0.5 sm:mb-1 uppercase truncate">{prod.brand}</p>
@@ -4436,7 +4436,7 @@ export default function App() {
                           >
                             <div className="w-full aspect-square rounded-lg overflow-hidden bg-[#062419] flex items-center justify-center mb-1.5">
                               <img 
-                                src={related.images[0]} 
+                                src={getPrimaryProductImage(related)} 
                                 alt={related.name}
                                 className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
                               />
@@ -6662,7 +6662,7 @@ export default function App() {
                             {products.map(prod => (
                               <tr key={prod.id} className="border-b border-slate-100 hover:bg-slate-50">
                                 <td className="p-3">
-                                  <img src={prod.images[0]} alt="" className="w-12 h-12 rounded-lg object-cover bg-slate-100" />
+                                  <img src={getPrimaryProductImage(prod)} alt="" className="w-12 h-12 rounded-lg object-cover bg-slate-100" />
                                 </td>
                                 <td className="p-3 font-bold text-slate-900">{prod.name}</td>
                                 <td className="p-3 font-semibold text-emerald-600">{prod.brand}</td>
@@ -6687,9 +6687,9 @@ export default function App() {
                                         price: prod.price,
                                         originalPrice: prod.originalPrice || prod.price,
                                         stock: prod.stock,
-                                        imageUrl1: prod.images[0] || '',
-                                        imageUrl2: prod.images[1] || prod.images[0] || '',
-                                        imageUrl3: prod.images[2] || prod.images[0] || '',
+                                        imageUrl1: getPrimaryProductImage(prod),
+                                        imageUrl2: prod.images?.[1] || getPrimaryProductImage(prod),
+                                        imageUrl3: prod.images?.[2] || getPrimaryProductImage(prod),
                                         colorsString: existingColors || 'Black, Navy Blue, Maroon, White',
                                         sizesString: existingSizes || 'S, M, L, XL',
                                         isFlashDeal: !!prod.isFlashDeal,
@@ -7355,7 +7355,7 @@ export default function App() {
                                       <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">
                                         #{idx + 1}
                                       </span>
-                                      <img src={prod.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                      <img src={getPrimaryProductImage(prod)} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                                       <div className="min-w-0">
                                         <p className="text-xs font-bold text-slate-900 truncate">{prod.name}</p>
                                         <p className="text-[11px] text-slate-500">Rs {prod.price.toLocaleString()} • Stock: {prod.stock ?? prod.stockQuantity ?? 10}</p>
@@ -10127,7 +10127,7 @@ export default function App() {
                     return (
                       <div key={prod.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200 hover:shadow-xs transition">
                         <img 
-                          src={prod.images[0]} 
+                          src={getPrimaryProductImage(prod)} 
                           alt={prod.name} 
                           className="w-14 h-14 rounded-xl object-cover bg-white shrink-0 border border-slate-100" 
                         />
@@ -10224,7 +10224,7 @@ export default function App() {
                 ) : (
                   cart.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                      <img src={item.product?.images[0]} alt="" className="w-16 h-16 rounded-xl object-cover bg-white" />
+                      <img src={getPrimaryProductImage(item.product)} alt="" className="w-16 h-16 rounded-xl object-cover bg-white" />
                       <div className="flex-1">
                         <h4 className="font-bold text-xs text-slate-900 line-clamp-1">{item.product?.name}</h4>
                         <p className="text-[11px] text-slate-500 mb-1">{item.selectedVariant?.name || 'Standard'}</p>
