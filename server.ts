@@ -2440,35 +2440,50 @@ export async function createServer() {
           normalizedData.products = container;
           backupType = 'products';
         }
+      } else {
+        normalizedData.products = [];
       }
     } else if (typeof container === 'object' && container !== null) {
       if (Array.isArray(container.categories)) normalizedData.categories = container.categories;
       else if (Array.isArray(container.cats)) normalizedData.categories = container.cats;
+      else if ('categories' in container) normalizedData.categories = Array.isArray(container.categories) ? container.categories : [];
 
       if (Array.isArray(container.products)) normalizedData.products = container.products;
       else if (Array.isArray(container.items)) normalizedData.products = container.items;
       else if (Array.isArray(container.catalog)) normalizedData.products = container.catalog;
+      else if ('products' in container) normalizedData.products = Array.isArray(container.products) ? container.products : [];
 
       if (Array.isArray(container.carousel)) normalizedData.carouselSlides = container.carousel;
       else if (Array.isArray(container.carouselSlides)) normalizedData.carouselSlides = container.carouselSlides;
       else if (Array.isArray(container.slides)) normalizedData.carouselSlides = container.slides;
+      else if ('carousel' in container || 'carouselSlides' in container) normalizedData.carouselSlides = Array.isArray(container.carousel || container.carouselSlides) ? (container.carousel || container.carouselSlides) : [];
 
       if (container.settings && typeof container.settings === 'object') normalizedData.storeSettings = container.settings;
       else if (container.storeSettings && typeof container.storeSettings === 'object') normalizedData.storeSettings = container.storeSettings;
+      else if ('settings' in container || 'storeSettings' in container) normalizedData.storeSettings = container.settings || container.storeSettings || {};
 
       if (container.homepageSections && typeof container.homepageSections === 'object') normalizedData.homepageSections = container.homepageSections;
+      else if ('homepageSections' in container) normalizedData.homepageSections = container.homepageSections || {};
 
       if (Array.isArray(container.orders)) normalizedData.orders = container.orders;
+      else if ('orders' in container) normalizedData.orders = [];
+
       if (Array.isArray(container.customers)) normalizedData.customers = container.customers;
+      else if ('customers' in container) normalizedData.customers = [];
     }
 
     const hasAny = Boolean(
-      (normalizedData.products && normalizedData.products.length > 0) ||
-      (normalizedData.categories && normalizedData.categories.length > 0) ||
-      (normalizedData.carouselSlides && normalizedData.carouselSlides.length > 0) ||
-      normalizedData.storeSettings ||
-      normalizedData.homepageSections ||
-      (normalizedData.orders && normalizedData.orders.length > 0)
+      normalizedData.products !== undefined ||
+      normalizedData.categories !== undefined ||
+      normalizedData.carouselSlides !== undefined ||
+      normalizedData.storeSettings !== undefined ||
+      normalizedData.homepageSections !== undefined ||
+      normalizedData.orders !== undefined ||
+      normalizedData.customers !== undefined ||
+      (container && typeof container === 'object' && Object.keys(container).length > 0) ||
+      Array.isArray(container) ||
+      Array.isArray(target) ||
+      (target && typeof target === 'object' && Object.keys(target).length > 0)
     );
 
     if (!hasAny) {
