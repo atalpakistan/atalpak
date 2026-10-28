@@ -1,0 +1,114 @@
+{
+  "newLaunch": {
+    "enabled": true,
+    "title": "New Launch",
+    "subtitle": "Discover What's New",
+    "productIds": [
+      "prod-festive-1",
+      "prod-festive-2",
+      "prod-1",
+      "prod-2",
+      "prod-3",
+      "prod-4"
+    ],
+    "availableNow": {
+      "enabled": true,
+      "title": "New Launch",
+      "subtitle": "Discover What's New",
+      "productIds": [
+        "prod-festive-1",
+        "prod-festive-2",
+        "prod-1",
+        "prod-2",
+        "prod-3",
+        "prod-4"
+      ]
+    },
+    "launchSoon": {
+      "enabled": true,
+      "title": "Launch Soon",
+      "subtitle": "Something Exciting Is Coming",
+      "items": [
+        {
+          "id": "launch-soon-1",
+          "productId": "prod-festive-1",
+          "name": "ATAL 24K Royal Velvet Couture Suite",
+          "description": "Ultra-exclusive winter bridal & festive pret ensemble hand-woven with pure metallic tilla and velvet dupatta.",
+          "image": "/assets/atal_festive_pret_1792525761752.jpg",
+          "badge": "COMING SOON",
+          "expectedLaunchDate": "2026-11-20T18:00:00",
+          "showCountdown": true,
+          "previewSlug": "atal-luxury-festive-pret-couture",
+          "displayOrder": 1
+        },
+        {
+          "id": "launch-soon-2",
+          "name": "ATAL Audio AeroBeats Pro Wireless Headphones",
+          "description": "Flagship hybrid active noise cancelling over-ear headphones with 60-hour playback and spatial audio.",
+          "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80",
+          "badge": "EXCLUSIVE TEASER",
+          "expectedLaunchDate": "2026-11-28T12:00:00",
+          "showCountdown": true,
+          "displayOrder": 2
+        },
+        {
+          "id": "launch-soon-3",
+          "name": "ATAL Botanicals Pure Organic Saffron Night Elixir",
+          "description": "Hand-picked Kashmiri saffron blended with Moroccan argan oil for intense nocturnal skin renewal.",
+          "image": "https://images.unsplash.com/photo-1608248597359-2e094770220c?auto=format&fit=crop&w=800&q=80",
+          "badge": "LIMITED PRE-DROP",
+          "expectedLaunchDate": "2026-12-05T00:00:00",
+          "showCountdown": true,
+          "displayOrder": 3
+        }
+      ]
+    }
+  },
+  "spotlight": {
+    "enabled": true,
+    "title": "🌟 ATAL Spotlight & Featured Collections",
+    "subtitle": "Handpicked seasonal highlights, exclusive offers, and signature collections",
+    "layoutStyle": "carousel",
+    "items": [
+      {
+        "id": "spot-1",
+        "title": "ATAL 3D Signature Luxury Bag",
+        "subtitle": "Emerald Green & 24K Gold Hardware",
+        "description": "Iconic architectural designer bag crafted with precision and elegance for modern trendsetters across Pakistan.",
+        "image": "/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg",
+        "buttonText": "SHOP LUXURY BAG",
+        "buttonLink": "/product/atal-signature-3d-luxury-collection",
+        "layoutType": "banner",
+        "badge": "LIMITED EDITION",
+        "price": 3950,
+        "originalPrice": 5490
+      },
+      {
+        "id": "spot-2",
+        "title": "ATAL Luxury Festive Pret Couture",
+        "subtitle": "Heritage Embroidered Velvet & Raw Silk",
+        "description": "Hand-embroidered zardozi details, pure organza dupatta, and deep emerald silhouette designed for weddings.",
+        "image": "/assets/atal_festive_pret_1792525761752.jpg",
+        "buttonText": "EXPLORE PRET",
+        "buttonLink": "/product/atal-luxury-festive-pret-couture",
+        "layoutType": "banner",
+        "badge": "FESTIVE COUTURE",
+        "price": 4890,
+        "originalPrice": 6800
+      },
+      {
+        "id": "spot-3",
+        "title": "ATAL Royal Oud Oriental Fragrance",
+        "subtitle": "24-Hour Long Lasting Cambodian Oud",
+        "description": "Warm amber, smoky cedarwood, and pure Cambodian oud blended into exquisite crystal glass bottles.",
+        "image": "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80",
+        "buttonText": "DISCOVER SCENTS",
+        "buttonLink": "/category/cosmetics-perfume",
+        "layoutType": "card",
+        "badge": "BEST SELLER",
+        "price": 2499,
+        "originalPrice": 4500
+      }
+    ]
+  }
+}

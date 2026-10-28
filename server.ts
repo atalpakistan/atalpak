@@ -2470,6 +2470,26 @@ export async function createServer() {
 
       if (Array.isArray(container.customers)) normalizedData.customers = container.customers;
       else if ('customers' in container) normalizedData.customers = [];
+
+      // Infer backupType if not explicitly provided
+      if (!target.backupType) {
+        const hasCats = normalizedData.categories !== undefined;
+        const hasProds = normalizedData.products !== undefined;
+        const hasCarousel = normalizedData.carouselSlides !== undefined;
+        const hasSettings = normalizedData.storeSettings !== undefined;
+
+        if (hasCats && !hasProds && !hasCarousel && !hasSettings) {
+          backupType = 'categories';
+        } else if (hasProds && !hasCats && !hasCarousel && !hasSettings) {
+          backupType = 'products';
+        } else if (hasCarousel && !hasCats && !hasProds && !hasSettings) {
+          backupType = 'carousel';
+        } else if (hasSettings && !hasCats && !hasProds && !hasCarousel) {
+          backupType = 'settings';
+        } else {
+          backupType = 'full';
+        }
+      }
     }
 
     const hasAny = Boolean(
@@ -2491,6 +2511,36 @@ export async function createServer() {
         success: false,
         error: 'Missing required data collections. The JSON backup does not contain recognizable categories, products, carousel, or store settings.',
         errors: ['Missing required data collections. The JSON backup does not contain recognizable categories, products, carousel, or store settings.']
+      };
+    }
+
+    // Type-specific required collection validation
+    if (backupType === 'categories' && normalizedData.categories === undefined) {
+      return {
+        success: false,
+        error: 'Category backup file must contain a "categories" collection.',
+        errors: ['Category backup file must contain a "categories" collection.']
+      };
+    }
+    if (backupType === 'products' && normalizedData.products === undefined) {
+      return {
+        success: false,
+        error: 'Product backup file must contain a "products" collection.',
+        errors: ['Product backup file must contain a "products" collection.']
+      };
+    }
+    if (backupType === 'carousel' && normalizedData.carouselSlides === undefined) {
+      return {
+        success: false,
+        error: 'Carousel backup file must contain a "carousel" collection.',
+        errors: ['Carousel backup file must contain a "carousel" collection.']
+      };
+    }
+    if (backupType === 'settings' && normalizedData.storeSettings === undefined) {
+      return {
+        success: false,
+        error: 'Settings backup file must contain a "settings" collection.',
+        errors: ['Settings backup file must contain a "settings" collection.']
       };
     }
 
@@ -2775,11 +2825,12 @@ export async function createServer() {
       const type = ((req.query.type as string) || 'all').toLowerCase();
       const dateStr = new Date().toISOString().split('T')[0];
 
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      let exportPayload: any = null;
+      let filename = `atal-store-backup-${dateStr}.json`;
 
       if (type === 'categories') {
-        res.setHeader('Content-Disposition', `attachment; filename=atal-categories-backup-${dateStr}.json`);
-        return res.json({
+        filename = `atal-categories-backup-${dateStr}.json`;
+        exportPayload = {
           appName: 'ATAL Store',
           backupType: 'categories',
           schemaVersion: 1,
@@ -2787,12 +2838,10 @@ export async function createServer() {
           data: {
             categories
           }
-        });
-      }
-
-      if (type === 'products') {
-        res.setHeader('Content-Disposition', `attachment; filename=atal-products-backup-${dateStr}.json`);
-        return res.json({
+        };
+      } else if (type === 'products') {
+        filename = `atal-products-backup-${dateStr}.json`;
+        exportPayload = {
           appName: 'ATAL Store',
           backupType: 'products',
           schemaVersion: 1,
@@ -2800,12 +2849,10 @@ export async function createServer() {
           data: {
             products
           }
-        });
-      }
-
-      if (type === 'carousel') {
-        res.setHeader('Content-Disposition', `attachment; filename=atal-carousel-backup-${dateStr}.json`);
-        return res.json({
+        };
+      } else if (type === 'carousel') {
+        filename = `atal-carousel-backup-${dateStr}.json`;
+        exportPayload = {
           appName: 'ATAL Store',
           backupType: 'carousel',
           schemaVersion: 1,
@@ -2813,12 +2860,10 @@ export async function createServer() {
           data: {
             carousel: carouselSlides
           }
-        });
-      }
-
-      if (type === 'settings') {
-        res.setHeader('Content-Disposition', `attachment; filename=atal-settings-backup-${dateStr}.json`);
-        return res.json({
+        };
+      } else if (type === 'settings') {
+        filename = `atal-settings-backup-${dateStr}.json`;
+        exportPayload = {
           appName: 'ATAL Store',
           backupType: 'settings',
           schemaVersion: 1,
@@ -2826,26 +2871,41 @@ export async function createServer() {
           data: {
             settings: storeSettings
           }
+        };
+      } else {
+        // Full Store Backup
+        filename = `atal-store-backup-${dateStr}.json`;
+        exportPayload = {
+          appName: 'ATAL Store',
+          backupType: 'full',
+          schemaVersion: 1,
+          exportedAt: new Date().toISOString(),
+          data: {
+            categories,
+            products,
+            carousel: carouselSlides,
+            settings: storeSettings,
+            homepageSections,
+            orders,
+            customers: customers.map(sanitizeCustomer)
+          }
+        };
+      }
+
+      // MANDATORY PRE-DOWNLOAD SELF-VALIDATION
+      const serializedJson = JSON.stringify(exportPayload, null, 2);
+      const validation = parseAndValidateJsonBackup(serializedJson);
+
+      if (!validation.success) {
+        console.error('Export failed pre-download self-validation:', validation.error);
+        return res.status(500).json({
+          error: `Export generation failed internal validation: ${validation.error}`
         });
       }
 
-      // Default: Full Store Backup
-      res.setHeader('Content-Disposition', `attachment; filename=atal-store-backup-${dateStr}.json`);
-      return res.json({
-        appName: 'ATAL Store',
-        backupType: 'full',
-        schemaVersion: 1,
-        exportedAt: new Date().toISOString(),
-        data: {
-          categories,
-          products,
-          carousel: carouselSlides,
-          settings: storeSettings,
-          homepageSections,
-          orders,
-          customers: customers.map(sanitizeCustomer)
-        }
-      });
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      return res.send(serializedJson);
     } catch (e: any) {
       console.error('Export error:', e);
       res.status(500).json({ error: `Failed to generate JSON export: ${e.message}` });

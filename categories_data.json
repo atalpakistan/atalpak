@@ -17,7 +17,9 @@
       "Belts",
       "Men Accessories"
     ],
-    "description": "Modern & traditional menswear crafted for comfort and elegance."
+    "description": "Modern & traditional menswear crafted for comfort and elegance.",
+    "isActive": true,
+    "status": "active"
   },
   {
     "id": "cat-women",
@@ -38,7 +40,9 @@
       "Watches",
       "Fashion Accessories"
     ],
-    "description": "Trendy eastern and western wear, luxury handbags, and accessories."
+    "description": "Trendy eastern and western wear, luxury handbags, and accessories.",
+    "isActive": true,
+    "status": "active"
   },
   {
     "id": "cat-kids",
@@ -55,7 +59,9 @@
       "Toys",
       "Kids Accessories"
     ],
-    "description": "Safe, colorful, and durable clothing and toys for children of all ages."
+    "description": "Safe, colorful, and durable clothing and toys for children of all ages.",
+    "isActive": true,
+    "status": "active"
   },
   {
     "id": "cat-cosmetics",
@@ -78,7 +84,9 @@
       "Body Sprays",
       "Beauty Accessories"
     ],
-    "description": "100% original skincare, cosmetics, and signature oriental & western perfumes."
+    "description": "100% original skincare, cosmetics, and signature oriental & western perfumes.",
+    "isActive": true,
+    "status": "active"
   },
   {
     "id": "cat-electronics",
@@ -97,6 +105,8 @@
       "Gaming Accessories",
       "Other Electronic Gadgets"
     ],
-    "description": "High-performance gadgets, wireless audio, and smart accessories."
+    "description": "High-performance gadgets, wireless audio, and smart accessories.",
+    "isActive": true,
+    "status": "active"
   }
 ]
