@@ -108,5 +108,16 @@
     "description": "High-performance gadgets, wireless audio, and smart accessories.",
     "isActive": true,
     "status": "active"
+  },
+  {
+    "id": "cat-test-perfumes",
+    "name": "Test Perfumes",
+    "slug": "test-perfumes",
+    "subcategories": [
+      "Oud",
+      "Attar"
+    ],
+    "isActive": true,
+    "status": "active"
   }
 ]

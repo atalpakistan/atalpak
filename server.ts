@@ -2273,6 +2273,115 @@ export async function createServer() {
     return false;
   }
 
+  function detectFileFormat(rawContent: any, parsedData?: any): { format: string; fileType: string; valid: boolean; error?: string } {
+    if (rawContent === undefined || rawContent === null || rawContent === '') {
+      if (parsedData && typeof parsedData === 'object') {
+        return { format: 'JSON', fileType: 'JSON', valid: true };
+      }
+      return { format: 'Unknown', fileType: 'Unknown', valid: false, error: 'The selected file is empty. Please select a valid JSON backup file with content.' };
+    }
+
+    if (typeof rawContent === 'string') {
+      const trimmed = rawContent.trim().replace(/^\uFEFF/, '');
+      if (!trimmed) {
+        return { format: 'Unknown', fileType: 'Unknown', valid: false, error: 'The selected file is empty. Please select a valid JSON backup file with content.' };
+      }
+      if (
+        trimmed.startsWith('PK\x03\x04') ||
+        trimmed.startsWith('data:application/zip') ||
+        trimmed.startsWith('data:application/x-zip') ||
+        trimmed.startsWith('data:application/octet-stream')
+      ) {
+        return { format: 'ZIP / Binary', fileType: 'ZIP', valid: false, error: 'ZIP archives are not supported. Only .json backup files are accepted.' };
+      }
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        return { format: 'Non-JSON', fileType: 'Text / Non-JSON', valid: false, error: 'Unsupported file format. Website data import requires a valid .json file. Non-JSON formats (CSV, Excel, XML, or plain text) are not accepted.' };
+      }
+      try {
+        JSON.parse(trimmed);
+        return { format: 'JSON', fileType: 'JSON', valid: true };
+      } catch (e: any) {
+        return { format: 'JSON (Malformed)', fileType: 'JSON', valid: false, error: `Invalid JSON syntax: ${e.message}. Please verify the file is well-formed JSON.` };
+      }
+    }
+
+    if (typeof rawContent === 'object') {
+      return { format: 'JSON', fileType: 'JSON', valid: true };
+    }
+
+    return { format: 'Unknown', fileType: 'Unknown', valid: false, error: 'Invalid file format. The file does not contain a valid JSON object or array.' };
+  }
+
+  function inferDataset(parsedData: any): { typeKey: string; label: string; valid: boolean } {
+    if (!parsedData || typeof parsedData !== 'object') {
+      return { typeKey: 'unknown', label: 'Unknown / Unsupported Dataset', valid: false };
+    }
+
+    // 1. Explicit metadata in root object
+    const explicitType = (parsedData.backupType || parsedData.type || parsedData.dataset || '').toString().toLowerCase().trim();
+    if (explicitType === 'categories') return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
+    if (explicitType === 'products') return { typeKey: 'products', label: 'Product Catalog', valid: true };
+    if (explicitType === 'carousel' || explicitType === 'slides') return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
+    if (explicitType === 'settings' || explicitType === 'storesettings') return { typeKey: 'settings', label: 'Store Settings', valid: true };
+    if (explicitType === 'full' || explicitType === 'all' || explicitType === 'complete') return { typeKey: 'full', label: 'Full Website Backup', valid: true };
+
+    // 2. Structural inference from collections
+    let container = parsedData.data !== undefined ? parsedData.data : parsedData;
+
+    // Handle nested wrappers
+    while (container && typeof container === 'object' && !Array.isArray(container)) {
+      if (
+        container.products ||
+        container.categories ||
+        container.carousel ||
+        container.carouselSlides ||
+        container.settings ||
+        container.storeSettings ||
+        container.homepageSections
+      ) {
+        break;
+      }
+      if (container.data && typeof container.data === 'object') {
+        container = container.data;
+      } else if (container.backup && typeof container.backup === 'object') {
+        container = container.backup;
+      } else if (container.payload && typeof container.payload === 'object') {
+        container = container.payload;
+      } else {
+        break;
+      }
+    }
+
+    if (Array.isArray(container)) {
+      if (container.length > 0) {
+        const first = container[0];
+        if (isCategoryObject(first)) return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
+        if (isProductObject(first)) return { typeKey: 'products', label: 'Product Catalog', valid: true };
+        if (first && (first.badge !== undefined || first.buttonText !== undefined)) return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
+        return { typeKey: 'products', label: 'Product Catalog', valid: true };
+      }
+      return { typeKey: 'unknown', label: 'Empty Dataset Array', valid: false };
+    }
+
+    if (typeof container === 'object' && container !== null) {
+      const hasCats = Boolean(Array.isArray(container.categories) || Array.isArray(container.cats) || 'categories' in container);
+      const hasProds = Boolean(Array.isArray(container.products) || Array.isArray(container.items) || Array.isArray(container.catalog) || 'products' in container);
+      const hasCarousel = Boolean(Array.isArray(container.carousel) || Array.isArray(container.carouselSlides) || 'carousel' in container || 'carouselSlides' in container);
+      const hasSettings = Boolean((container.settings && typeof container.settings === 'object') || (container.storeSettings && typeof container.storeSettings === 'object') || 'settings' in container);
+      const hasOrders = Boolean(Array.isArray(container.orders) || 'orders' in container);
+      const hasCustomers = Boolean(Array.isArray(container.customers) || 'customers' in container);
+
+      if (hasCats && hasProds) return { typeKey: 'full', label: 'Full Website Backup', valid: true };
+      if (hasCats && !hasProds && !hasCarousel && !hasSettings) return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
+      if (hasProds && !hasCats && !hasCarousel && !hasSettings) return { typeKey: 'products', label: 'Product Catalog', valid: true };
+      if (hasCarousel && !hasCats && !hasProds && !hasSettings) return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
+      if (hasSettings && !hasCats && !hasProds && !hasCarousel) return { typeKey: 'settings', label: 'Store Settings', valid: true };
+      if (hasCats || hasProds || hasCarousel || hasSettings || hasOrders || hasCustomers) return { typeKey: 'full', label: 'Full Website Backup', valid: true };
+    }
+
+    return { typeKey: 'unknown', label: 'Unknown / Unsupported Dataset', valid: false };
+  }
+
   // Standard JSON Schema Validator & Extractor (JSON ONLY)
   function parseAndValidateJsonBackup(
     rawContent: any,
@@ -2486,7 +2595,7 @@ export async function createServer() {
           backupType = 'carousel';
         } else if (hasSettings && !hasCats && !hasProds && !hasCarousel) {
           backupType = 'settings';
-        } else {
+        } else if (hasCats || hasProds || hasCarousel || hasSettings) {
           backupType = 'full';
         }
       }
@@ -2499,18 +2608,14 @@ export async function createServer() {
       normalizedData.storeSettings !== undefined ||
       normalizedData.homepageSections !== undefined ||
       normalizedData.orders !== undefined ||
-      normalizedData.customers !== undefined ||
-      (container && typeof container === 'object' && Object.keys(container).length > 0) ||
-      Array.isArray(container) ||
-      Array.isArray(target) ||
-      (target && typeof target === 'object' && Object.keys(target).length > 0)
+      normalizedData.customers !== undefined
     );
 
     if (!hasAny) {
       return {
         success: false,
-        error: 'Missing required data collections. The JSON backup does not contain recognizable categories, products, carousel, or store settings.',
-        errors: ['Missing required data collections. The JSON backup does not contain recognizable categories, products, carousel, or store settings.']
+        error: 'Unable to identify the dataset. This file does not match a supported ATAL backup structure.',
+        errors: ['Unable to identify the dataset. This file does not match a supported ATAL backup structure.']
       };
     }
 
@@ -2916,21 +3021,67 @@ export async function createServer() {
   app.post('/api/admin/validate-import', (req, res) => {
     try {
       const { data, rawContent } = req.body || {};
+      const payload = rawContent !== undefined ? rawContent : data;
+
+      const formatInfo = detectFileFormat(payload, data);
+      if (!formatInfo.valid) {
+        return res.status(400).json({
+          isValid: false,
+          valid: false,
+          format: formatInfo.format,
+          fileType: formatInfo.fileType,
+          detectedFormat: formatInfo.format,
+          inferredDataset: 'Unknown / Unsupported Dataset',
+          inferredType: 'Unknown / Unsupported Dataset',
+          dataset: 'Unknown / Unsupported Dataset',
+          backupType: 'unknown',
+          error: formatInfo.error || 'Invalid file format.',
+          errors: [formatInfo.error || 'Invalid file format.'],
+          warnings: []
+        });
+      }
+
       const val = parseAndValidateJsonBackup(rawContent, data);
+      const datasetInfo = inferDataset(val.data || data || rawContent);
+
+      const datasetLabelMap: Record<string, string> = {
+        full: 'Full Website Backup',
+        categories: 'Categories & Subcategories',
+        products: 'Product Catalog',
+        carousel: 'Hero Carousel Slides',
+        settings: 'Store Settings'
+      };
+
+      const finalLabel = datasetLabelMap[val.backupType || ''] || datasetInfo.label || 'Unknown / Unsupported Dataset';
 
       if (!val.success || !val.data) {
         return res.status(400).json({
           isValid: false,
           valid: false,
-          errors: val.errors || [val.error || 'Invalid JSON file.']
+          format: formatInfo.format,
+          fileType: formatInfo.fileType,
+          detectedFormat: formatInfo.format,
+          inferredDataset: finalLabel,
+          inferredType: finalLabel,
+          dataset: finalLabel,
+          backupType: val.backupType || 'unknown',
+          error: val.error || 'The uploaded file does not match a supported ATAL backup structure.',
+          errors: val.errors || [val.error || 'The uploaded file does not match a supported ATAL backup structure.'],
+          warnings: val.warnings || []
         });
       }
 
       res.json({
         isValid: true,
         valid: true,
+        format: formatInfo.format,
+        fileType: formatInfo.fileType,
+        detectedFormat: formatInfo.format,
+        inferredDataset: finalLabel,
+        inferredType: finalLabel,
+        dataset: finalLabel,
+        backupType: val.backupType || datasetInfo.typeKey || 'full',
         appName: val.appName,
-        backupType: val.backupType,
         schemaVersion: val.schemaVersion,
         exportedAt: val.exportedAt,
         stats: val.stats,
@@ -2947,7 +3098,15 @@ export async function createServer() {
       res.status(400).json({
         isValid: false,
         valid: false,
-        errors: [`Validation failed: ${err.message}`]
+        format: 'JSON',
+        fileType: 'JSON',
+        detectedFormat: 'JSON',
+        inferredDataset: 'Unknown / Unsupported Dataset',
+        inferredType: 'Unknown / Unsupported Dataset',
+        dataset: 'Unknown / Unsupported Dataset',
+        backupType: 'unknown',
+        errors: [`Validation failed: ${err.message}`],
+        warnings: []
       });
     }
   });

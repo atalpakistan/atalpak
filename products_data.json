@@ -1,5 +1,25 @@
 [
   {
+    "id": "prod-test-oud",
+    "name": "Test Royal Oud Spray",
+    "slug": "test-royal-oud",
+    "price": 2999,
+    "stock": 15,
+    "categoryId": "cat-test-perfumes",
+    "brand": "ATAL Oud",
+    "variants": [
+      {
+        "id": "var-prod-test-oud",
+        "name": "Standard",
+        "sku": "ATAL-prod-test-oud",
+        "price": 2999,
+        "stock": 15
+      }
+    ],
+    "isActive": true,
+    "status": "active"
+  },
+  {
     "id": "prod-festive-1",
     "slug": "atal-signature-3d-luxury-collection",
     "name": "ATAL 3D Signature Luxury Bag",

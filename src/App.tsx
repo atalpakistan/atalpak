@@ -2058,9 +2058,15 @@ export default function App() {
       } catch (parseErr: any) {
         setImportValidation({
           isValid: false,
-          fileType: 'invalid_json',
-          errors: [`Malformed JSON syntax: ${parseErr.message}`],
-          warnings: ['Please ensure the file is valid UTF-8 JSON.']
+          valid: false,
+          detectedFormat: 'JSON (Malformed)',
+          fileType: 'JSON',
+          format: 'JSON',
+          inferredDataset: 'Unknown / Malformed JSON Syntax',
+          inferredType: 'Unknown / Malformed JSON Syntax',
+          dataset: 'Unknown / Malformed JSON Syntax',
+          errors: [`Malformed JSON syntax: ${parseErr.message}. Please ensure the file is well-formed JSON.`],
+          warnings: ['Check for missing commas, unescaped quotes, or syntax errors.']
         });
         showToast(`⚠️ Malformed JSON: ${parseErr.message}`);
         return;
@@ -8418,13 +8424,35 @@ export default function App() {
                                     </div>
                                   )}
                                   <div>
-                                    <h4 className="font-bold text-sm text-slate-900">
-                                      {importValidation.isValid ? '✓ File Validation Successful — Ready to Preview' : '⚠️ File Validation Warnings'}
+                                    <h4 className="font-black text-sm text-slate-900">
+                                      {importValidation.isValid 
+                                        ? (importValidation.warnings && importValidation.warnings.length > 0 
+                                            ? 'File Validation Results (Advisories Found)' 
+                                            : 'File Validation Results — Passed') 
+                                        : 'File Validation Failed'}
                                     </h4>
-                                    <p className="text-xs text-slate-500">
-                                      Detected Format: <strong className="uppercase font-mono text-slate-800">{importValidation.fileType}</strong> • Inferred Dataset: <strong className="uppercase font-mono text-emerald-700">{importValidation.inferredType}</strong>
+                                    <p className="text-xs text-slate-600 mt-1 flex flex-wrap items-center gap-1.5 font-medium">
+                                      <span>Detected Format:</span>
+                                      <strong className="uppercase font-mono text-slate-900 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-bold">
+                                        {importValidation.detectedFormat || importValidation.fileType || importValidation.format || 'JSON'}
+                                      </strong>
+                                      <span className="text-slate-300">•</span>
+                                      <span>Inferred Dataset:</span>
+                                      <strong className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                        {importValidation.inferredDataset || importValidation.inferredType || importValidation.dataset || 'Unknown / Unsupported Dataset'}
+                                      </strong>
                                     </p>
                                   </div>
+                                </div>
+
+                                <div>
+                                  <span className={`text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider border ${
+                                    importValidation.isValid
+                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                      : 'bg-red-100 text-red-800 border-red-300'
+                                  }`}>
+                                    {importValidation.isValid ? 'Validation Status: Passed' : 'Validation Status: Failed'}
+                                  </span>
                                 </div>
                               </div>
 
