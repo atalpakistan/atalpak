@@ -236,6 +236,107 @@ const HERO_SLIDES: CarouselSlide[] = [
   }
 ];
 
+export const DEFAULT_HOMEPAGE_SECTIONS = {
+  newLaunch: {
+    enabled: true,
+    title: 'New Launch',
+    subtitle: "Discover What's New",
+    productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4'],
+    availableNow: {
+      enabled: true,
+      title: 'New Launch',
+      subtitle: "Discover What's New",
+      productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
+    },
+    launchSoon: {
+      enabled: true,
+      title: 'Launch Soon',
+      subtitle: 'Something Exciting Is Coming',
+      items: [
+        {
+          id: 'launch-soon-1',
+          productId: 'prod-festive-1',
+          name: 'ATAL 24K Royal Velvet Couture Suite',
+          description: 'Ultra-exclusive winter bridal & festive pret ensemble hand-woven with pure metallic tilla and velvet dupatta.',
+          image: '/assets/atal_festive_pret_1792525761752.jpg',
+          badge: 'COMING SOON',
+          expectedLaunchDate: '2026-11-20T18:00:00',
+          showCountdown: true,
+          previewSlug: 'atal-luxury-festive-pret-couture',
+          displayOrder: 1
+        },
+        {
+          id: 'launch-soon-2',
+          name: 'ATAL Audio AeroBeats Pro Wireless Headphones',
+          description: 'Flagship hybrid active noise cancelling over-ear headphones with 60-hour playback and spatial audio.',
+          image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+          badge: 'EXCLUSIVE TEASER',
+          expectedLaunchDate: '2026-11-28T12:00:00',
+          showCountdown: true,
+          displayOrder: 2
+        },
+        {
+          id: 'launch-soon-3',
+          name: 'ATAL Botanicals Pure Organic Saffron Night Elixir',
+          description: 'Hand-picked Kashmiri saffron blended with Moroccan argan oil for intense nocturnal skin renewal.',
+          image: 'https://images.unsplash.com/photo-1608248597359-2e094770220c?auto=format&fit=crop&w=800&q=80',
+          badge: 'LIMITED PRE-DROP',
+          expectedLaunchDate: '2026-12-05T00:00:00',
+          showCountdown: true,
+          displayOrder: 3
+        }
+      ]
+    }
+  },
+  spotlight: {
+    enabled: true,
+    title: '🌟 ATAL Spotlight & Featured Collections',
+    subtitle: 'Handpicked seasonal highlights, exclusive offers, and signature collections',
+    layoutStyle: 'carousel',
+    items: [
+      {
+        id: 'spot-1',
+        title: 'ATAL 3D Signature Luxury Bag',
+        subtitle: 'Emerald Green & 24K Gold Hardware',
+        description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters across Pakistan.',
+        image: '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg',
+        buttonText: 'SHOP LUXURY BAG',
+        buttonLink: '/product/atal-signature-3d-luxury-collection',
+        layoutType: 'banner',
+        badge: 'LIMITED EDITION',
+        price: 3950,
+        originalPrice: 5490
+      },
+      {
+        id: 'spot-2',
+        title: 'ATAL Luxury Festive Pret Couture',
+        subtitle: 'Heritage Embroidered Velvet & Raw Silk',
+        description: 'Hand-embroidered zardozi details, pure organza dupatta, and deep emerald silhouette designed for weddings.',
+        image: '/assets/atal_festive_pret_1792525761752.jpg',
+        buttonText: 'EXPLORE PRET',
+        buttonLink: '/product/atal-luxury-festive-pret-couture',
+        layoutType: 'banner',
+        badge: 'FESTIVE COUTURE',
+        price: 4890,
+        originalPrice: 6800
+      },
+      {
+        id: 'spot-3',
+        title: 'ATAL Royal Oud Oriental Fragrance',
+        subtitle: '24-Hour Long Lasting Cambodian Oud',
+        description: 'Warm amber, smoky cedarwood, and pure Cambodian oud blended into exquisite crystal glass bottles.',
+        image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80',
+        buttonText: 'DISCOVER SCENTS',
+        buttonLink: '/category/cat-cosmetics',
+        layoutType: 'card',
+        badge: 'BEST SELLER',
+        price: 2499,
+        originalPrice: 4500
+      }
+    ]
+  }
+};
+
 // Live ticking Countdown Timer component for Coming Soon drops
 function CountdownTimer({ targetDate }: { targetDate?: string }) {
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number; isExpired: boolean } | null>(null);
@@ -309,7 +410,23 @@ function CountdownTimer({ targetDate }: { targetDate?: string }) {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentView, setCurrentView] = useState<'home' | 'products' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'orders' | 'support' | 'admin' | 'account'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'products' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'orders' | 'support' | 'admin' | 'account'>(() => {
+    if (typeof window !== 'undefined') {
+      const h = (window.location.hash || '').toLowerCase();
+      const p = (window.location.pathname || '').toLowerCase();
+      if (h === '#admin' || h === '#/admin' || h === '#portal' || h === '#/portal' || p.startsWith('/admin') || p === '/portal') {
+        return 'admin';
+      }
+      if (p.startsWith('/product/')) return 'product-detail';
+      if (p.startsWith('/category/') || p === '/shop' || p === '/products') return 'products';
+      if (p === '/cart') return 'cart';
+      if (p === '/checkout') return 'checkout';
+      if (p === '/orders' || p === '/track' || p === '/track-order') return 'orders';
+      if (p === '/account' || p === '/my-account' || p === '/login' || p === '/register') return 'account';
+      if (p === '/support' || p === '/faqs' || p === '/contact') return 'support';
+    }
+    return 'home';
+  });
   
   // Hero Carousel dynamic state
   const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>(HERO_SLIDES);
@@ -701,107 +818,6 @@ export default function App() {
     }
   };
 
-  const DEFAULT_HOMEPAGE_SECTIONS = {
-    newLaunch: {
-      enabled: true,
-      title: 'New Launch',
-      subtitle: "Discover What's New",
-      productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4'],
-      availableNow: {
-        enabled: true,
-        title: 'New Launch',
-        subtitle: "Discover What's New",
-        productIds: ['prod-festive-1', 'prod-festive-2', 'prod-1', 'prod-2', 'prod-3', 'prod-4']
-      },
-      launchSoon: {
-        enabled: true,
-        title: 'Launch Soon',
-        subtitle: 'Something Exciting Is Coming',
-        items: [
-          {
-            id: 'launch-soon-1',
-            productId: 'prod-festive-1',
-            name: 'ATAL 24K Royal Velvet Couture Suite',
-            description: 'Ultra-exclusive winter bridal & festive pret ensemble hand-woven with pure metallic tilla and velvet dupatta.',
-            image: '/assets/atal_festive_pret_1792525761752.jpg',
-            badge: 'COMING SOON',
-            expectedLaunchDate: '2026-11-20T18:00:00',
-            showCountdown: true,
-            previewSlug: 'atal-luxury-festive-pret-couture',
-            displayOrder: 1
-          },
-          {
-            id: 'launch-soon-2',
-            name: 'ATAL Audio AeroBeats Pro Wireless Headphones',
-            description: 'Flagship hybrid active noise cancelling over-ear headphones with 60-hour playback and spatial audio.',
-            image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
-            badge: 'EXCLUSIVE TEASER',
-            expectedLaunchDate: '2026-11-28T12:00:00',
-            showCountdown: true,
-            displayOrder: 2
-          },
-          {
-            id: 'launch-soon-3',
-            name: 'ATAL Botanicals Pure Organic Saffron Night Elixir',
-            description: 'Hand-picked Kashmiri saffron blended with Moroccan argan oil for intense nocturnal skin renewal.',
-            image: 'https://images.unsplash.com/photo-1608248597359-2e094770220c?auto=format&fit=crop&w=800&q=80',
-            badge: 'LIMITED PRE-DROP',
-            expectedLaunchDate: '2026-12-05T00:00:00',
-            showCountdown: true,
-            displayOrder: 3
-          }
-        ]
-      }
-    },
-    spotlight: {
-      enabled: true,
-      title: '🌟 ATAL Spotlight & Featured Collections',
-      subtitle: 'Handpicked seasonal highlights, exclusive offers, and signature collections',
-      layoutStyle: 'carousel',
-      items: [
-        {
-          id: 'spot-1',
-          title: 'ATAL 3D Signature Luxury Bag',
-          subtitle: 'Emerald Green & 24K Gold Hardware',
-          description: 'Iconic architectural designer bag crafted with precision and elegance for modern trendsetters across Pakistan.',
-          image: '/assets/aistudio/WhatsApp_Image_2026-09-29_at_12.21.56_PM_187de251.jpeg',
-          buttonText: 'SHOP LUXURY BAG',
-          buttonLink: '/product/atal-signature-3d-luxury-collection',
-          layoutType: 'banner',
-          badge: 'LIMITED EDITION',
-          price: 3950,
-          originalPrice: 5490
-        },
-        {
-          id: 'spot-2',
-          title: 'ATAL Luxury Festive Pret Couture',
-          subtitle: 'Heritage Embroidered Velvet & Raw Silk',
-          description: 'Hand-embroidered zardozi details, pure organza dupatta, and deep emerald silhouette designed for weddings.',
-          image: '/assets/atal_festive_pret_1792525761752.jpg',
-          buttonText: 'EXPLORE PRET',
-          buttonLink: '/product/atal-luxury-festive-pret-couture',
-          layoutType: 'banner',
-          badge: 'FESTIVE COUTURE',
-          price: 4890,
-          originalPrice: 6800
-        },
-        {
-          id: 'spot-3',
-          title: 'ATAL Royal Oud Oriental Fragrance',
-          subtitle: '24-Hour Long Lasting Cambodian Oud',
-          description: 'Warm amber, smoky cedarwood, and pure Cambodian oud blended into exquisite crystal glass bottles.',
-          image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80',
-          buttonText: 'DISCOVER SCENTS',
-          buttonLink: '/category/cat-cosmetics',
-          layoutType: 'card',
-          badge: 'BEST SELLER',
-          price: 2499,
-          originalPrice: 4500
-        }
-      ]
-    }
-  };
-
   const [homepageSections, setHomepageSections] = useState<any>(DEFAULT_HOMEPAGE_SECTIONS);
   const [spotlightSlide, setSpotlightSlide] = useState(0);
   const [spotlightTouchStart, setSpotlightTouchStart] = useState<number | null>(null);
@@ -833,7 +849,7 @@ export default function App() {
           const rawNL = data.newLaunch || {};
           const rawSpot = data.spotlight || {};
 
-          // Backward compatible normalization
+          // Backward compatible normalization with guaranteed fallbacks
           const availableNow = {
             enabled: rawNL.availableNow?.enabled !== undefined ? Boolean(rawNL.availableNow.enabled) : (rawNL.enabled !== false),
             title: rawNL.availableNow?.title || rawNL.title || DEFAULT_HOMEPAGE_SECTIONS.newLaunch.availableNow.title,
@@ -865,8 +881,8 @@ export default function App() {
           setHomepageSections({
             newLaunch: {
               enabled: availableNow.enabled || launchSoon.enabled,
-              title: availableNow.title,
-              subtitle: availableNow.subtitle,
+              title: availableNow.title || 'New Launch',
+              subtitle: availableNow.subtitle || "Discover What's New",
               productIds: availableNow.productIds,
               availableNow,
               launchSoon
@@ -1330,16 +1346,17 @@ export default function App() {
   };
 
   const openEditSlideModal = (slide: CarouselSlide) => {
+    if (!slide) return;
     setEditingSlideId(slide.id);
     setSlideForm({
-      badge: slide.badge,
-      brand: slide.brand,
-      title: slide.title,
-      subtitle: slide.subtitle,
-      discount: slide.discount,
-      buttonText: slide.buttonText,
-      image: slide.image,
-      categoryId: slide.categoryId
+      badge: slide?.badge || '',
+      brand: slide?.brand || '',
+      title: slide?.title || '',
+      subtitle: slide?.subtitle || '',
+      discount: slide?.discount || '',
+      buttonText: slide?.buttonText || 'SHOP NOW',
+      image: slide?.image || '',
+      categoryId: slide?.categoryId || categories[0]?.id || 'cat-women'
     });
     setIsCarouselModalOpen(true);
   };
@@ -1983,16 +2000,17 @@ export default function App() {
     });
   };
 
-  const triggerDataExport = (type: string, format: 'json' | 'csv' = 'json') => {
+  const triggerDataExport = (type: string, _format: string = 'json') => {
     try {
-      const url = getApiUrl(`/api/admin/export-data?type=${type}&format=${format}`);
+      const url = getApiUrl(`/api/admin/export-data?type=${type}`);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `atal_${type}_${Date.now()}.${format}`;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      a.download = `atal-${type === 'all' ? 'store' : type}-backup-${todayStr}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      showToast(`📥 Exporting ${type.toUpperCase()} in ${format.toUpperCase()} format...`);
+      showToast(`📥 Exporting ${type.toUpperCase()} in JSON format...`);
     } catch {
       showToast('Failed to start export download');
     }
@@ -2015,39 +2033,54 @@ export default function App() {
   const handleFileSelectedForImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      showToast('⚠️ Only .json files are supported. Please select an ATAL JSON backup.');
+      e.target.value = '';
+      return;
+    }
+
     setImportSelectedFile(file);
     setImportReport(null);
     setImportValidation(null);
-
-    const isZip = file.name.toLowerCase().endsWith('.zip');
-    const isCsv = file.name.toLowerCase().endsWith('.csv');
-    const format = isZip ? 'zip' : (isCsv ? 'csv' : 'json');
-    setImportFileFormat(format);
+    setImportFileFormat('json');
 
     const reader = new FileReader();
     reader.onload = async (ev) => {
       let text = (ev.target?.result as string) || '';
-      if (!isZip) {
-        // Strip UTF-8 BOM from files saved in Windows Notepad or Excel
-        text = text.replace(/^\uFEFF/, '').trim();
-      }
+      // Strip UTF-8 BOM from files saved in Windows Notepad
+      text = text.replace(/^\uFEFF/, '').trim();
       setImportFileRawText(text);
 
-      // Validate instantly with server
+      // Instant client-side JSON syntax check
+      try {
+        JSON.parse(text);
+      } catch (parseErr: any) {
+        setImportValidation({
+          isValid: false,
+          fileType: 'invalid_json',
+          errors: [`Malformed JSON syntax: ${parseErr.message}`],
+          warnings: ['Please ensure the file is valid UTF-8 JSON.']
+        });
+        showToast(`⚠️ Malformed JSON: ${parseErr.message}`);
+        return;
+      }
+
+      // Comprehensive validation & relationship simulation with server
       setIsValidatingImport(true);
       try {
         const res = await fetch(getApiUrl('/api/admin/validate-import'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawContent: text, format })
+          body: JSON.stringify({ rawContent: text })
         });
         const valData = await res.json();
         if (res.ok && (valData.isValid || valData.valid)) {
           setImportValidation(valData);
-          showToast(`✓ File "${file.name}" analyzed and ready for preview!`);
+          showToast(`✓ Backup "${file.name}" analyzed and ready for preview!`);
         } else {
           setImportValidation(valData);
-          showToast(`⚠️ File analysis found issues: ${(valData.errors || []).join('; ') || valData.error || 'Invalid format'}`);
+          showToast(`⚠️ Validation issue: ${(valData.errors || []).join('; ') || valData.error || 'Invalid backup structure'}`);
         }
       } catch (err) {
         showToast('Error validating import file format');
@@ -2056,11 +2089,7 @@ export default function App() {
       }
     };
 
-    if (isZip) {
-      reader.readAsDataURL(file);
-    } else {
-      reader.readAsText(file);
-    }
+    reader.readAsText(file, 'utf-8');
   };
 
   const executeImportPayload = async () => {
@@ -2075,7 +2104,6 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rawContent: importFileRawText,
-          format: importFileFormat,
           mode: importMode
         })
       });
@@ -2086,6 +2114,7 @@ export default function App() {
         await fetchCategories();
         await fetchProducts();
         await fetchCarouselSlides();
+        await fetchHomepageSections();
         await fetchStoreSettings();
         await loadAdminData();
         await fetchBackupSnapshots();
@@ -2217,15 +2246,29 @@ export default function App() {
   const handleImportProducts = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      showToast('⚠️ Only .json backup files are supported for product imports.');
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
         let text = (ev.target?.result as string) || '';
         text = text.replace(/^\uFEFF/, '').trim();
+        try {
+          JSON.parse(text);
+        } catch (pe: any) {
+          showToast(`⚠️ Malformed JSON: ${pe.message}`);
+          return;
+        }
+
         const res = await fetch(getApiUrl('/api/admin/import-data'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawContent: text, format: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
+          body: JSON.stringify({ rawContent: text, mode: 'update_existing' })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -2239,7 +2282,7 @@ export default function App() {
         showToast('Error reading products file.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'utf-8');
     e.target.value = '';
   };
 
@@ -2250,15 +2293,29 @@ export default function App() {
   const handleImportCategories = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      showToast('⚠️ Only .json backup files are supported for category imports.');
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
         let text = (ev.target?.result as string) || '';
         text = text.replace(/^\uFEFF/, '').trim();
+        try {
+          JSON.parse(text);
+        } catch (pe: any) {
+          showToast(`⚠️ Malformed JSON: ${pe.message}`);
+          return;
+        }
+
         const res = await fetch(getApiUrl('/api/admin/import-data'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawContent: text, format: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'json', mode: 'update_existing' })
+          body: JSON.stringify({ rawContent: text, mode: 'update_existing' })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -2272,7 +2329,7 @@ export default function App() {
         showToast('Error reading categories file.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'utf-8');
     e.target.value = '';
   };
 
@@ -2744,49 +2801,52 @@ export default function App() {
                     }}
                   >
                     {/* Slides */}
-                    {carouselSlides.map((slide, idx) => (
-                      <div 
-                        key={slide.id}
-                        className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
-                          idx === currentHeroSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                        }`}
-                      >
-                        <img 
-                          src={slide.image} 
-                          alt={slide.title} 
-                          className="w-full h-full object-cover object-center group-hover:scale-105 transition duration-500" 
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 flex flex-col justify-between p-3.5">
-                          {/* Top Text on Banner */}
-                          <div className="text-right ml-auto max-w-[68%]">
-                            <p className="text-[11px] font-black tracking-widest text-[#f5d77f] font-serif">{slide.brand}</p>
-                            <p className="text-[8px] tracking-wider text-emerald-200 uppercase font-semibold">PAKISTAN</p>
-                            <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide mt-0.5 leading-tight line-clamp-1">
-                              {slide.title}
-                            </h2>
-                            <p className="text-[7.5px] text-slate-300 mt-0.5 line-clamp-1">
-                              {slide.subtitle}
-                            </p>
-                            <div className="mt-1 flex items-center justify-end gap-1.5">
-                              <span className="text-[8.5px] font-bold text-amber-300">{slide.discount}</span>
-                              <span className="bg-[#f5d77f] text-slate-950 font-black text-[8px] px-2 py-0.5 rounded-full uppercase shadow-xs">
-                                {slide.buttonText}
+                    {safeCarouselSlides.map((slide, idx) => {
+                      if (!slide) return null;
+                      return (
+                        <div 
+                          key={slide.id || idx}
+                          className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
+                            idx === currentHeroSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                          }`}
+                        >
+                          <img 
+                            src={slide?.image || DEFAULT_PRODUCT_IMAGE} 
+                            alt={slide?.title || 'Slide'} 
+                            className="w-full h-full object-cover object-center group-hover:scale-105 transition duration-500" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 flex flex-col justify-between p-3.5">
+                            {/* Top Text on Banner */}
+                            <div className="text-right ml-auto max-w-[68%]">
+                              <p className="text-[11px] font-black tracking-widest text-[#f5d77f] font-serif">{slide?.brand || 'ATAL PAKISTAN'}</p>
+                              <p className="text-[8px] tracking-wider text-emerald-200 uppercase font-semibold">PAKISTAN</p>
+                              <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide mt-0.5 leading-tight line-clamp-1">
+                                {slide?.title || 'Exclusive Collection'}
+                              </h2>
+                              <p className="text-[7.5px] text-slate-300 mt-0.5 line-clamp-1">
+                                {slide?.subtitle || ''}
+                              </p>
+                              <div className="mt-1 flex items-center justify-end gap-1.5">
+                                <span className="text-[8.5px] font-bold text-amber-300">{slide?.discount || ''}</span>
+                                <span className="bg-[#f5d77f] text-slate-950 font-black text-[8px] px-2 py-0.5 rounded-full uppercase shadow-xs">
+                                  {slide?.buttonText || 'SHOP NOW'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Bottom Banner Tag and Headline */}
+                            <div>
+                              <span className="bg-[#d97706] text-black font-black text-[9px] px-2.5 py-0.5 rounded-xs uppercase tracking-wider inline-block mb-1 shadow-sm">
+                                {slide?.badge || 'SPECIAL'}
                               </span>
+                              <h3 className="text-white font-extrabold text-xs sm:text-sm drop-shadow-md leading-tight line-clamp-1">
+                                {slide?.title || 'Special Feature'}
+                              </h3>
                             </div>
                           </div>
-
-                          {/* Bottom Banner Tag and Headline */}
-                          <div>
-                            <span className="bg-[#d97706] text-black font-black text-[9px] px-2.5 py-0.5 rounded-xs uppercase tracking-wider inline-block mb-1 shadow-sm">
-                              {slide.badge}
-                            </span>
-                            <h3 className="text-white font-extrabold text-xs sm:text-sm drop-shadow-md leading-tight line-clamp-1">
-                              {slide.title}
-                            </h3>
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Prev / Next Buttons */}
                     <button 
@@ -2984,10 +3044,10 @@ export default function App() {
                           <span>FEATURED SPOTLIGHT</span>
                         </div>
                         <h3 className="font-black text-base text-white mt-1.5 tracking-tight">
-                          {homepageSections.spotlight.title || '🌟 ATAL Spotlight'}
+                          {homepageSections?.spotlight?.title || '🌟 ATAL Spotlight'}
                         </h3>
-                        {homepageSections.spotlight.subtitle && (
-                          <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">{homepageSections.spotlight.subtitle}</p>
+                        {homepageSections?.spotlight?.subtitle && (
+                          <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">{homepageSections?.spotlight?.subtitle}</p>
                         )}
                       </div>
 
@@ -3011,21 +3071,21 @@ export default function App() {
                         >
                           <div className="relative aspect-[16/10] w-full overflow-hidden">
                             <img 
-                              src={currentItem.image || DEFAULT_PRODUCT_IMAGE} 
-                              alt={currentItem.title || 'Spotlight'} 
+                              src={currentItem?.image || DEFAULT_PRODUCT_IMAGE} 
+                              alt={currentItem?.title || 'Spotlight'} 
                               className="w-full h-full object-cover transition-transform duration-700 ease-out" 
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-4">
-                              {currentItem.badge && (
+                              {currentItem?.badge && (
                                 <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase w-max mb-1.5 shadow-md border border-amber-200">
                                   {currentItem.badge}
                                 </span>
                               )}
-                              {currentItem.subtitle && (
+                              {currentItem?.subtitle && (
                                 <p className="text-[10px] text-amber-300 font-extrabold tracking-wider uppercase">{currentItem.subtitle}</p>
                               )}
-                              <h4 className="font-black text-sm text-white leading-tight mt-0.5">{currentItem.title || 'Special Feature'}</h4>
-                              {currentItem.description && (
+                              <h4 className="font-black text-sm text-white leading-tight mt-0.5">{currentItem?.title || 'Special Feature'}</h4>
+                              {currentItem?.description && (
                                 <p className="text-[11px] text-slate-300 line-clamp-2 mt-1 leading-snug">{currentItem.description}</p>
                               )}
                               
@@ -3033,7 +3093,7 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const link = currentItem.buttonLink || '/shop';
+                                    const link = currentItem?.buttonLink || '/shop';
                                     if (link.startsWith('http')) window.open(link, '_blank');
                                     else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
                                     else navigate(link);
@@ -3391,40 +3451,42 @@ export default function App() {
                 {/* Hero Banner Carousel (Desktop) */}
                 <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden shadow-xl bg-slate-950 border border-slate-200/50 select-none group">
                   <div className="relative h-80 lg:h-96 w-full overflow-hidden">
-                    {carouselSlides.map((slide, idx) => (
-                      <div 
-                        key={slide.id}
-                        className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                          idx === currentHeroSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                        }`}
-                      >
-                        <img 
-                          src={slide.image} 
-                          alt={slide.title} 
-                          className="w-full h-full object-cover object-center transform scale-100 group-hover:scale-105 transition-transform duration-700" 
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/25 flex items-center p-8 lg:p-14">
-                          <div className="max-w-xl text-white">
-                            <div className="flex items-center gap-2 mb-3">
-                              <span className="bg-emerald-500 text-slate-950 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider">
-                                {slide.badge}
-                              </span>
-                              <span className="text-amber-300 font-bold text-xs">
-                                {slide.discount}
-                              </span>
-                            </div>
-                            <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-3 text-white leading-tight">
-                              {slide.title}
-                            </h2>
-                            <p className="text-slate-200 text-sm mb-6 leading-relaxed">
-                              {slide.subtitle}. Genuine high-quality items delivered doorstep nationwide across Pakistan with JazzCash, Easypaisa, or Cash on Delivery.
-                            </p>
+                    {safeCarouselSlides.map((slide, idx) => {
+                      if (!slide) return null;
+                      return (
+                        <div 
+                          key={slide.id || idx}
+                          className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                            idx === currentHeroSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                          }`}
+                        >
+                          <img 
+                            src={slide?.image || DEFAULT_PRODUCT_IMAGE} 
+                            alt={slide?.title || 'Slide'} 
+                            className="w-full h-full object-cover object-center transform scale-100 group-hover:scale-105 transition-transform duration-700" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/25 flex items-center p-8 lg:p-14">
+                            <div className="max-w-xl text-white">
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="bg-emerald-500 text-slate-950 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider">
+                                  {slide?.badge || 'SPECIAL'}
+                                </span>
+                                <span className="text-amber-300 font-bold text-xs">
+                                  {slide?.discount || ''}
+                                </span>
+                              </div>
+                              <h2 className="text-2xl lg:text-4xl font-black tracking-tight mb-3 text-white leading-tight">
+                                {slide?.title || 'Exclusive Collection'}
+                              </h2>
+                              <p className="text-slate-200 text-sm mb-6 leading-relaxed">
+                                {slide?.subtitle || ''}. Genuine high-quality items delivered doorstep nationwide across Pakistan with JazzCash, Easypaisa, or Cash on Delivery.
+                              </p>
                             <div className="flex items-center gap-3">
                               <button 
-                                onClick={() => handleOpenCategory(slide.categoryId)}
+                                onClick={() => handleOpenCategory(slide?.categoryId)}
                                 className="bg-[#f5d77f] hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-xl text-sm shadow-lg transition flex items-center gap-2"
                               >
-                                <span>{slide.buttonText}</span>
+                                <span>{slide?.buttonText || 'SHOP NOW'}</span>
                                 <ChevronRight className="w-4 h-4" />
                               </button>
                               <button 
@@ -3437,7 +3499,8 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
 
                     {/* Prev & Next Arrows */}
                     <button 
@@ -3601,10 +3664,10 @@ export default function App() {
                           <span>FEATURED SPOTLIGHT</span>
                         </div>
                         <h3 className="font-black text-3xl text-white tracking-tight drop-shadow-md">
-                          {homepageSections.spotlight.title || '🌟 ATAL Spotlight & Featured Collections'}
+                          {homepageSections?.spotlight?.title || '🌟 ATAL Spotlight & Featured Collections'}
                         </h3>
-                        {homepageSections.spotlight.subtitle && (
-                          <p className="text-sm text-slate-300 mt-2 leading-relaxed">{homepageSections.spotlight.subtitle}</p>
+                        {homepageSections?.spotlight?.subtitle && (
+                          <p className="text-sm text-slate-300 mt-2 leading-relaxed">{homepageSections?.spotlight?.subtitle}</p>
                         )}
                       </div>
 
@@ -3613,24 +3676,24 @@ export default function App() {
                         <div className="relative rounded-3xl overflow-hidden bg-slate-950/90 border border-amber-500/30 shadow-2xl group">
                           <div className="relative h-96 w-full overflow-hidden">
                             <img 
-                              src={currentItem.image || DEFAULT_PRODUCT_IMAGE} 
-                              alt={currentItem.title || 'Spotlight'} 
+                              src={currentItem?.image || DEFAULT_PRODUCT_IMAGE} 
+                              alt={currentItem?.title || 'Spotlight'} 
                               className="w-full h-full object-cover group-hover:scale-105 transition duration-700 ease-out" 
                             />
                             <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/60 to-transparent flex items-center p-8 lg:p-14">
                               <div className="max-w-xl text-white">
-                                {currentItem.badge && (
+                                {currentItem?.badge && (
                                   <span className="inline-block bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-xs font-black px-3.5 py-1 rounded-full uppercase mb-3 shadow-lg border border-amber-200">
                                     {currentItem.badge}
                                   </span>
                                 )}
-                                {currentItem.subtitle && (
+                                {currentItem?.subtitle && (
                                   <p className="text-xs text-amber-300 font-extrabold tracking-widest uppercase mb-1">{currentItem.subtitle}</p>
                                 )}
                                 <h4 className="font-black text-3xl lg:text-4xl text-white leading-tight drop-shadow-md mb-3">
-                                  {currentItem.title || 'Special Feature'}
+                                  {currentItem?.title || 'Special Feature'}
                                 </h4>
-                                {currentItem.description && (
+                                {currentItem?.description && (
                                   <p className="text-slate-200 text-sm leading-relaxed mb-6 line-clamp-3">{currentItem.description}</p>
                                 )}
 
@@ -3638,14 +3701,14 @@ export default function App() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const link = currentItem.buttonLink || '/shop';
+                                      const link = currentItem?.buttonLink || '/shop';
                                       if (link.startsWith('http')) window.open(link, '_blank');
                                       else if (link.startsWith('/product/')) loadProductBySlug(link.replace('/product/', ''));
                                       else navigate(link);
                                     }}
                                     className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black px-7 py-3.5 rounded-2xl text-xs uppercase tracking-wider transition-all duration-300 shadow-xl flex items-center gap-2 cursor-pointer transform hover:scale-105"
                                   >
-                                    <span>{currentItem.buttonText || 'EXPLORE NOW'}</span>
+                                    <span>{currentItem?.buttonText || 'EXPLORE NOW'}</span>
                                     <ChevronRight className="w-4 h-4" />
                                   </button>
                                   {currentItem.price && (
@@ -6748,24 +6811,25 @@ export default function App() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {carouselSlides.map((slide, sIdx) => {
-                          const targetCat = categories.find(c => c.id === slide.categoryId);
+                        {safeCarouselSlides.map((slide, sIdx) => {
+                          if (!slide) return null;
+                          const targetCat = categories.find(c => c && c.id === slide?.categoryId);
                           return (
-                            <div key={slide.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-900 text-white shadow-sm flex flex-col justify-between">
+                            <div key={slide?.id || sIdx} className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-900 text-white shadow-sm flex flex-col justify-between">
                               {/* Preview Banner */}
                               <div className="relative h-48 w-full overflow-hidden bg-slate-950">
-                                <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
+                                <img src={slide?.image || DEFAULT_PRODUCT_IMAGE} alt={slide?.title || 'Slide'} className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end p-4">
                                   <div className="flex items-center gap-2 mb-1.5">
                                     <span className="bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">
-                                      {slide.badge}
+                                      {slide?.badge || 'PROMO'}
                                     </span>
                                     <span className="text-amber-300 font-bold text-[10px]">
-                                      {slide.discount}
+                                      {slide?.discount || ''}
                                     </span>
                                   </div>
-                                  <h4 className="font-black text-base leading-tight text-white line-clamp-1">{slide.title}</h4>
-                                  <p className="text-slate-300 text-xs line-clamp-1 mt-0.5">{slide.subtitle}</p>
+                                  <h4 className="font-black text-base leading-tight text-white line-clamp-1">{slide?.title || 'Slide Title'}</h4>
+                                  <p className="text-slate-300 text-xs line-clamp-1 mt-0.5">{slide?.subtitle || ''}</p>
                                 </div>
                                 <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
                                   Slide #{sIdx + 1}
@@ -7202,10 +7266,11 @@ export default function App() {
                                   type="checkbox"
                                   checked={homepageSections?.newLaunch?.availableNow?.enabled !== false}
                                   onChange={(e) => {
-                                    const nextAN = { ...homepageSections.newLaunch.availableNow, enabled: e.target.checked };
+                                    const currNL = homepageSections?.newLaunch || {};
+                                    const nextAN = { ...(currNL.availableNow || {}), enabled: e.target.checked };
                                     setHomepageSections({
                                       ...homepageSections,
-                                      newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, enabled: nextAN.enabled || homepageSections.newLaunch.launchSoon?.enabled }
+                                      newLaunch: { ...currNL, availableNow: nextAN, enabled: nextAN.enabled || currNL.launchSoon?.enabled }
                                     });
                                   }}
                                   className="sr-only peer"
@@ -7222,10 +7287,11 @@ export default function App() {
                                   type="text"
                                   value={homepageSections?.newLaunch?.availableNow?.title || ''}
                                   onChange={(e) => {
-                                    const nextAN = { ...homepageSections.newLaunch.availableNow, title: e.target.value };
+                                    const currNL = homepageSections?.newLaunch || {};
+                                    const nextAN = { ...(currNL.availableNow || {}), title: e.target.value };
                                     setHomepageSections({
                                       ...homepageSections,
-                                      newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, title: e.target.value }
+                                      newLaunch: { ...currNL, availableNow: nextAN, title: e.target.value }
                                     });
                                   }}
                                   className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -7238,10 +7304,11 @@ export default function App() {
                                   type="text"
                                   value={homepageSections?.newLaunch?.availableNow?.subtitle || ''}
                                   onChange={(e) => {
-                                    const nextAN = { ...homepageSections.newLaunch.availableNow, subtitle: e.target.value };
+                                    const currNL = homepageSections?.newLaunch || {};
+                                    const nextAN = { ...(currNL.availableNow || {}), subtitle: e.target.value };
                                     setHomepageSections({
                                       ...homepageSections,
-                                      newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, subtitle: e.target.value }
+                                      newLaunch: { ...currNL, availableNow: nextAN, subtitle: e.target.value }
                                     });
                                   }}
                                   className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -7282,12 +7349,14 @@ export default function App() {
                                         type="button"
                                         disabled={idx === 0}
                                         onClick={() => {
-                                          const next = [...(homepageSections.newLaunch.availableNow.productIds || [])];
+                                          const currNL = homepageSections?.newLaunch || {};
+                                          const currAN = currNL.availableNow || {};
+                                          const next = [...(currAN.productIds || [])];
                                           const tmp = next[idx - 1];
                                           next[idx - 1] = next[idx];
                                           next[idx] = tmp;
-                                          const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: next };
-                                          setHomepageSections({ ...homepageSections, newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: next } });
+                                          const nextAN = { ...currAN, productIds: next };
+                                          setHomepageSections({ ...homepageSections, newLaunch: { ...currNL, availableNow: nextAN, productIds: next } });
                                         }}
                                         className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
                                         title="Move Up"
@@ -7296,14 +7365,16 @@ export default function App() {
                                       </button>
                                       <button
                                         type="button"
-                                        disabled={idx === (homepageSections.newLaunch.availableNow.productIds?.length || 0) - 1}
+                                        disabled={idx === ((homepageSections?.newLaunch?.availableNow?.productIds || []).length - 1)}
                                         onClick={() => {
-                                          const next = [...(homepageSections.newLaunch.availableNow.productIds || [])];
+                                          const currNL = homepageSections?.newLaunch || {};
+                                          const currAN = currNL.availableNow || {};
+                                          const next = [...(currAN.productIds || [])];
                                           const tmp = next[idx + 1];
                                           next[idx + 1] = next[idx];
                                           next[idx] = tmp;
-                                          const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: next };
-                                          setHomepageSections({ ...homepageSections, newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: next } });
+                                          const nextAN = { ...currAN, productIds: next };
+                                          setHomepageSections({ ...homepageSections, newLaunch: { ...currNL, availableNow: nextAN, productIds: next } });
                                         }}
                                         className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
                                         title="Move Down"
@@ -7313,9 +7384,11 @@ export default function App() {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          const next = (homepageSections.newLaunch.availableNow.productIds || []).filter((id: string) => id !== prodId);
-                                          const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: next };
-                                          setHomepageSections({ ...homepageSections, newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: next } });
+                                          const currNL = homepageSections?.newLaunch || {};
+                                          const currAN = currNL.availableNow || {};
+                                          const next = (currAN.productIds || []).filter((id: string) => id !== prodId);
+                                          const nextAN = { ...currAN, productIds: next };
+                                          setHomepageSections({ ...homepageSections, newLaunch: { ...currNL, availableNow: nextAN, productIds: next } });
                                         }}
                                         className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 ml-1"
                                         title="Remove"
@@ -7355,19 +7428,21 @@ export default function App() {
                                     <div
                                       key={p.id}
                                       onClick={() => {
+                                        const currNL = homepageSections?.newLaunch || {};
+                                        const currAN = currNL.availableNow || {};
                                         const nextIds = isSelected
                                           ? selectedIds.filter((id: string) => id !== p.id)
                                           : [...selectedIds, p.id];
-                                        const nextAN = { ...homepageSections.newLaunch.availableNow, productIds: nextIds };
+                                        const nextAN = { ...currAN, productIds: nextIds };
                                         setHomepageSections({
                                           ...homepageSections,
-                                          newLaunch: { ...homepageSections.newLaunch, availableNow: nextAN, productIds: nextIds }
+                                          newLaunch: { ...currNL, availableNow: nextAN, productIds: nextIds }
                                         });
                                       }}
                                       className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center gap-2.5 ${isSelected ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold' : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'}`}
                                     >
                                       <input type="checkbox" checked={isSelected} readOnly className="rounded text-emerald-600" />
-                                      <img src={p.images[0]} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                                      <img src={p.images?.[0] || DEFAULT_PRODUCT_IMAGE} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-xs truncate">{p.name}</p>
                                         <p className="text-[10px] text-slate-400">Rs {p.price.toLocaleString()} • {(p.stock ?? p.stockQuantity ?? 10) > 0 ? `${p.stock ?? p.stockQuantity ?? 10} in stock` : 'Out of stock'}</p>
@@ -7403,10 +7478,11 @@ export default function App() {
                                   type="checkbox"
                                   checked={homepageSections?.newLaunch?.launchSoon?.enabled !== false}
                                   onChange={(e) => {
-                                    const nextLS = { ...homepageSections.newLaunch.launchSoon, enabled: e.target.checked };
+                                    const currNL = homepageSections?.newLaunch || {};
+                                    const nextLS = { ...(currNL.launchSoon || {}), enabled: e.target.checked };
                                     setHomepageSections({
                                       ...homepageSections,
-                                      newLaunch: { ...homepageSections.newLaunch, launchSoon: nextLS, enabled: homepageSections.newLaunch.availableNow?.enabled || nextLS.enabled }
+                                      newLaunch: { ...currNL, launchSoon: nextLS, enabled: currNL.availableNow?.enabled || nextLS.enabled }
                                     });
                                   }}
                                   className="sr-only peer"
@@ -7423,10 +7499,11 @@ export default function App() {
                                   type="text"
                                   value={homepageSections?.newLaunch?.launchSoon?.title || ''}
                                   onChange={(e) => {
-                                    const nextLS = { ...homepageSections.newLaunch.launchSoon, title: e.target.value };
+                                    const currNL = homepageSections?.newLaunch || {};
+                                    const nextLS = { ...(currNL.launchSoon || {}), title: e.target.value };
                                     setHomepageSections({
                                       ...homepageSections,
-                                      newLaunch: { ...homepageSections.newLaunch, launchSoon: nextLS }
+                                      newLaunch: { ...currNL, launchSoon: nextLS }
                                     });
                                   }}
                                   className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500 outline-none"
@@ -7439,10 +7516,11 @@ export default function App() {
                                   type="text"
                                   value={homepageSections?.newLaunch?.launchSoon?.subtitle || ''}
                                   onChange={(e) => {
-                                    const nextLS = { ...homepageSections.newLaunch.launchSoon, subtitle: e.target.value };
+                                    const currNL = homepageSections?.newLaunch || {};
+                                    const nextLS = { ...(currNL.launchSoon || {}), subtitle: e.target.value };
                                     setHomepageSections({
                                       ...homepageSections,
-                                      newLaunch: { ...homepageSections.newLaunch, launchSoon: nextLS }
+                                      newLaunch: { ...currNL, launchSoon: nextLS }
                                     });
                                   }}
                                   className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500 outline-none"
@@ -7530,13 +7608,15 @@ export default function App() {
                                       type="button"
                                       disabled={idx === 0}
                                       onClick={() => {
-                                        const next = [...(homepageSections.newLaunch.launchSoon.items || [])];
+                                        const currNL = homepageSections?.newLaunch || {};
+                                        const currLS = currNL.launchSoon || {};
+                                        const next = [...(currLS.items || [])];
                                         const tmp = next[idx - 1];
                                         next[idx - 1] = next[idx];
                                         next[idx] = tmp;
                                         setHomepageSections({
                                           ...homepageSections,
-                                          newLaunch: { ...homepageSections.newLaunch, launchSoon: { ...homepageSections.newLaunch.launchSoon, items: next } }
+                                          newLaunch: { ...currNL, launchSoon: { ...currLS, items: next } }
                                         });
                                       }}
                                       className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
@@ -7546,15 +7626,17 @@ export default function App() {
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={idx === (homepageSections.newLaunch.launchSoon.items?.length || 0) - 1}
+                                      disabled={idx === ((homepageSections?.newLaunch?.launchSoon?.items || []).length - 1)}
                                       onClick={() => {
-                                        const next = [...(homepageSections.newLaunch.launchSoon.items || [])];
+                                        const currNL = homepageSections?.newLaunch || {};
+                                        const currLS = currNL.launchSoon || {};
+                                        const next = [...(currLS.items || [])];
                                         const tmp = next[idx + 1];
                                         next[idx + 1] = next[idx];
                                         next[idx] = tmp;
                                         setHomepageSections({
                                           ...homepageSections,
-                                          newLaunch: { ...homepageSections.newLaunch, launchSoon: { ...homepageSections.newLaunch.launchSoon, items: next } }
+                                          newLaunch: { ...currNL, launchSoon: { ...currLS, items: next } }
                                         });
                                       }}
                                       className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
@@ -7566,10 +7648,12 @@ export default function App() {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const next = (homepageSections.newLaunch.launchSoon.items || []).filter((_: any, i: number) => i !== idx);
+                                        const currNL = homepageSections?.newLaunch || {};
+                                        const currLS = currNL.launchSoon || {};
+                                        const next = (currLS.items || []).filter((_: any, i: number) => i !== idx);
                                         setHomepageSections({
                                           ...homepageSections,
-                                          newLaunch: { ...homepageSections.newLaunch, launchSoon: { ...homepageSections.newLaunch.launchSoon, items: next } }
+                                          newLaunch: { ...currNL, launchSoon: { ...currLS, items: next } }
                                         });
                                       }}
                                       className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600"
@@ -7609,7 +7693,7 @@ export default function App() {
                                   checked={homepageSections?.spotlight?.enabled !== false}
                                   onChange={(e) => setHomepageSections({
                                     ...homepageSections,
-                                    spotlight: { ...homepageSections.spotlight, enabled: e.target.checked }
+                                    spotlight: { ...(homepageSections?.spotlight || {}), enabled: e.target.checked }
                                   })}
                                   className="sr-only peer"
                                 />
@@ -7626,7 +7710,7 @@ export default function App() {
                                   value={homepageSections?.spotlight?.title || ''}
                                   onChange={(e) => setHomepageSections({
                                     ...homepageSections,
-                                    spotlight: { ...homepageSections.spotlight, title: e.target.value }
+                                    spotlight: { ...(homepageSections?.spotlight || {}), title: e.target.value }
                                   })}
                                   className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500 outline-none"
                                 />
@@ -7638,7 +7722,7 @@ export default function App() {
                                   value={homepageSections?.spotlight?.subtitle || ''}
                                   onChange={(e) => setHomepageSections({
                                     ...homepageSections,
-                                    spotlight: { ...homepageSections.spotlight, subtitle: e.target.value }
+                                    spotlight: { ...(homepageSections?.spotlight || {}), subtitle: e.target.value }
                                   })}
                                   className="w-full bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500 outline-none"
                                 />
@@ -7649,7 +7733,7 @@ export default function App() {
                                   value={homepageSections?.spotlight?.layoutStyle || 'carousel'}
                                   onChange={(e) => setHomepageSections({
                                     ...homepageSections,
-                                    spotlight: { ...homepageSections.spotlight, layoutStyle: e.target.value }
+                                    spotlight: { ...(homepageSections?.spotlight || {}), layoutStyle: e.target.value }
                                   })}
                                   className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-bold text-slate-800"
                                 >
@@ -7730,11 +7814,12 @@ export default function App() {
                                       type="button"
                                       disabled={sIdx === 0}
                                       onClick={() => {
-                                        const next = [...(homepageSections.spotlight.items || [])];
+                                        const currSpot = homepageSections?.spotlight || {};
+                                        const next = [...(currSpot.items || [])];
                                         const tmp = next[sIdx - 1];
                                         next[sIdx - 1] = next[sIdx];
                                         next[sIdx] = tmp;
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items: next } });
+                                        setHomepageSections({ ...homepageSections, spotlight: { ...currSpot, items: next } });
                                       }}
                                       className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
                                       title="Move Up"
@@ -7743,13 +7828,14 @@ export default function App() {
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={sIdx === (homepageSections.spotlight.items?.length || 0) - 1}
+                                      disabled={sIdx === ((homepageSections?.spotlight?.items || []).length - 1)}
                                       onClick={() => {
-                                        const next = [...(homepageSections.spotlight.items || [])];
+                                        const currSpot = homepageSections?.spotlight || {};
+                                        const next = [...(currSpot.items || [])];
                                         const tmp = next[sIdx + 1];
                                         next[sIdx + 1] = next[sIdx];
                                         next[sIdx] = tmp;
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items: next } });
+                                        setHomepageSections({ ...homepageSections, spotlight: { ...currSpot, items: next } });
                                       }}
                                       className="p-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 rounded-lg text-slate-700"
                                       title="Move Down"
@@ -7760,8 +7846,9 @@ export default function App() {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const next = (homepageSections.spotlight.items || []).filter((_: any, i: number) => i !== sIdx);
-                                        setHomepageSections({ ...homepageSections, spotlight: { ...homepageSections.spotlight, items: next } });
+                                        const currSpot = homepageSections?.spotlight || {};
+                                        const next = (currSpot.items || []).filter((_: any, i: number) => i !== sIdx);
+                                        setHomepageSections({ ...homepageSections, spotlight: { ...currSpot, items: next } });
                                       }}
                                       className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600"
                                       title="Delete"
@@ -7825,18 +7912,21 @@ export default function App() {
                                     <h5 className="font-black text-sm text-white mt-0.5">{homepageSections?.spotlight?.title || 'ATAL Spotlight'}</h5>
                                   </div>
                                   <div className="space-y-2">
-                                    {(homepageSections?.spotlight?.items || []).slice(0, 1).map((item: any) => (
-                                      <div key={item.id} className="relative rounded-xl overflow-hidden aspect-[16/9] bg-black/60">
-                                        <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt="" className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent p-3 flex flex-col justify-end">
-                                          <span className="bg-amber-400 text-slate-950 text-[8px] font-black px-2 py-0.5 rounded w-max">{item.badge}</span>
-                                          <p className="text-xs font-bold text-white mt-1">{item.title}</p>
-                                          <button type="button" className="mt-2 bg-amber-400 text-slate-950 font-bold px-3 py-1 rounded-lg text-[10px] w-max">
-                                            {item.buttonText || 'Shop Now'}
-                                          </button>
+                                    {(homepageSections?.spotlight?.items || []).slice(0, 1).map((item: any) => {
+                                      if (!item) return null;
+                                      return (
+                                        <div key={item.id || 'preview-spot'} className="relative rounded-xl overflow-hidden aspect-[16/9] bg-black/60">
+                                          <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt="" className="w-full h-full object-cover" />
+                                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent p-3 flex flex-col justify-end">
+                                            <span className="bg-amber-400 text-slate-950 text-[8px] font-black px-2 py-0.5 rounded w-max">{item.badge || 'SPOTLIGHT'}</span>
+                                            <p className="text-xs font-bold text-white mt-1">{item.title || 'Special Feature'}</p>
+                                            <button type="button" className="mt-2 bg-amber-400 text-slate-950 font-bold px-3 py-1 rounded-lg text-[10px] w-max">
+                                              {item.buttonText || 'Shop Now'}
+                                            </button>
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
@@ -7853,13 +7943,13 @@ export default function App() {
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     {((homepageSections?.newLaunch?.availableNow?.productIds || []).slice(0, 2)).map((pId: string) => {
-                                      const p = products.find(x => x.id === pId);
+                                      const p = products.find(x => x && x.id === pId);
                                       if (!p) return null;
                                       return (
                                         <div key={pId} className="bg-white/10 rounded-xl p-2">
-                                          <img src={p.images[0]} alt="" className="w-full aspect-square object-cover rounded-lg mb-1" />
-                                          <p className="text-[10px] font-bold text-white truncate">{p.name}</p>
-                                          <p className="text-[10px] text-emerald-400 font-black">Rs {p.price.toLocaleString()}</p>
+                                          <img src={p.images?.[0] || DEFAULT_PRODUCT_IMAGE} alt="" className="w-full aspect-square object-cover rounded-lg mb-1" />
+                                          <p className="text-[10px] font-bold text-white truncate">{p.name || 'Product'}</p>
+                                          <p className="text-[10px] text-emerald-400 font-black">Rs {(p.price || 0).toLocaleString()}</p>
                                         </div>
                                       );
                                     })}
@@ -7875,18 +7965,21 @@ export default function App() {
                                     <h5 className="font-black text-sm text-white">{homepageSections?.newLaunch?.launchSoon?.title || 'Launch Soon'}</h5>
                                   </div>
                                   <div className="space-y-2">
-                                    {(homepageSections?.newLaunch?.launchSoon?.items || []).slice(0, 1).map((item: any) => (
-                                      <div key={item.id} className="bg-white/5 border border-amber-500/20 rounded-xl p-2.5">
-                                        <div className="flex items-center justify-between mb-1">
-                                          <span className="bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded">{item.badge}</span>
-                                          {item.expectedLaunchDate && <CountdownTimer targetDate={item.expectedLaunchDate} />}
+                                    {(homepageSections?.newLaunch?.launchSoon?.items || []).slice(0, 1).map((item: any) => {
+                                      if (!item) return null;
+                                      return (
+                                        <div key={item.id || 'preview-ls'} className="bg-white/5 border border-amber-500/20 rounded-xl p-2.5">
+                                          <div className="flex items-center justify-between mb-1">
+                                            <span className="bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded">{item.badge || 'COMING SOON'}</span>
+                                            {item.expectedLaunchDate && <CountdownTimer targetDate={item.expectedLaunchDate} />}
+                                          </div>
+                                          <p className="text-xs font-bold text-white mt-1">{item.name || 'Drop Title'}</p>
+                                          <button type="button" className="mt-2 w-full bg-amber-500 text-slate-950 font-bold py-1.5 rounded-lg text-[10px]">
+                                            🔔 Notify Me When Launched
+                                          </button>
                                         </div>
-                                        <p className="text-xs font-bold text-white mt-1">{item.name}</p>
-                                        <button type="button" className="mt-2 w-full bg-amber-500 text-slate-950 font-bold py-1.5 rounded-lg text-[10px]">
-                                          🔔 Notify Me When Launched
-                                        </button>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
@@ -7940,7 +8033,7 @@ export default function App() {
                             }`}
                           >
                             <Download className="w-4 h-4 text-emerald-400" />
-                            <span>Export Center (JSON & CSV)</span>
+                            <span>Export Center (JSON Only)</span>
                           </button>
 
                           <button
@@ -7980,9 +8073,9 @@ export default function App() {
                           <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 flex items-start gap-3">
                             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                             <div className="text-xs text-emerald-900">
-                              <p className="font-bold">Permanent Server-Side Storage & Instant Downloads</p>
+                              <p className="font-bold">Permanent Server-Side Storage & Instant JSON Downloads</p>
                               <p className="text-emerald-700 mt-0.5">
-                                All exports are generated live directly from the persistent database on the server. You can download individual entity tables in CSV spreadsheet format for Excel/Google Sheets, or full JSON packages for website migration and backup restores.
+                                All exports are generated live directly from the persistent database on the server in standard JSON schema format for seamless backup, restoration, and website migration.
                               </p>
                             </div>
                           </div>
@@ -8001,7 +8094,7 @@ export default function App() {
                                 </div>
                                 <h4 className="font-bold text-sm text-slate-900">Complete Store Backup</h4>
                                 <p className="text-xs text-slate-500 mt-1 mb-4">
-                                  Products, categories, subcategories, carousel slides, settings, customer orders, and registered accounts.
+                                  Products, categories, subcategories, carousel slides, settings, homepage sections, customer orders, and accounts.
                                 </p>
                               </div>
                               <div className="pt-2 border-t border-slate-100">
@@ -8035,20 +8128,14 @@ export default function App() {
                                   Category ID, slug, title, description, category image URL, subcategory list array, and display ordering.
                                 </p>
                               </div>
-                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                              <div className="pt-2 border-t border-slate-100">
                                 <button
                                   type="button"
                                   onClick={() => triggerDataExport('categories', 'json')}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
-                                  <Download className="w-3.5 h-3.5" /> JSON
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDataExport('categories', 'csv')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> CSV
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Categories (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8072,20 +8159,14 @@ export default function App() {
                                   Product ID, SKU, title, slug, price, sale price, stock, category linkages, descriptions, and 3+ photo URLs.
                                 </p>
                               </div>
-                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                              <div className="pt-2 border-t border-slate-100">
                                 <button
                                   type="button"
                                   onClick={() => triggerDataExport('products', 'json')}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
-                                  <Download className="w-3.5 h-3.5" /> JSON
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDataExport('products', 'csv')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> CSV
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Products (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8106,20 +8187,14 @@ export default function App() {
                                   Granular variant breakdown: color, size, individual SKU, unit price, and allocated inventory.
                                 </p>
                               </div>
-                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                              <div className="pt-2 border-t border-slate-100">
                                 <button
                                   type="button"
                                   onClick={() => triggerDataExport('variations', 'json')}
-                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
-                                  <Download className="w-3.5 h-3.5" /> JSON
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDataExport('variations', 'csv')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> CSV
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Variations (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8140,20 +8215,14 @@ export default function App() {
                                   Stock levels, stock statuses (In Stock, Low Stock, Out of Stock), unit retail prices, and product SKUs.
                                 </p>
                               </div>
-                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                              <div className="pt-2 border-t border-slate-100">
                                 <button
                                   type="button"
                                   onClick={() => triggerDataExport('inventory', 'json')}
-                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
-                                  <Download className="w-3.5 h-3.5" /> JSON
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDataExport('inventory', 'csv')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600" /> CSV
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Inventory (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8174,20 +8243,14 @@ export default function App() {
                                   8-Digit Tracking Numbers, TID Transaction IDs, Customer contact, Shipping address, Order items, and Total PKR.
                                 </p>
                               </div>
-                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                              <div className="pt-2 border-t border-slate-100">
                                 <button
                                   type="button"
                                   onClick={() => triggerDataExport('orders', 'json')}
-                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
-                                  <Download className="w-3.5 h-3.5" /> JSON
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDataExport('orders', 'csv')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> CSV
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Orders (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8208,20 +8271,14 @@ export default function App() {
                                   Authorized customer directory, WhatsApp numbers, email IDs, cities, provinces, and default delivery addresses.
                                 </p>
                               </div>
-                              <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                              <div className="pt-2 border-t border-slate-100">
                                 <button
                                   type="button"
                                   onClick={() => triggerDataExport('customers', 'json')}
-                                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
-                                  <Download className="w-3.5 h-3.5" /> JSON
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDataExport('customers', 'csv')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <FileSpreadsheet className="w-3.5 h-3.5 text-teal-600" /> CSV
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Export Customers (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8249,7 +8306,7 @@ export default function App() {
                                   className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
                                   <Download className="w-3.5 h-3.5" />
-                                  <span>Export Carousel JSON</span>
+                                  <span>Export Carousel (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8277,7 +8334,7 @@ export default function App() {
                                   className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                                 >
                                   <Download className="w-3.5 h-3.5" />
-                                  <span>Export Settings JSON</span>
+                                  <span>Export Settings (.json)</span>
                                 </button>
                               </div>
                             </div>
@@ -8295,9 +8352,9 @@ export default function App() {
                                 <Upload className="w-5 h-5" />
                               </div>
                               <div>
-                                <h4 className="font-bold text-base text-slate-900">Upload Backup File (.json, .csv, or .zip)</h4>
+                                <h4 className="font-bold text-base text-slate-900">Upload Backup File (.json Only)</h4>
                                 <p className="text-xs text-slate-500">
-                                  Select an ATAL JSON backup, CSV spreadsheet, or ZIP backup archive. The system will pre-validate integrity and preview changes before modifying data.
+                                  Select an ATAL standard JSON backup. The system validates schema structure and previews all changes before modifying data.
                                 </p>
                               </div>
                             </div>
@@ -8305,15 +8362,15 @@ export default function App() {
                             <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 transition rounded-2xl p-8 text-center bg-slate-50/50">
                               <div className="max-w-md mx-auto space-y-3">
                                 <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-                                  <FileSpreadsheet className="w-6 h-6" />
+                                  <Database className="w-6 h-6" />
                                 </div>
                                 <div>
-                                  <p className="font-bold text-sm text-slate-800">Choose a JSON, CSV, or ZIP backup file to import</p>
-                                  <p className="text-xs text-slate-400 mt-0.5">Supports ATAL full database JSON, products CSV, categories CSV, ZIP archives, orders CSV, etc.</p>
+                                  <p className="font-bold text-sm text-slate-800">Choose an ATAL JSON backup file (.json) to import</p>
+                                  <p className="text-xs text-slate-400 mt-0.5">Supports ATAL full database JSON, products JSON, categories JSON, carousel JSON, and settings JSON.</p>
                                 </div>
                                 <input
                                   type="file"
-                                  accept=".json,.csv,.zip"
+                                  accept=".json,application/json"
                                   onChange={handleFileSelectedForImport}
                                   className="w-full text-xs file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
                                 />
@@ -9195,7 +9252,7 @@ export default function App() {
                               <input 
                                 type="text" 
                                 required
-                                value={slideForm.badge}
+                                value={slideForm.badge || ''}
                                 onChange={(e) => setSlideForm({...slideForm, badge: e.target.value})}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               />
@@ -9205,7 +9262,7 @@ export default function App() {
                               <input 
                                 type="text" 
                                 required
-                                value={slideForm.discount}
+                                value={slideForm.discount || ''}
                                 onChange={(e) => setSlideForm({...slideForm, discount: e.target.value})}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               />
@@ -9217,7 +9274,7 @@ export default function App() {
                             <input 
                               type="text" 
                               required
-                              value={slideForm.title}
+                              value={slideForm.title || ''}
                               onChange={(e) => setSlideForm({...slideForm, title: e.target.value})}
                               className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                             />
@@ -9228,7 +9285,7 @@ export default function App() {
                             <input 
                               type="text" 
                               required
-                              value={slideForm.subtitle}
+                              value={slideForm.subtitle || ''}
                               onChange={(e) => setSlideForm({...slideForm, subtitle: e.target.value})}
                               className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                             />
@@ -9240,7 +9297,7 @@ export default function App() {
                               <input 
                                 type="text" 
                                 required
-                                value={slideForm.buttonText}
+                                value={slideForm.buttonText || ''}
                                 onChange={(e) => setSlideForm({...slideForm, buttonText: e.target.value})}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               />
@@ -9248,7 +9305,7 @@ export default function App() {
                             <div>
                               <label className="font-black uppercase tracking-wider text-slate-700 block mb-1.5">Target Category *</label>
                               <select 
-                                value={slideForm.categoryId}
+                                value={slideForm.categoryId || ''}
                                 onChange={(e) => setSlideForm({...slideForm, categoryId: e.target.value})}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition"
                               >
@@ -10772,12 +10829,14 @@ export default function App() {
                   } else {
                     currentItems.push(editingLaunchSoonItem);
                   }
+                  const currNL = homepageSections?.newLaunch || {};
+                  const currLS = currNL.launchSoon || {};
                   setHomepageSections({
                     ...homepageSections,
                     newLaunch: {
-                      ...homepageSections.newLaunch,
+                      ...currNL,
                       launchSoon: {
-                        ...homepageSections.newLaunch.launchSoon,
+                        ...currLS,
                         items: currentItems
                       }
                     }
@@ -10951,10 +11010,11 @@ export default function App() {
                   } else {
                     currentItems.push(editingSpotlightItem);
                   }
+                  const currSpot = homepageSections?.spotlight || {};
                   setHomepageSections({
                     ...homepageSections,
                     spotlight: {
-                      ...homepageSections.spotlight,
+                      ...currSpot,
                       items: currentItems
                     }
                   });
