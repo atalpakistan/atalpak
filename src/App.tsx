@@ -6770,21 +6770,33 @@ export default function App() {
                                 )}
                               </div>
 
-                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
-                                <button 
-                                  onClick={() => openEditCategoryModal(cat)}
-                                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleToggleCategoryStatus(cat.id, e)}
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition flex items-center gap-1.5 cursor-pointer ${cat.isActive !== false ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+                                  title="Click to toggle category status"
                                 >
-                                  <Edit className="w-3.5 h-3.5" />
-                                  <span>Edit</span>
+                                  <span className={`w-2 h-2 rounded-full ${cat.isActive !== false ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400'}`} />
+                                  <span>{cat.isActive !== false ? 'Active' : 'Inactive'}</span>
                                 </button>
-                                <button 
-                                  onClick={() => handleDeleteCategory(cat.id)}
-                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete</span>
-                                </button>
+
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => openEditCategoryModal(cat)}
+                                    className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteCategory(cat.id)}
+                                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Delete</span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -9066,7 +9078,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="flex flex-wrap items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                             <label className="flex items-center gap-2.5 cursor-pointer font-bold text-slate-800">
                               <input 
                                 type="checkbox" 
@@ -9084,6 +9096,15 @@ export default function App() {
                                 className="w-4 h-4 text-emerald-600 rounded accent-emerald-600"
                               />
                               <span>Featured Home Showcase</span>
+                            </label>
+                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-emerald-800">
+                              <input 
+                                type="checkbox" 
+                                checked={productForm.isActive !== false}
+                                onChange={(e) => setProductForm({...productForm, isActive: e.target.checked})}
+                                className="w-4 h-4 text-emerald-600 rounded accent-emerald-600"
+                              />
+                              <span>Active (Visible on Storefront)</span>
                             </label>
                           </div>
 
@@ -9202,6 +9223,18 @@ export default function App() {
                               onChange={(e) => setCategoryForm({...categoryForm, description: e.target.value})}
                               className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none transition"
                             />
+                          </div>
+
+                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-teal-900">
+                              <input 
+                                type="checkbox" 
+                                checked={categoryForm.isActive !== false}
+                                onChange={(e) => setCategoryForm({...categoryForm, isActive: e.target.checked})}
+                                className="w-4 h-4 text-teal-600 rounded accent-teal-600"
+                              />
+                              <span>Active Category (Visible on Storefront & Shop Navigation)</span>
+                            </label>
                           </div>
 
                           <div className="flex gap-3 pt-4 border-t border-slate-100">

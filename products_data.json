@@ -134,7 +134,9 @@
     "isFeatured": true,
     "isFlashDeal": true,
     "isBestSeller": true,
-    "createdAt": "2026-10-26T17:24:03.515Z"
+    "createdAt": "2026-10-26T17:24:03.515Z",
+    "isActive": true,
+    "status": "active"
   },
   {
     "id": "prod-2",
