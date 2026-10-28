@@ -2312,23 +2312,77 @@ export async function createServer() {
     return { format: 'Unknown', fileType: 'Unknown', valid: false, error: 'Invalid file format. The file does not contain a valid JSON object or array.' };
   }
 
-  function inferDataset(parsedData: any): { typeKey: string; label: string; valid: boolean } {
-    if (!parsedData || typeof parsedData !== 'object') {
-      return { typeKey: 'unknown', label: 'Unknown / Unsupported Dataset', valid: false };
+  function isOrderObject(obj: any): boolean {
+    if (!obj || typeof obj !== 'object') return false;
+    if (obj.orderNumber !== undefined || obj.totalAmount !== undefined || obj.orderItems !== undefined || obj.shippingDetails !== undefined) {
+      return true;
+    }
+    if (typeof obj.id === 'string' && (obj.id.startsWith('ord-') || obj.id.startsWith('order-'))) {
+      return true;
+    }
+    return false;
+  }
+
+  function isSlideObject(obj: any): boolean {
+    if (!obj || typeof obj !== 'object') return false;
+    if (obj.badge !== undefined || obj.buttonText !== undefined || (obj.image !== undefined && (obj.title !== undefined || obj.subtitle !== undefined))) {
+      return true;
+    }
+    return false;
+  }
+
+  function inferDataset(parsedData: any, selectedTypeOverride?: string): { typeKey: string; label: string; valid: boolean; requiresSelection?: boolean } {
+    if (selectedTypeOverride && selectedTypeOverride !== 'auto' && selectedTypeOverride !== 'unknown') {
+      const overrideMap: Record<string, string> = {
+        full: 'Full Store Backup',
+        products: 'Product Catalog',
+        categories: 'Categories & Subcategories',
+        orders: 'Orders Dataset',
+        carousel: 'Hero Carousel Slides',
+        settings: 'Store Settings'
+      };
+      if (overrideMap[selectedTypeOverride]) {
+        return { typeKey: selectedTypeOverride, label: overrideMap[selectedTypeOverride], valid: true };
+      }
     }
 
-    // 1. Explicit metadata in root object
-    const explicitType = (parsedData.backupType || parsedData.type || parsedData.dataset || '').toString().toLowerCase().trim();
-    if (explicitType === 'categories') return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
-    if (explicitType === 'products') return { typeKey: 'products', label: 'Product Catalog', valid: true };
-    if (explicitType === 'carousel' || explicitType === 'slides') return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
-    if (explicitType === 'settings' || explicitType === 'storesettings') return { typeKey: 'settings', label: 'Store Settings', valid: true };
-    if (explicitType === 'full' || explicitType === 'all' || explicitType === 'complete') return { typeKey: 'full', label: 'Full Website Backup', valid: true };
+    if (!parsedData || typeof parsedData !== 'object') {
+      return { typeKey: 'unknown', label: 'Unknown / Unsupported Dataset', valid: false, requiresSelection: true };
+    }
 
-    // 2. Structural inference from collections
+    // 1. Explicit metadata in root object or nested root
+    const rootType = (
+      parsedData.backupType ||
+      parsedData.backup_type ||
+      parsedData.type ||
+      parsedData.dataset ||
+      parsedData.backupTypeKey ||
+      ''
+    ).toString().toLowerCase().trim();
+
+    if (rootType === 'categories' || rootType === 'category' || rootType === 'subcategories') {
+      return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
+    }
+    if (rootType === 'products' || rootType === 'product' || rootType === 'catalog' || rootType === 'items') {
+      return { typeKey: 'products', label: 'Product Catalog', valid: true };
+    }
+    if (rootType === 'carousel' || rootType === 'slides' || rootType === 'banners' || rootType === 'carouselslides') {
+      return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
+    }
+    if (rootType === 'settings' || rootType === 'storesettings' || rootType === 'config' || rootType === 'homepagesections') {
+      return { typeKey: 'settings', label: 'Store Settings', valid: true };
+    }
+    if (rootType === 'orders' || rootType === 'order' || rootType === 'transactions') {
+      return { typeKey: 'orders', label: 'Orders Dataset', valid: true };
+    }
+    if (rootType === 'full' || rootType === 'all' || rootType === 'complete' || rootType === 'atal-store-full-backup' || rootType === 'full_restore' || rootType === 'atal-store-backup') {
+      return { typeKey: 'full', label: 'Full Store Backup', valid: true };
+    }
+
+    // 2. Structural inference from container data
     let container = parsedData.data !== undefined ? parsedData.data : parsedData;
 
-    // Handle nested wrappers
+    // Unwrap envelope wrappers if needed
     while (container && typeof container === 'object' && !Array.isArray(container)) {
       if (
         container.products ||
@@ -2337,7 +2391,10 @@ export async function createServer() {
         container.carouselSlides ||
         container.settings ||
         container.storeSettings ||
-        container.homepageSections
+        container.homepageSections ||
+        container.orders ||
+        container.items ||
+        container.catalog
       ) {
         break;
       }
@@ -2352,49 +2409,81 @@ export async function createServer() {
       }
     }
 
+    // Direct Array Detection
     if (Array.isArray(container)) {
-      if (container.length > 0) {
-        const first = container[0];
-        if (isCategoryObject(first)) return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
-        if (isProductObject(first)) return { typeKey: 'products', label: 'Product Catalog', valid: true };
-        if (first && (first.badge !== undefined || first.buttonText !== undefined)) return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
-        return { typeKey: 'products', label: 'Product Catalog', valid: true };
+      if (container.length === 0) {
+        return {
+          typeKey: 'unknown',
+          label: 'Valid JSON detected (Empty Array). Select dataset type to continue.',
+          valid: true,
+          requiresSelection: true
+        };
       }
-      return { typeKey: 'unknown', label: 'Empty Dataset Array', valid: false };
+      // Inspect first few items
+      const sample = container.slice(0, 5);
+      const isCat = sample.some(isCategoryObject);
+      const isProd = sample.some(isProductObject);
+      const isOrd = sample.some(isOrderObject);
+      const isSlide = sample.some(isSlideObject);
+
+      if (isCat && !isProd) return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
+      if (isProd && !isCat) return { typeKey: 'products', label: 'Product Catalog', valid: true };
+      if (isOrd) return { typeKey: 'orders', label: 'Orders Dataset', valid: true };
+      if (isSlide) return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
+
+      // Fallback for array where items couldn't be matched with 100% certainty
+      return {
+        typeKey: 'unknown',
+        label: 'Valid JSON Array detected. Select dataset type to continue.',
+        valid: true,
+        requiresSelection: true
+      };
     }
 
+    // Object Container Detection
     if (typeof container === 'object' && container !== null) {
-      const hasCats = Boolean(Array.isArray(container.categories) || Array.isArray(container.cats) || 'categories' in container);
-      const hasProds = Boolean(Array.isArray(container.products) || Array.isArray(container.items) || Array.isArray(container.catalog) || 'products' in container);
-      const hasCarousel = Boolean(Array.isArray(container.carousel) || Array.isArray(container.carouselSlides) || 'carousel' in container || 'carouselSlides' in container);
-      const hasSettings = Boolean((container.settings && typeof container.settings === 'object') || (container.storeSettings && typeof container.storeSettings === 'object') || 'settings' in container);
-      const hasOrders = Boolean(Array.isArray(container.orders) || 'orders' in container);
-      const hasCustomers = Boolean(Array.isArray(container.customers) || 'customers' in container);
+      const hasCats = Boolean(Array.isArray(container.categories) || Array.isArray(container.cats) || ('categories' in container && Array.isArray(container.categories)));
+      const hasProds = Boolean(Array.isArray(container.products) || Array.isArray(container.items) || Array.isArray(container.catalog) || ('products' in container && Array.isArray(container.products)));
+      const hasCarousel = Boolean(Array.isArray(container.carousel) || Array.isArray(container.carouselSlides) || Array.isArray(container.banners) || Array.isArray(container.slides));
+      const hasSettings = Boolean((container.settings && typeof container.settings === 'object') || (container.storeSettings && typeof container.storeSettings === 'object') || (container.homepageSections && typeof container.homepageSections === 'object'));
+      const hasOrders = Boolean(Array.isArray(container.orders));
 
-      if (hasCats && hasProds) return { typeKey: 'full', label: 'Full Website Backup', valid: true };
-      if (hasCats && !hasProds && !hasCarousel && !hasSettings) return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
-      if (hasProds && !hasCats && !hasCarousel && !hasSettings) return { typeKey: 'products', label: 'Product Catalog', valid: true };
-      if (hasCarousel && !hasCats && !hasProds && !hasSettings) return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
-      if (hasSettings && !hasCats && !hasProds && !hasCarousel) return { typeKey: 'settings', label: 'Store Settings', valid: true };
-      if (hasCats || hasProds || hasCarousel || hasSettings || hasOrders || hasCustomers) return { typeKey: 'full', label: 'Full Website Backup', valid: true };
+      const countCollections = [hasCats, hasProds, hasCarousel, hasSettings, hasOrders].filter(Boolean).length;
+
+      if (countCollections >= 2 || (hasCats && hasProds)) {
+        return { typeKey: 'full', label: 'Full Store Backup', valid: true };
+      }
+      if (hasCats && countCollections === 1) return { typeKey: 'categories', label: 'Categories & Subcategories', valid: true };
+      if (hasProds && countCollections === 1) return { typeKey: 'products', label: 'Product Catalog', valid: true };
+      if (hasCarousel && countCollections === 1) return { typeKey: 'carousel', label: 'Hero Carousel Slides', valid: true };
+      if (hasSettings && countCollections === 1) return { typeKey: 'settings', label: 'Store Settings', valid: true };
+      if (hasOrders && countCollections === 1) return { typeKey: 'orders', label: 'Orders Dataset', valid: true };
     }
 
-    return { typeKey: 'unknown', label: 'Unknown / Unsupported Dataset', valid: false };
+    return {
+      typeKey: 'unknown',
+      label: 'Valid JSON detected. Select dataset type to continue.',
+      valid: true,
+      requiresSelection: true
+    };
   }
 
   // Standard JSON Schema Validator & Extractor (JSON ONLY)
   function parseAndValidateJsonBackup(
     rawContent: any,
-    directData?: any
+    directData?: any,
+    selectedDatasetType?: string
   ): {
     success: boolean;
     error?: string;
     errors?: string[];
     warnings?: string[];
     appName?: string;
-    backupType?: 'full' | 'categories' | 'products' | 'carousel' | 'settings';
+    backupType?: 'full' | 'categories' | 'products' | 'carousel' | 'settings' | 'orders' | 'unknown';
     schemaVersion?: number;
+    backupVersion?: number;
     exportedAt?: string;
+    requiresDatasetSelection?: boolean;
     data?: {
       products?: any[];
       categories?: any[];
@@ -2419,7 +2508,6 @@ export async function createServer() {
       } else {
         let str = rawContent;
 
-        // Check for empty content
         if (!str || !str.trim()) {
           return {
             success: false,
@@ -2428,7 +2516,6 @@ export async function createServer() {
           };
         }
 
-        // Check for non-JSON file headers (CSV, ZIP, binary)
         const trimmed = str.trim();
         if (
           trimmed.startsWith('PK\x03\x04') ||
@@ -2443,13 +2530,9 @@ export async function createServer() {
           };
         }
 
-        // Strip UTF-8 BOM if present
         str = str.replace(/^\uFEFF/, '').trim();
-
-        // Strip markdown code fences if user pasted into raw input
         str = str.replace(/^```[a-zA-Z]*\r?\n/, '').replace(/\r?\n```\s*$/, '').trim();
 
-        // Quick check if string starts with JSON brackets
         if (!str.startsWith('{') && !str.startsWith('[')) {
           return {
             success: false,
@@ -2458,7 +2541,6 @@ export async function createServer() {
           };
         }
 
-        // Parse JSON
         try {
           target = JSON.parse(str);
         } catch (e: any) {
@@ -2479,27 +2561,50 @@ export async function createServer() {
       };
     }
 
-    // 2. Validate schemaVersion if provided
+    // 2. Validate schemaVersion / backupVersion if provided
     let schemaVersion = 1;
-    if (target.schemaVersion !== undefined) {
-      if (typeof target.schemaVersion !== 'number' || target.schemaVersion < 1) {
+    let backupVersion = 1;
+
+    const providedVersion = target.schemaVersion ?? target.backupVersion ?? target.version;
+    if (providedVersion !== undefined) {
+      const numVer = Number(providedVersion);
+      if (isNaN(numVer) || numVer > 2 || numVer < 1) {
         return {
           success: false,
-          error: `Unsupported schema version: "${target.schemaVersion}". This website supports schema version 1.`,
-          errors: [`Unsupported schema version: "${target.schemaVersion}". This website supports schema version 1.`]
+          error: `Unsupported backup version: version ${providedVersion}. Supported versions: 1–2.`,
+          errors: [`Unsupported backup version: version ${providedVersion}. Supported versions: 1–2.`]
         };
       }
-      schemaVersion = target.schemaVersion;
+      schemaVersion = numVer;
+      backupVersion = numVer;
     }
 
-    const appName = target.appName || 'ATAL Store';
-    let backupType: 'full' | 'categories' | 'products' | 'carousel' | 'settings' = target.backupType || 'full';
-    const exportedAt = target.exportedAt || new Date().toISOString();
+    const appName = target.appName || target.app || 'ATAL Store';
+    const exportedAt = target.exportedAt || target.created_at || new Date().toISOString();
 
-    // 3. Extract Collections from data container or unwrap
+    // 3. Infer or override Dataset Type
+    const datasetInfo = inferDataset(target, selectedDatasetType);
+    let backupType = (selectedDatasetType && selectedDatasetType !== 'auto' ? selectedDatasetType : datasetInfo.typeKey) as any;
+
+    if (backupType === 'unknown' || datasetInfo.requiresSelection) {
+      if (!selectedDatasetType || selectedDatasetType === 'auto') {
+        return {
+          success: true,
+          requiresDatasetSelection: true,
+          backupType: 'unknown',
+          appName,
+          schemaVersion,
+          backupVersion,
+          exportedAt,
+          data: {},
+          warnings: ['Valid JSON detected, but dataset type could not be automatically identified. Please select the dataset type above to continue.']
+        };
+      }
+    }
+
+    // 4. Extract Collections from data container or unwrap
     let container = target.data !== undefined ? target.data : target;
 
-    // Handle nested envelope wrappers gracefully
     while (container && typeof container === 'object' && !Array.isArray(container)) {
       if (
         container.products ||
@@ -2508,7 +2613,10 @@ export async function createServer() {
         container.carouselSlides ||
         container.settings ||
         container.storeSettings ||
-        container.homepageSections
+        container.homepageSections ||
+        container.orders ||
+        container.items ||
+        container.catalog
       ) {
         break;
       }
@@ -2534,23 +2642,22 @@ export async function createServer() {
     } = {};
 
     if (Array.isArray(container)) {
-      if (container.length > 0) {
-        const first = container[0];
-        if (isCategoryObject(first)) {
-          normalizedData.categories = container;
-          backupType = 'categories';
-        } else if (isProductObject(first)) {
-          normalizedData.products = container;
-          backupType = 'products';
-        } else if (first && (first.badge !== undefined || first.buttonText !== undefined)) {
-          normalizedData.carouselSlides = container;
-          backupType = 'carousel';
+      if (backupType === 'categories') normalizedData.categories = container;
+      else if (backupType === 'products') normalizedData.products = container;
+      else if (backupType === 'orders') normalizedData.orders = container;
+      else if (backupType === 'carousel') normalizedData.carouselSlides = container;
+      else {
+        // Full or auto
+        if (container.length > 0) {
+          const first = container[0];
+          if (isCategoryObject(first)) { normalizedData.categories = container; backupType = 'categories'; }
+          else if (isProductObject(first)) { normalizedData.products = container; backupType = 'products'; }
+          else if (isOrderObject(first)) { normalizedData.orders = container; backupType = 'orders'; }
+          else if (isSlideObject(first)) { normalizedData.carouselSlides = container; backupType = 'carousel'; }
+          else { normalizedData.products = container; backupType = 'products'; }
         } else {
-          normalizedData.products = container;
-          backupType = 'products';
+          normalizedData.products = [];
         }
-      } else {
-        normalizedData.products = [];
       }
     } else if (typeof container === 'object' && container !== null) {
       if (Array.isArray(container.categories)) normalizedData.categories = container.categories;
@@ -2565,40 +2672,16 @@ export async function createServer() {
       if (Array.isArray(container.carousel)) normalizedData.carouselSlides = container.carousel;
       else if (Array.isArray(container.carouselSlides)) normalizedData.carouselSlides = container.carouselSlides;
       else if (Array.isArray(container.slides)) normalizedData.carouselSlides = container.slides;
-      else if ('carousel' in container || 'carouselSlides' in container) normalizedData.carouselSlides = Array.isArray(container.carousel || container.carouselSlides) ? (container.carousel || container.carouselSlides) : [];
+      else if (Array.isArray(container.banners)) normalizedData.carouselSlides = container.banners;
 
       if (container.settings && typeof container.settings === 'object') normalizedData.storeSettings = container.settings;
       else if (container.storeSettings && typeof container.storeSettings === 'object') normalizedData.storeSettings = container.storeSettings;
-      else if ('settings' in container || 'storeSettings' in container) normalizedData.storeSettings = container.settings || container.storeSettings || {};
 
       if (container.homepageSections && typeof container.homepageSections === 'object') normalizedData.homepageSections = container.homepageSections;
-      else if ('homepageSections' in container) normalizedData.homepageSections = container.homepageSections || {};
 
       if (Array.isArray(container.orders)) normalizedData.orders = container.orders;
-      else if ('orders' in container) normalizedData.orders = [];
 
       if (Array.isArray(container.customers)) normalizedData.customers = container.customers;
-      else if ('customers' in container) normalizedData.customers = [];
-
-      // Infer backupType if not explicitly provided
-      if (!target.backupType) {
-        const hasCats = normalizedData.categories !== undefined;
-        const hasProds = normalizedData.products !== undefined;
-        const hasCarousel = normalizedData.carouselSlides !== undefined;
-        const hasSettings = normalizedData.storeSettings !== undefined;
-
-        if (hasCats && !hasProds && !hasCarousel && !hasSettings) {
-          backupType = 'categories';
-        } else if (hasProds && !hasCats && !hasCarousel && !hasSettings) {
-          backupType = 'products';
-        } else if (hasCarousel && !hasCats && !hasProds && !hasSettings) {
-          backupType = 'carousel';
-        } else if (hasSettings && !hasCats && !hasProds && !hasCarousel) {
-          backupType = 'settings';
-        } else if (hasCats || hasProds || hasCarousel || hasSettings) {
-          backupType = 'full';
-        }
-      }
     }
 
     const hasAny = Boolean(
@@ -2939,6 +3022,7 @@ export async function createServer() {
           appName: 'ATAL Store',
           backupType: 'categories',
           schemaVersion: 1,
+          backupVersion: 1,
           exportedAt: new Date().toISOString(),
           data: {
             categories
@@ -2950,6 +3034,7 @@ export async function createServer() {
           appName: 'ATAL Store',
           backupType: 'products',
           schemaVersion: 1,
+          backupVersion: 1,
           exportedAt: new Date().toISOString(),
           data: {
             products
@@ -2961,9 +3046,11 @@ export async function createServer() {
           appName: 'ATAL Store',
           backupType: 'carousel',
           schemaVersion: 1,
+          backupVersion: 1,
           exportedAt: new Date().toISOString(),
           data: {
-            carousel: carouselSlides
+            carousel: carouselSlides,
+            carouselSlides
           }
         };
       } else if (type === 'settings') {
@@ -2972,9 +3059,24 @@ export async function createServer() {
           appName: 'ATAL Store',
           backupType: 'settings',
           schemaVersion: 1,
+          backupVersion: 1,
           exportedAt: new Date().toISOString(),
           data: {
-            settings: storeSettings
+            settings: storeSettings,
+            storeSettings,
+            homepageSections
+          }
+        };
+      } else if (type === 'orders') {
+        filename = `atal-orders-backup-${dateStr}.json`;
+        exportPayload = {
+          appName: 'ATAL Store',
+          backupType: 'orders',
+          schemaVersion: 1,
+          backupVersion: 1,
+          exportedAt: new Date().toISOString(),
+          data: {
+            orders
           }
         };
       } else {
@@ -2984,12 +3086,15 @@ export async function createServer() {
           appName: 'ATAL Store',
           backupType: 'full',
           schemaVersion: 1,
+          backupVersion: 1,
           exportedAt: new Date().toISOString(),
           data: {
             categories,
             products,
             carousel: carouselSlides,
+            carouselSlides,
             settings: storeSettings,
+            storeSettings,
             homepageSections,
             orders,
             customers: customers.map(sanitizeCustomer)
@@ -2999,7 +3104,7 @@ export async function createServer() {
 
       // MANDATORY PRE-DOWNLOAD SELF-VALIDATION
       const serializedJson = JSON.stringify(exportPayload, null, 2);
-      const validation = parseAndValidateJsonBackup(serializedJson);
+      const validation = parseAndValidateJsonBackup(serializedJson, undefined, exportPayload.backupType);
 
       if (!validation.success) {
         console.error('Export failed pre-download self-validation:', validation.error);
@@ -3020,7 +3125,7 @@ export async function createServer() {
   // 7.3 Pre-Import Validation & Simulation Preview API (JSON ONLY)
   app.post('/api/admin/validate-import', (req, res) => {
     try {
-      const { data, rawContent } = req.body || {};
+      const { data, rawContent, selectedDatasetType } = req.body || {};
       const payload = rawContent !== undefined ? rawContent : data;
 
       const formatInfo = detectFileFormat(payload, data);
@@ -3031,28 +3136,32 @@ export async function createServer() {
           format: formatInfo.format,
           fileType: formatInfo.fileType,
           detectedFormat: formatInfo.format,
-          inferredDataset: 'Unknown / Unsupported Dataset',
-          inferredType: 'Unknown / Unsupported Dataset',
-          dataset: 'Unknown / Unsupported Dataset',
+          inferredDataset: 'Unknown / Unsupported File Format',
+          inferredType: 'Unknown / Unsupported File Format',
+          dataset: 'Unknown / Unsupported File Format',
           backupType: 'unknown',
+          requiresDatasetSelection: false,
           error: formatInfo.error || 'Invalid file format.',
           errors: [formatInfo.error || 'Invalid file format.'],
           warnings: []
         });
       }
 
-      const val = parseAndValidateJsonBackup(rawContent, data);
-      const datasetInfo = inferDataset(val.data || data || rawContent);
+      const val = parseAndValidateJsonBackup(rawContent, data, selectedDatasetType);
+      const datasetInfo = inferDataset(val.data || data || rawContent, selectedDatasetType);
 
       const datasetLabelMap: Record<string, string> = {
-        full: 'Full Website Backup',
+        full: 'Full Store Backup',
         categories: 'Categories & Subcategories',
         products: 'Product Catalog',
         carousel: 'Hero Carousel Slides',
-        settings: 'Store Settings'
+        settings: 'Store Settings',
+        orders: 'Orders Dataset'
       };
 
-      const finalLabel = datasetLabelMap[val.backupType || ''] || datasetInfo.label || 'Unknown / Unsupported Dataset';
+      const finalLabel = val.requiresDatasetSelection
+        ? 'Valid JSON detected. Select dataset type to continue.'
+        : (datasetLabelMap[val.backupType || ''] || datasetInfo.label || 'Full Store Backup');
 
       if (!val.success || !val.data) {
         return res.status(400).json({
@@ -3065,6 +3174,7 @@ export async function createServer() {
           inferredType: finalLabel,
           dataset: finalLabel,
           backupType: val.backupType || 'unknown',
+          requiresDatasetSelection: val.requiresDatasetSelection || false,
           error: val.error || 'The uploaded file does not match a supported ATAL backup structure.',
           errors: val.errors || [val.error || 'The uploaded file does not match a supported ATAL backup structure.'],
           warnings: val.warnings || []
@@ -3081,8 +3191,10 @@ export async function createServer() {
         inferredType: finalLabel,
         dataset: finalLabel,
         backupType: val.backupType || datasetInfo.typeKey || 'full',
+        requiresDatasetSelection: val.requiresDatasetSelection || false,
         appName: val.appName,
         schemaVersion: val.schemaVersion,
+        backupVersion: val.backupVersion,
         exportedAt: val.exportedAt,
         stats: val.stats,
         summary: val.stats,
@@ -3105,6 +3217,7 @@ export async function createServer() {
         inferredType: 'Unknown / Unsupported Dataset',
         dataset: 'Unknown / Unsupported Dataset',
         backupType: 'unknown',
+        requiresDatasetSelection: false,
         errors: [`Validation failed: ${err.message}`],
         warnings: []
       });
@@ -3114,8 +3227,8 @@ export async function createServer() {
   // 7.4 Robust JSON Import API (Merge Data & Full Restore Modes)
   app.post('/api/admin/import-data', (req, res) => {
     try {
-      const { data, rawContent, mode = 'update_existing' } = req.body || {};
-      const val = parseAndValidateJsonBackup(rawContent, data);
+      const { data, rawContent, mode = 'update_existing', selectedDatasetType } = req.body || {};
+      const val = parseAndValidateJsonBackup(rawContent, data, selectedDatasetType);
 
       if (!val.success || !val.data) {
         return res.status(400).json({

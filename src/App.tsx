@@ -14,7 +14,7 @@ import {
   LogOut, KeyRound, MapPin, Send, CheckCheck, RefreshCw, FileText, ExternalLink,
   Instagram, Facebook, Landmark, Download, Upload, Database, History, FileSpreadsheet,
   HardDrive, AlertCircle, Layers, ArrowDownUp, FileDown, Bell, Calendar, Clock,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, Filter
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { authService } from './services/auth';
@@ -726,6 +726,7 @@ export default function App() {
   const [importSelectedFile, setImportSelectedFile] = useState<File | null>(null);
   const [importFileRawText, setImportFileRawText] = useState<string>('');
   const [importFileFormat, setImportFileFormat] = useState<'json' | 'csv' | 'zip'>('json');
+  const [selectedDatasetType, setSelectedDatasetType] = useState<string>('auto');
   const [importValidation, setImportValidation] = useState<any | null>(null);
   const [isValidatingImport, setIsValidatingImport] = useState(false);
   const [importMode, setImportMode] = useState<'update_existing' | 'add_new' | 'full_restore'>('update_existing');
@@ -2044,6 +2045,7 @@ export default function App() {
     setImportReport(null);
     setImportValidation(null);
     setImportFileFormat('json');
+    setSelectedDatasetType('auto');
 
     const reader = new FileReader();
     reader.onload = async (ev) => {
@@ -2062,40 +2064,53 @@ export default function App() {
           detectedFormat: 'JSON (Malformed)',
           fileType: 'JSON',
           format: 'JSON',
-          inferredDataset: 'Unknown / Malformed JSON Syntax',
-          inferredType: 'Unknown / Malformed JSON Syntax',
-          dataset: 'Unknown / Malformed JSON Syntax',
-          errors: [`Malformed JSON syntax: ${parseErr.message}. Please ensure the file is well-formed JSON.`],
+          inferredDataset: 'Invalid JSON Syntax',
+          inferredType: 'Invalid JSON Syntax',
+          dataset: 'Invalid JSON Syntax',
+          errors: [`Invalid JSON syntax: ${parseErr.message}. Please ensure the file is well-formed JSON.`],
           warnings: ['Check for missing commas, unescaped quotes, or syntax errors.']
         });
-        showToast(`⚠️ Malformed JSON: ${parseErr.message}`);
+        showToast(`⚠️ Malformed JSON syntax: ${parseErr.message}`);
         return;
       }
 
-      // Comprehensive validation & relationship simulation with server
-      setIsValidatingImport(true);
-      try {
-        const res = await fetch(getApiUrl('/api/admin/validate-import'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawContent: text })
-        });
-        const valData = await res.json();
-        if (res.ok && (valData.isValid || valData.valid)) {
-          setImportValidation(valData);
-          showToast(`✓ Backup "${file.name}" analyzed and ready for preview!`);
-        } else {
-          setImportValidation(valData);
-          showToast(`⚠️ Validation issue: ${(valData.errors || []).join('; ') || valData.error || 'Invalid backup structure'}`);
-        }
-      } catch (err) {
-        showToast('Error validating import file format');
-      } finally {
-        setIsValidatingImport(false);
-      }
+      await validateImportContent(text, 'auto');
     };
 
     reader.readAsText(file, 'utf-8');
+  };
+
+  const validateImportContent = async (rawText: string, datasetOverride: string = selectedDatasetType) => {
+    if (!rawText) return;
+    setIsValidatingImport(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/validate-import'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rawContent: rawText,
+          selectedDatasetType: datasetOverride !== 'auto' ? datasetOverride : undefined
+        })
+      });
+      const valData = await res.json();
+      setImportValidation(valData);
+      if (res.ok && (valData.isValid || valData.valid)) {
+        showToast(`✓ File analyzed: ${valData.inferredDataset || 'Ready for preview'}`);
+      } else {
+        showToast(`⚠️ Validation note: ${(valData.errors || []).join('; ') || valData.error || 'Please verify dataset selection'}`);
+      }
+    } catch (err) {
+      showToast('Error validating import file format');
+    } finally {
+      setIsValidatingImport(false);
+    }
+  };
+
+  const handleDatasetTypeChange = (newType: string) => {
+    setSelectedDatasetType(newType);
+    if (importFileRawText) {
+      validateImportContent(importFileRawText, newType);
+    }
   };
 
   const executeImportPayload = async () => {
@@ -2110,13 +2125,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rawContent: importFileRawText,
+          selectedDatasetType: selectedDatasetType !== 'auto' ? selectedDatasetType : undefined,
           mode: importMode
         })
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setImportReport(data);
-        showToast(`🎉 Import successful! Auto-backup ID: ${data.autoBackupId || 'saved'}`);
+        showToast(`🎉 Import successful! Auto-backup snapshot saved.`);
         await fetchCategories();
         await fetchProducts();
         await fetchCarouselSlides();
@@ -3208,7 +3224,7 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-8 gap-2.5">
-                    {products.map((prod) => (
+                    {activeProducts.map((prod) => (
                       <div 
                         key={prod.id}
                         onClick={() => handleOpenProduct(prod)}
@@ -3588,7 +3604,7 @@ export default function App() {
                   </div>
 
                   <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar py-2 scroll-smooth">
-                    {safeProducts.filter(p => p && (p.isFlashDeal || p.isFeatured || p.isNewArrival)).map(prod => (
+                    {safeProducts.filter(p => p && p.isActive !== false && (p.isFlashDeal || p.isFeatured || p.isNewArrival)).map(prod => (
                       <div 
                         key={prod.id}
                         className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer shrink-0 w-60"
@@ -3822,7 +3838,7 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-8 sm:grid-cols-6 lg:grid-cols-4 gap-4">
-                    {products.map(prod => (
+                    {activeProducts.map(prod => (
                       <div 
                         key={prod.id}
                         className="col-span-4 sm:col-span-2 lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer"
@@ -8450,6 +8466,34 @@ export default function App() {
                             </div>
                           </div>
 
+                          {/* Dataset Selection Selector Bar */}
+                          {importSelectedFile && importFileRawText && (
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                              <div>
+                                <label className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                                  <Filter className="w-4 h-4 text-emerald-600" />
+                                  <span>Administrator Dataset Selection:</span>
+                                </label>
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  Override automatic detection if importing a specific subset (Products, Categories, Orders, Settings, Carousel) or custom JSON backup.
+                                </p>
+                              </div>
+                              <select
+                                value={selectedDatasetType}
+                                onChange={(e) => handleDatasetTypeChange(e.target.value)}
+                                className="bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 shadow-xs focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                              >
+                                <option value="auto">⚡ Auto-Detect Dataset (Default)</option>
+                                <option value="full">📦 Full Store Backup (All Collections)</option>
+                                <option value="products">🛍️ Product Catalog</option>
+                                <option value="categories">🏷️ Categories & Subcategories</option>
+                                <option value="orders">🛒 Orders Dataset</option>
+                                <option value="carousel">🎠 Hero Carousel & Banners</option>
+                                <option value="settings">⚙️ Store Settings & Sections</option>
+                              </select>
+                            </div>
+                          )}
+
                           {/* Pre-Import Validation & Simulation Preview Card */}
                           {isValidatingImport && (
                             <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
@@ -8460,6 +8504,19 @@ export default function App() {
 
                           {importValidation && !isValidatingImport && (
                             <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
+                              {/* Requires Dataset Selection Warning Banner */}
+                              {importValidation.requiresDatasetSelection && (
+                                <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl p-4 text-xs space-y-1">
+                                  <p className="font-bold flex items-center gap-1.5 text-amber-900">
+                                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                    JSON file detected, but its dataset type could not be identified automatically.
+                                  </p>
+                                  <p className="text-amber-800">
+                                    Please select the target dataset type (e.g. Products, Categories, Full Backup) in the dropdown above to validate and preview the records.
+                                  </p>
+                                </div>
+                              )}
+
                               {/* Validation Status Header */}
                               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100">
                                 <div className="flex items-center gap-3">
