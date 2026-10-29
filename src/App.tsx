@@ -3224,7 +3224,7 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-8 gap-2.5">
-                    {activeProducts.map((prod) => (
+                    {products.map((prod) => (
                       <div 
                         key={prod.id}
                         onClick={() => handleOpenProduct(prod)}
@@ -3604,7 +3604,7 @@ export default function App() {
                   </div>
 
                   <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar py-2 scroll-smooth">
-                    {safeProducts.filter(p => p && p.isActive !== false && (p.isFlashDeal || p.isFeatured || p.isNewArrival)).map(prod => (
+                    {safeProducts.filter(p => p && (p.isFlashDeal || p.isFeatured || p.isNewArrival)).map(prod => (
                       <div 
                         key={prod.id}
                         className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer shrink-0 w-60"
@@ -3838,7 +3838,7 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-8 sm:grid-cols-6 lg:grid-cols-4 gap-4">
-                    {activeProducts.map(prod => (
+                    {products.map(prod => (
                       <div 
                         key={prod.id}
                         className="col-span-4 sm:col-span-2 lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between hover:shadow-xl transition group relative cursor-pointer"
@@ -6662,20 +6662,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Product Status Summary Bar */}
-                      <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold">
-                        <span className="text-slate-500">Catalog Summary:</span>
-                        <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-slate-800 font-bold">
-                          Total Products: {products.length}
-                        </span>
-                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-lg font-bold">
-                          Active: {products.filter(p => p.isActive !== false).length}
-                        </span>
-                        <span className="bg-slate-100 border border-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-bold">
-                          Inactive (Hidden): {products.filter(p => p.isActive === false).length}
-                        </span>
-                      </div>
-
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs">
                           <thead>
@@ -6685,7 +6671,6 @@ export default function App() {
                               <th className="p-3">Brand</th>
                               <th className="p-3">Price (PKR)</th>
                               <th className="p-3">Stock</th>
-                              <th className="p-3">Status</th>
                               <th className="p-3">Actions</th>
                             </tr>
                           </thead>
@@ -6697,9 +6682,6 @@ export default function App() {
                                 </td>
                                 <td className="p-3 font-bold text-slate-900">
                                   {prod.name}
-                                  {prod.isActive === false && (
-                                    <span className="ml-2 text-[10px] text-slate-400 font-normal italic">(Hidden from Storefront)</span>
-                                  )}
                                 </td>
                                 <td className="p-3 font-semibold text-emerald-600">{prod.brand}</td>
                                 <td className="p-3 font-bold">PKR {prod.price.toLocaleString()}</td>
@@ -6708,35 +6690,7 @@ export default function App() {
                                     {prod.stock} units
                                   </span>
                                 </td>
-                                <td className="p-3">
-                                  <button 
-                                    type="button"
-                                    onClick={(e) => handleToggleProductStatus(prod.id, e)}
-                                    className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-xs border ${
-                                      prod.isActive !== false 
-                                        ? 'bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200' 
-                                        : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200'
-                                    }`}
-                                    title={prod.isActive !== false ? "Click to Deactivate (Hide from Storefront)" : "Click to Activate (Show on Storefront)"}
-                                  >
-                                    <span className={`w-2 h-2 rounded-full ${prod.isActive !== false ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400'}`} />
-                                    <span>{prod.isActive !== false ? 'Active (ON)' : 'Inactive (OFF)'}</span>
-                                  </button>
-                                </td>
                                 <td className="p-3 flex items-center gap-2">
-                                  <button 
-                                    type="button"
-                                    onClick={(e) => handleToggleProductStatus(prod.id, e)}
-                                    className={`p-2 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                                      prod.isActive !== false
-                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-700'
-                                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
-                                    }`}
-                                    title={prod.isActive !== false ? "Deactivate Product" : "Activate Product"}
-                                  >
-                                    <Zap className="w-4 h-4" />
-                                    <span className="hidden lg:inline">{prod.isActive !== false ? 'Deactivate' : 'Activate'}</span>
-                                  </button>
                                   <button 
                                     onClick={() => {
                                       setEditingProductId(prod.id);
@@ -6758,8 +6712,7 @@ export default function App() {
                                         sizesString: existingSizes || 'S, M, L, XL',
                                         isFlashDeal: !!prod.isFlashDeal,
                                         isFeatured: !!prod.isFeatured,
-                                        sku: (prod as any).sku || prod.variants?.[0]?.sku || '',
-                                        isActive: prod.isActive !== false
+                                        sku: (prod as any).sku || prod.variants?.[0]?.sku || ''
                                       });
                                       setIsProductModalOpen(true);
                                     }}
@@ -9231,15 +9184,6 @@ export default function App() {
                               />
                               <span>Featured Home Showcase</span>
                             </label>
-                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-emerald-800">
-                              <input 
-                                type="checkbox" 
-                                checked={productForm.isActive !== false}
-                                onChange={(e) => setProductForm({...productForm, isActive: e.target.checked})}
-                                className="w-4 h-4 text-emerald-600 rounded accent-emerald-600"
-                              />
-                              <span>Active (Visible on Storefront)</span>
-                            </label>
                           </div>
 
                           <div className="flex gap-3 pt-4 border-t border-slate-100">
@@ -9357,18 +9301,6 @@ export default function App() {
                               onChange={(e) => setCategoryForm({...categoryForm, description: e.target.value})}
                               className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none transition"
                             />
-                          </div>
-
-                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-teal-900">
-                              <input 
-                                type="checkbox" 
-                                checked={categoryForm.isActive !== false}
-                                onChange={(e) => setCategoryForm({...categoryForm, isActive: e.target.checked})}
-                                className="w-4 h-4 text-teal-600 rounded accent-teal-600"
-                              />
-                              <span>Active Category (Visible on Storefront & Shop Navigation)</span>
-                            </label>
                           </div>
 
                           <div className="flex gap-3 pt-4 border-t border-slate-100">
